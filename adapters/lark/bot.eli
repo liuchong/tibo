@@ -8,7 +8,7 @@
   (import "../../src/host.eli" Date Promise Number RegExp AbortController)
   (import "../../src/state.eli" with-lock write-state)
   (import "../../src/util.eli" iso ms fail)
-  (import "./service.eli" group-config command-of sender-context slot-at)
+  (import "./service.eli" group-config command-of sender-context slot-at reaction-job)
   (defasync lark-config ()
     (await (load-config))
     (let* ((env (get process :env)) (groups (group-config)) (domain (get env :TIBO_LARK_DOMAIN "feishu"))
@@ -47,13 +47,16 @@
             (let ((bot-id (await (identify client config))) (groups (get config :groups)))
               (unless stopping
                 (setq inbox (await (create-inbox client groups)))
-                (setq ws (await (open-socket client (async (event)
+                (setq ws (await (open-socket client (async (event header)
+                  (if (= (get header :event_type) "im.message.reaction.created_v1")
+                    (let ((job (await (reaction-job event groups))))
+                      (when (and (not stopping) job) (await (js-call inbox :accept job))))
                   (let* ((command (command-of event groups bot-id)) (message (get event :message (js-object)))
                          (id (get message :message_id)) (created (Number (get message :create_time 0))))
                     (when (and (not stopping) command (= (value-type id) "string") (> (get id :length) 0)
                                (> created (- (Date/now) 300000)) (<= created (+ (Date/now) 60000)))
                       (await (js-call inbox :accept (js-object :group (get message :chat_id) :key id :command command
-                        :context (sender-context event) :acceptedAt (iso (Date/now)))))) nil)) (get controller :signal))))
+                        :context (sender-context event) :acceptedAt (iso (Date/now)))))) nil))) (get controller :signal))))
                 (let ((tick (async ()
                   (unless stopping
                     (let ((slot (slot-at (iso (Date/now)))))
@@ -68,7 +71,7 @@
                   (js-call inbox :resume)
                   (await (funcall tick))
                   (setq timer (setInterval (lambda () (js-call (funcall tick) :catch (lambda (error) (console/error "tibo-lark: 定时任务或状态更新失败")))) 60000)))
-                (console/error "tibo-lark: 已启动；只接收配置群中明确@本机器人的命令")
+                (console/error "tibo-lark: 已启动；配置群查询须@本机器人，收到🙏文字或本机器人消息的🙏回应可上香")
                 (await stopped)))
             (finally
               (funcall stop)

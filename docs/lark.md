@@ -13,9 +13,9 @@
 
 ## 开放平台设置
 
-在对应平台创建企业自建应用，开启机器人能力。在事件配置选择**使用长连接接收事件**，订阅 `im.message.receive_v1`；启用接收群聊中@机器人消息权限 `im:message.group_at_msg:readonly`、以应用身份发送消息权限 `im:message:send_as_bot`。根据租户要求完成审批、发布应用、设置可用范围，并把机器人加入授权群。
+在对应平台创建企业自建应用，开启机器人能力。在事件配置选择**使用长连接接收事件**，订阅 `im.message.receive_v1` 和 `im.message.reaction.created_v1`（消息被reaction）；启用接收群聊中@机器人消息权限 `im:message.group_at_msg:readonly`、以应用身份发送消息权限 `im:message:send_as_bot`、查看消息表情回复权限 `im:message.reactions:read`。根据租户要求完成审批、发布应用、设置可用范围，并把机器人加入授权群。
 
-首次保存长连接订阅配置如要求先建立连接，可先完成本地配置并前台启动，然后保存订阅并发布。订阅与权限是否实际生效以真实群收发为准。私聊、非文本消息、卡片回调和未@机器人的群消息不作为命令入口。
+首次保存长连接订阅配置如要求先建立连接，可先完成本地配置并前台启动，然后保存订阅并发布。订阅与权限是否实际生效以真实群收发为准。私聊、非文本消息和卡片回调不作为命令入口。普通群查询要求@；已收到的文本含🙏则只执行pray，无需@。如果平台不投递未@文字，程序无法处理它；按实际群设置决定是否开通更广的群消息接收权限，不自动要求读取全群消息。
 
 ## 私有配置
 
@@ -43,7 +43,9 @@ bun run compile
 .tibo/bin/tibo-lark run
 ```
 
-`check`只验证配置、tenant token和机器人身份，不建立事件连接、不发送消息、不证明群权限已经生效。前台启动成功会写本地运行状态并显示“已启动”；使用 Ctrl-C 正常关闭。只有配置群中、来自user的文本消息、准确@本机器人的命令会进入收件箱。消息创建超过五分钟或未来超过一分钟均忽略。
+`check`只验证配置、tenant token和机器人身份，不建立事件连接、不发送消息、不证明群权限已经生效。前台启动成功会写本地运行状态并显示“已启动”；使用 Ctrl-C 正常关闭。配置群中来自user的普通查询需要准确@本机器人；🙏文字是例外。消息或表情事件超过五分钟或未来超过一分钟均忽略。
+
+点击本机器人消息上的「双手合十」🙏，事件的`reaction_type.emoji_type`是`THANKS`。程序仅接受user操作者，凭本地成功发送消息索引确认目标属于本应用且所在群已授权，不额外请求全群消息内容。每人每条目标消息最多记一次；撤销重加、重投不重复，其他表情和别人消息上的回应忽略。程序尚未记录的旧机器人消息不计入。重装保留香客档案和消息索引；榜单按群分别统计，具体玩法见[命令列表](commands.md)。
 
 群内试用 `@机器人 帮助`、`@机器人 预测`、`@机器人 发言 3 reset`；启用router后可以说 `@机器人 未来两天重置几率多大`。管理员和普通成员分别验证写操作是否显示/拒绝；可用“清空经验”在测试状态目录申请，确认前应保留数据，确认后应产生本地备份。同一确认ID重复执行无效；换人、换群或超过五分钟也无效。完整命令见[命令列表](commands.md)。群内回复只包含业务结果，任何AI/网络/文件错误均用通用提示，具体配置和模型信息不发群。
 
@@ -88,8 +90,8 @@ bun run compile
 
 ## 已验证范围
 
-`bun test tests/lark-runtime.test.mjs`启动实际Bun HTTP/WebSocket本地服务和独立程序子进程，模拟官方端点：token、自动识别bot、protobuf事件、心跳、ACK、富文本回复、去重、群权限、管理员确认与备份、AI错误隐私、重连、关闭、收件箱恢复，以及09:00/21:00推送和同一时段重启去重。测试通过测试专用传输映射和时钟控制连接本地服务；正式程序不提供任意API主机或测试时钟配置。
+`bun test tests/lark-runtime.test.mjs`启动实际Bun HTTP/WebSocket本地服务和独立程序子进程，模拟官方端点：token、自动识别bot、protobuf事件、心跳、ACK、富文本回复、去重、群权限、管理员确认与备份、AI错误隐私、重连、关闭、收件箱恢复，以及09:00/21:00推送和同一时段重启去重。包含未@的🙏文本、THANKS事件、同人同消息去重、其他人消息/表情/应用操作者忽略及两人匿名榜。测试通过测试专用传输映射和时钟控制连接本地服务；正式程序不提供任意API主机或测试时钟配置。
 
 本地协议试用不能证明真实平台权限、真实事件字段、客户端富文本渲染或真实群送达。收到机器人资料后仍需完成这些验收，并用成功送达的message_id核对查询与早晚报。
 
-协议参考：[消息发送](https://open.feishu.cn/document/server-docs/im-v1/message/create)、[消息接收事件](https://open.feishu.cn/document/server-docs/im-v1/message/events/receive)、[官方长连接实现](https://github.com/larksuite/node-sdk/blob/main/ws-client/index.ts)。只核对协议，不安装或运行SDK。
+协议参考：[消息发送](https://open.feishu.cn/document/server-docs/im-v1/message/create)、[消息接收事件](https://open.feishu.cn/document/server-docs/im-v1/message/events/receive)、[表情回应事件及权限](https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/im-v1/message-reaction/events/created)、[表情枚举](https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/im-v1/message-reaction/emojis-introduce)、[官方长连接实现](https://github.com/larksuite/node-sdk/blob/main/ws-client/index.ts)。只核对协议，不安装或运行SDK。其他IM的分层边界见[接入层约定](im-adapters.md)。

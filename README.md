@@ -85,7 +85,7 @@ bun run service:install
 
 ## 查询命令
 
-支持预测、状态、X发言、公告历史、banked发卡、近期信号、历史统计、帮助。固定指令直接执行，开启router后可用自然语言；AI只选白名单命令与参数，解析失败不猜测执行。用 `tibo help` / `tibo commands` 或“有哪些命令能用”查看生成的帮助，详见[命令与参数列表](docs/commands.md)。
+支持预测、状态、X发言、公告历史、banked发卡、近期信号、历史统计、帮助，以及趣味祈祷pray。固定指令直接执行，开启router后可用自然语言；AI只选白名单命令与参数，解析失败不猜测执行。用 `tibo help` / `tibo commands` 或“有哪些命令能用”查看生成的帮助，详见[命令与参数列表](docs/commands.md)。
 
 ```sh
 bun bin/tibo.mjs query "发言 3 reset"
@@ -104,11 +104,13 @@ CLI中未识别为固定CLI命令的输入，整句自动按 `ask` 处理，无�
 
 无需 SDK 或公网 webhook：自行获取 tenant token，直调消息 API，使用 Bun 原生 WebSocket 接收 protobuf 事件，处理心跳、断线重连、分片与 ACK。Token 只存内存，日志不输出凭据或连接 URL。
 
-只响应配置群中用户准确@本机器人的业务查询，固定指令和可选语义模式共用命令目录。群消息只发送经过隐私过滤的业务结果，错误用通用提示，维护命令不开放到群或AI。北京时间早晚报允许当前时段前15分钟内补发，错过时段不追发。只有成功送达的预测才更新该群上一份报告。
+普通查询只响应配置群中用户准确@本机器人的请求，固定指令和可选语义模式共用命令目录。收到含🙏的文字则执行pray，不要求@；点击本机器人消息上的「双手合十」🙏同样记一次。每人有会话内匿名档案、功德称号和连续打卡成就，`pray me / board / stats`可查询；冷却和去重防刷，个人与集体彩蛋都不改变真实预测。群消息只发送经过隐私过滤的业务结果，错误用通用提示，维护命令不开放到群或AI。北京时间早晚报允许当前时段前15分钟内补发，错过时段不追发。只有成功送达的预测才更新该群上一份报告。
 
 投递前持久化账本，消息使用稳定 UUID；只有 API code=0 且返回 message_id 才标记 sent。未知结果记录 uncertain，重启不自动重发。遗留实例锁需先确认旧进程已停止再处理。
 
 命令先持久化到最多32条的收件箱，再返回平台 ACK；重启继续处理已接收的查询，存在投递记录的任务不重复执行。独立入口支持 `check`、`status` 和 `service install/restart/status/uninstall`。接入配置、安装与真实群试用见[飞书接入](docs/lark.md)。
+
+Tibo是独立程序，Lark只是其中一种IM接入。命令、语义路由、预测与祈祷业务位于Eliscript核心，CLI/MCP/IM共用；其他IM按[接入层约定](docs/im-adapters.md)传递可信身份和通用请求即可复用祈祷逻辑。
 
 真实飞书群内收发、权限与定时报送需要部署环境试用，本地协议模拟不能替代。参考协议：[MCP stdio](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports)、[X oEmbed](https://docs.x.com/x-for-websites/oembed-api)、[飞书消息 API](https://open.feishu.cn/document/server-docs/im-v1/message/create)。
 

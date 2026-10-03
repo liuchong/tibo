@@ -6,7 +6,7 @@ import {join,resolve} from 'node:path';
 import {encode_frame,decode_frame,header_value} from '../dist/adapters/lark/wire.mjs';
 import {create_inbox} from '../dist/adapters/lark/inbox.mjs';
 import {read_state,write_state} from '../dist/src/state.mjs';
-import {delivery_key} from '../dist/adapters/lark/service.mjs';
+import {delivery_key,message_key} from '../dist/adapters/lark/service.mjs';
 import {paths,plist} from '../dist/src/service.mjs';
 import {snapshot} from './fixture.mjs';
 const delay=ms=>new Promise(r=>setTimeout(r,ms));
@@ -41,6 +41,11 @@ test('native HTTP/WebSocket bot receives, persists before ACK, replies, enforces
   const frame={sequence:BigInt(++sequence),log:9007199254740993n,service:809,kind:1,headers:[{key:'type',value:'event'}],payload:new TextEncoder().encode(JSON.stringify(event))};
   sockets.at(-1).send(encode_frame(frame));return sequence;
  };
+ const react=(message='om_reply8',actor='ou_admin',emoji='THANKS',type='user')=>{
+  sockets.at(-1).send(encode_frame({sequence:BigInt(++sequence),log:1n,service:809,kind:1,
+   headers:[{key:'type',value:'event'}],payload:new TextEncoder().encode(JSON.stringify({header:{event_type:'im.message.reaction.created_v1'},
+    event:{message_id:message,operator_type:type,user_id:{open_id:actor},reaction_type:{emoji_type:emoji},action_time:String(trialNow)}}))}));
+ };
  try{
   await writeFile(join(dir,'experience.json'),JSON.stringify({sentinel:'preserved'}));
   const env={...process.env,TIBO_TEST_NOW:'2026-10-04T05:00:00Z',TIBO_CONFIG_FILE:join(dir,'absent.env'),TIBO_STATE_DIR:dir,TIBO_SNAPSHOT:'',TIBO_LARK_APP_ID:'fixture-app',TIBO_LARK_APP_SECRET:'fixture-secret',TIBO_LARK_CHAT_IDS:'oc_fixture',TIBO_LARK_BOT_OPEN_ID:'',TIBO_LARK_ADMIN_OPEN_IDS:'ou_admin',TIBO_LARK_DOMAIN:'feishu',TIBO_AI_FEATURES:'router',DEEPSEEK_API_KEY:'fixture-router-key',TIBO_TEST_SERVER:server.url.origin};
@@ -63,12 +68,22 @@ test('native HTTP/WebSocket bot receives, persists before ACK, replies, enforces
   for(const post of posts){expect(post.content).not.toMatch(/fixture-secret|fixture-router-key|local-tenant|\/Users\/|deepseek|TIBO_|\.env/i);expect(post.uuid.length).toBe(40);expect(post.receive_id).toBe('oc_fixture');}
   sockets.at(-1).close();await until(()=>socketCount===2,4000);send('help','om_reconnected',{},'ou_other');await until(()=>posts.length===7);expect(text(6)).not.toContain('clear-experience');
   expect(requests.filter(x=>x.path.includes('tenant_access_token'))).toHaveLength(1);expect(requests.find(x=>x.path==='/open-apis/bot/v3/info').auth).toBe('Bearer local-tenant');
+  send('🙏🏽🙏','om_pray',{mentions:[],content:JSON.stringify({text:'🙏🏽🙏'})});await until(()=>posts.length===8);
+  expect(text(7)).toContain('累计🙏 1');expect(text(7)).toContain('第一炷');
+  await until(async()=>{try{return !!JSON.parse(await readFile(join(dir,message_key('om_reply8')+'.json'),'utf8'));}catch{return false;}});
+  react();await until(()=>posts.length===9);expect(text(8)).toContain('累计🙏 2');expect(text(8)).toContain('冷却');
+  const ackStart=acks.length;
+  react();react('om_someone_else');react('om_reply8','ou_admin','SMILE');react('om_reply8','ou_admin','THANKS','app');
+  await until(()=>acks.length>=ackStart+4);await delay(80);expect(posts).toHaveLength(9);
+  react('om_reply8','ou_other');await until(()=>posts.length===10);expect(text(9)).toContain('香客002');
+  send('pray board','om_board');await until(()=>posts.length===11);expect(text(10)).toContain('香客001');expect(text(10)).toContain('香客002');
+  for(const post of posts)expect(post.content).not.toMatch(/fixture-secret|fixture-router-key|local-tenant|\/Users\/|deepseek|oc_fixture|ou_admin|ou_other/i);
   child.kill('SIGTERM');expect(await closed).toBe(0);expect(JSON.parse(await readFile(join(dir,'lark-runtime.json'),'utf8')).state).toBe('stopped');
   expect((await readdir(dir)).some(x=>x.endsWith('.lock'))).toBe(false);
-  console.log('Local Lark trial: 7 HTTP replies, duplicate/unauthorized/stale ignored, administrator two-step confirmation + backup, AI private error hidden, reconnect and graceful stop.');
+  console.log('Local Lark trial: 11 HTTP replies; text 🙏 without mention, actual THANKS reaction event, reaction dedup/ownership/actor checks, anonymous board, admin confirmation, private errors, reconnect and stop.');
   // Run the complete scheduler at Beijing 09:02, then restart in the same slot.
   await writeFile(join(dir,'ledger.json'),JSON.stringify(snapshot()));
-  for(const [time,count,title] of [['2026-10-04T01:02:00Z',8,'09:00'],['2026-10-04T01:02:00Z',8,null],['2026-10-04T13:02:00Z',9,'21:00']]){
+  for(const [time,count,title] of [['2026-10-04T01:02:00Z',12,'09:00'],['2026-10-04T01:02:00Z',12,null],['2026-10-04T13:02:00Z',13,'21:00']]){
    stderr='';child=spawn(process.execPath,[resolve('tests/helpers/lark-client.mjs')],{env:{...env,TIBO_TEST_NOW:time,TIBO_AI_FEATURES:''},stdio:['ignore','pipe','pipe']});
    child.stderr.on('data',x=>stderr+=x);closed=new Promise(r=>child.once('close',r));await until(()=>stderr.includes('已启动'));
    if(title){await until(()=>posts.length===count);expect(text(count-1)).toContain('北京时间 10-04 '+title);expect(text(count-1)).toContain('24h');expect(text(count-1)).toContain('48h');}
