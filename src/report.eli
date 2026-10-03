@@ -53,7 +53,7 @@
           (utc (get history :start)) " 起共 " (get history :count) " 个（含存档观测）")))
       (js-call lines :push (bullet "条件样本" (str "已等 " (decimal (get history :elapsedDays)) " 天后，24h 内 "
         (get (get history :all) :a) "/" (get (get history :all) :n) "，48h 内 " (get (get history :all) :b) "/" (get (get history :all) :n)
-        "；8 月起 " (ratios (get history :recent)))))
+        "；最近 12 个间隔 " (ratios (get history :recent)))))
       (js-call lines :push (bullet "最近一次 banked"
         (if banked (str (utc (get banked :at)) "，来源：" (if (get banked :verifiedBanked) "Tibo 原帖" "仅站点观测")
           "；不移动 global 时钟，不重复计算已消耗承诺") "无（历史记录中未见）")))
@@ -61,8 +61,12 @@
       (js-call lines :push (bullet "催化"
         (if catalyst (str "发布/里程碑（" (get catalyst :text) "）；" (if (get catalyst :consumed) "已被前次 reset 或 banked 消耗" "未确认已消耗；不自动等同 global 承诺")) "未核实（已读近 48h 原文未识别，完整性未核实）")))
       (js-call lines :push "**概率推导**")
-      (js-call lines :push (bullet "24h" (str (Math/round (get prob :base24)) "% 条件基线 → " (values (get prob :reasons)) " → " (get prob :p24) "%")))
-      (js-call lines :push (bullet "48h" (str (Math/round (get prob :base48)) "% 条件基线 → " (values (get prob :reasons)) " → " (get prob :p48) "%")))
+      (js-call lines :push (bullet "24h" (str (Math/round (get prob :base24)) "% 历史模型 → " (values (get prob :reasons)) " → " (get prob :p24) "%")))
+      (js-call lines :push (bullet "48h" (str (Math/round (get prob :base48)) "% 历史模型 → " (values (get prob :reasons)) " → " (get prob :p48) "%")))
+      (js-call lines :push (bullet "信号判断" (str (get prob :signal) "；证据强度 " (get prob :signalStrength) "；与历史概率分开")))
+      (js-call lines :push (bullet "模型验证" (str "可用 " (get (get prob :model) :usableIntervals) " 个间隔，排除 "
+        (get (get prob :model) :excludedIntervals) " 个观测间隔；逐步回测 " (get (get (get prob :model) :evaluation) :n)
+        " 个时点（窗口相关，非线上成绩）；未证明概率已校准")))
       (js-call lines :push (str "**未核实项**：" (if (= (get unknowns :length) 0) "无" (values unknowns))))
       (js-call lines :push "**执行摘要**")
       (js-call lines :push (bullet "关键数据点" (str (get prob :p24) "%/" (get prob :p48) "%；距上次 global "
