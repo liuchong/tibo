@@ -12,9 +12,15 @@
   (import "./admin.eli" cli-context)
   (import "./state.eli" with-lock read-state)
   (import "./util.eli" json fail ms)
-  (defconst help "tibo query \"固定指令\" / ask \"自然语言提问\"\ntibo commands\ntibo posts [--limit N] [--hours N] [--keyword TEXT] [--offline]\ntibo banked / signals / stats [--offline]\ntibo forecast [--json] [--no-ai] [--offline] [--snapshot FILE]\ntibo status [--since ISO-UTC] [--offline] [--snapshot FILE]\ntibo history [--offline] [--snapshot FILE]\ntibo evaluate [--snapshot FILE]\ntibo ai-status\ntibo clear-history / clear-experience / reset-ai（先申请）\ntibo confirm ID / cancel ID\ntibo daemon [--once] / daemon-status\ntibo service install|restart|status|uninstall\ntibo mcp\n\n核心无需API key；AI各功能可选且失败自动降级。业务查询与本地维护命令分开，远程不开放维护命令。默认配置 ~/.config/tibo/config.env，环境变量优先。")
+  (defconst help "tibo query \"固定指令\" / ask \"自然语言提问\"\ntibo \"自然语言提问\"（未识别为CLI命令时自动ask）\ntibo commands\ntibo posts [--limit N] [--hours N] [--keyword TEXT] [--offline]\ntibo banked / signals / stats [--offline]\ntibo forecast [--json] [--no-ai] [--offline] [--snapshot FILE]\ntibo status [--since ISO-UTC] [--offline] [--snapshot FILE]\ntibo history [--offline] [--snapshot FILE]\ntibo evaluate [--snapshot FILE]\ntibo ai-status\ntibo clear-history / clear-experience / reset-ai（先申请）\ntibo confirm ID / cancel ID\ntibo daemon [--once] / daemon-status\ntibo service install|restart|status|uninstall\ntibo mcp\n\n核心无需API key；AI各功能可选且失败自动降级。业务查询与本地维护命令分开，远程不开放维护命令。默认配置 ~/.config/tibo/config.env，环境变量优先。")
+  (defconst cli-commands (js-array "forecast" "status" "history" "posts" "banked" "signals" "stats" "help" "--help" "-h"
+    "query" "ask" "commands" "evaluate" "ai-status" "clear-history" "clear-experience" "reset-ai" "ai-reset" "confirm" "cancel"
+    "daemon" "daemon-status" "service" "mcp"))
   (defun parse-args (argv)
-    (let ((options (js-object :command (get argv 0 "forecast"))) (index 1))
+    (if (and (> (get argv :length) 0) (not (js-call cli-commands :includes (get argv 0))))
+      ;; Preserve the whole question, including tokens resembling CLI options.
+      (js-object :command "ask" :question (js-call argv :join " "))
+      (let ((options (js-object :command (get argv 0 "forecast"))) (index 1))
       (while (< index (get argv :length))
         (let ((arg (get argv index)))
           (cond ((or (= (get options :command) "ask") (= (get options :command) "query"))
@@ -35,7 +41,7 @@
                   (put options (if (= arg "--snapshot") "snapshotPath" "since") (get argv index)))
                 (t (fail (str "未知参数：" arg)))))
         (setq index (+ index 1)))
-      options))
+      options)))
   (defasync main ()
     (try
       (await (load-config))
