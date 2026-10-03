@@ -33,7 +33,7 @@ test('credential change releases old auth block; disabled capabilities make no H
 });
 test('AI deadline and corrupt optional state preserve the core forecast',async()=>{
  const r=await trial(`globalThis.fetch=async(url,o)=>new Promise((resolve,reject)=>o.signal.addEventListener('abort',()=>reject(new Error('deadline'))));const {ai_call}=await import(${JSON.stringify(gateway)});const a=await ai_call('signals',{instruction:'JSON',evidence:{}},v=>v,10);const fs=await import('node:fs/promises');await fs.writeFile(process.env.TIBO_STATE_DIR+'/ai.json','bad');const {judge}=await import(${JSON.stringify(resolve('dist/src/engine.mjs'))});const {enhance}=await import(${JSON.stringify(resolve('dist/src/ai.mjs'))});const result=judge(${JSON.stringify(snapshot())}),base={p24:result.forecast.p24,p48:result.forecast.p48};await enhance(result);console.log(JSON.stringify({a,base,p24:result.forecast.p24,p48:result.forecast.p48,features:result.ai.features}));`);
- expect(r.a.state).toBe('fallback');expect(r.p24).toBe(r.base.p24);expect(r.p48).toBe(r.base.p48);expect(Object.values(r.features).every(x=>x.state==='fallback')).toBe(true);
+ expect(r.a.state).toBe('fallback');expect(r.p24).toBe(r.base.p24);expect(r.p48).toBe(r.base.p48);expect(r.features.signals.state).toBe('fallback');expect(r.features.forecast.state).toBe('skipped');expect(r.features.brief.state).toBe('skipped');
 });
 test('semantic references and probability proposals reject invented or consumed evidence',()=>{
  const i=evidence(judge(snapshot({posts:[post(24,'Reset all propagated.',{id:'event-24'}),post(25,'Global reset landing tomorrow for all users.')]})));

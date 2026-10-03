@@ -27,13 +27,13 @@ bun run service:install
 
 ```dotenv
 DEEPSEEK_API_KEY=<实际密钥>
-TIBO_AI_FEATURES=signals,forecast,brief,router
+TIBO_AI_FEATURES=signals,search,research,forecast,review,brief,router
 TIBO_AI_WEIGHT=0.2
 TIBO_DAEMON_INTERVAL=900
 TIBO_STATE_DIR=/absolute/path/to/state
 ```
 
-`TIBO_AI_FEATURES` 可以为空，或由signals、forecast、brief、router逗号组合。router是可选语义命令解析，固定查询不需要它。完整指令见[业务查询命令](commands.md)。模型固定deepseek-flash，官方端点固定https://api.deepseek.com/chat/completions。配置文件不是shell脚本，不支持变量展开。环境变量优先；源代码运行时Bun自动加载的项目.env也属于环境变量。新配置在进程下次启动时加载。
+`TIBO_AI_FEATURES` 可为空，或由signals、search、research、forecast、review、brief、router逗号组合。router是语义命令解析，固定查询不需要它。指令见[业务命令](commands.md)，任务和预算见[AI调研](ai-research.md)。旧配置不会被重装覆盖，启用新任务需添加search、research、review。模型固定deepseek-flash，官方端点固定https://api.deepseek.com/chat/completions。配置不是shell脚本，不支持变量展开。环境变量优先，Bun读取的项目.env也属于环境变量；新配置在进程下次启动时加载。
 
 ## 实际验收
 
@@ -46,7 +46,7 @@ tail -n 20 ~/.local/state/tibo/daemon.stderr.log
 
 service status 的loaded为true，launchd输出中state=running且有pid，才说明服务已启动。还须等daemon-status出现state=ready、finishedAt和概率，并查看daemon-latest.json中的report；单凭安装成功不能证明采集成功。首次网络采集可能需要一分钟。
 
-`daemon.json`表示当前/最近轮次，`daemon-latest.json`是最近成功报告；`ledger.json`是历史，`experience.json`是前瞻预测，`ai.json`是暂停与缓存状态。报告明确记录各AI功能的ok/cached/disabled/blocked/fallback。全部AI失败也应产出自有算法概率。采集数据不足时daemon标为degraded并保留上次成功报告，下轮继续，不编造概率。
+`daemon.json`表示当前/最近轮次，`daemon-latest.json`是最近成功报告；`ledger.json`是历史，`experience.json`是前瞻预测，`ai.json`是暂停与缓存状态。报告记录ok/cached/disabled/skipped/blocked/fallback；skipped表示无适用信息而主动跳过。ai-status可看任务请求数、服务返回的输入/输出token累计与最近延迟；缓存命中不增加请求，网络失败未返回usage时无法知道供应商是否计费。全部AI失败仍产出自有算法概率。采集不足时daemon标为degraded并保留上次成功报告，下轮继续，不编造概率。
 
 ## 更新与重装
 

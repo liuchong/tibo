@@ -84,6 +84,12 @@
                 (if (get feature :reason) (str "；" (get feature :reason)) "")
                 (if (get feature :retryAt) (str "；最早重试 " (utc (get feature :retryAt))) "")))))))
           (let ((semantic (get features :signals)) (proposal (get features :forecast)) (brief (get features :brief)))
+            (let ((research (get features :research)) (review (get features :review)))
+              (when (and research (get research :value))
+                (js-call lines :push (bullet "资料调研" (str (get (get (get research :value) :facts) :length) "条引用事实、"
+                  (get (get (get research :value) :links) :length) "条事件关联；类别与关联是AI推断，不修改global时钟"))))
+              (when (and review (get review :value))
+                (js-call lines :push (bullet "建议复核" (if (get (get review :value) :accept) "本次建议通过复核，仍未校准" "本次建议被拒绝，保留自有算法")))))
             (when (get semantic :value)
               (js-call (get (get semantic :value) :items) :forEach (lambda (item)
                 (js-call lines :push (bullet "原帖解读" (str (get item :kind) "｜" (get item :summary) "｜" (get item :postId) "｜" (get item :quote)))))))
