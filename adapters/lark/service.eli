@@ -13,7 +13,7 @@
         (js-object :transport "lark" :actor (get id :open_id "") :scope (get message :chat_id "")))))
   (defun group-config ()
     (let* ((raw (get (get process :env) :TIBO_LARK_CHAT_IDS ""))
-           (groups (js-call (js-call raw :split ",") :filter (lambda (x) (> (get x :length) 0)))))
+           (groups (Array/from (new Set (js-call (js-call (js-call raw :split ",") :map (lambda (x) (js-call x :trim))) :filter (lambda (x) (> (get x :length) 0)))))))
       (unless (and (> (get groups :length) 0) (js-call groups :every
         (lambda (id) (js-call (new RegExp "^oc_[a-zA-Z0-9]+$") :test id)))) (fail "TIBO_LARK_CHAT_IDS 必须为明确授权的群ID列表"))
       groups))
@@ -45,8 +45,11 @@
     (let ((response (await (js-call client :send
       (js-object :receive_id group :msg_type "post" :content (markdown-post (public-text text))
                         :uuid (js-call key :slice -40))))))
-      (unless (and (= (get response :code) 0) (get (get response :data) :message_id))
-        (fail "Lark 返回失败或缺少 message_id"))
+      (unless (= (get response :code) 0)
+        (let ((error (new Error "Lark 消息 API 拒绝请求")))
+          (when (Number/isInteger (get response :code)) (put error :larkCode (get response :code)))
+          (throw error)))
+      (unless (get (get response :data (js-object)) :message_id) (fail "Lark 返回缺少 message_id"))
       (get (get response :data) :message_id)))
   (defasync deliver (client group key command &optional title-time context)
     (let ((ledger-key (delivery-key group key)))
@@ -67,7 +70,8 @@
         (catch error
           (let ((ledger (await (read-state ledger-key))))
             (unless (= (get ledger :state) "sent")
-              (await (write-state ledger-key (js-object :state (if (= (get ledger :state) "sending") "uncertain" "failed-before-send")
-                     :at (iso (Date/now)) :group group :key key)))))
+              (await (write-state ledger-key (js-object :state (if (Number/isInteger (get error :larkCode)) "rejected"
+                       (if (= (get ledger :state) "sending") "uncertain" "failed-before-send"))
+                     :larkCode (get error :larkCode) :at (iso (Date/now)) :group group :key key)))))
           (throw (new Error "投递未完成；检查本地账本，未知结果不自动重试"))))))
   (export group-config command-of sender-context slot-at delivery-key markdown-post send-report deliver))

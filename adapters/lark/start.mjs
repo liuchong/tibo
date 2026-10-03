@@ -1,1 +1,1 @@
-await import('../../dist/adapters/lark/bot.mjs');
+await import('../../dist/adapters/lark/main.mjs');

@@ -10,6 +10,7 @@
   (defconst Intl (js* "globalThis.Intl"))
   (defconst fetch (js* "globalThis.fetch"))
   (defconst AbortSignal (js* "globalThis.AbortSignal"))
+  (defconst AbortController (js* "globalThis.AbortController"))
   (defconst BigInt (js* "globalThis.BigInt"))
   (defconst Uint8Array (js* "globalThis.Uint8Array"))
   (defconst TextEncoder (js* "globalThis.TextEncoder"))
@@ -18,4 +19,4 @@
   (defconst URL (js* "globalThis.URL"))
   (defconst encodeURIComponent (js* "globalThis.encodeURIComponent"))
   (defconst parseInt (js* "globalThis.parseInt"))
-  (export Error Date Promise RegExp Map Set Number Intl fetch AbortSignal BigInt Uint8Array TextEncoder TextDecoder WebSocket URL encodeURIComponent parseInt))
+  (export Error Date Promise RegExp Map Set Number Intl fetch AbortSignal AbortController BigInt Uint8Array TextEncoder TextDecoder WebSocket URL encodeURIComponent parseInt))

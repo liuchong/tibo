@@ -95,7 +95,7 @@ bun bin/tibo.mjs posts --limit 3 --offline
 
 ## 飞书
 
-复制 `.env.example` 为 `.env`，填写 `TIBO_LARK_APP_ID`、`TIBO_LARK_APP_SECRET`、`TIBO_LARK_BOT_OPEN_ID`、`TIBO_LARK_CHAT_IDS`（逗号分隔的 `oc_...` 群 ID）。国际版配置 `TIBO_LARK_DOMAIN=lark`。
+在私有配置 `~/.config/tibo/config.env` 中填写 `TIBO_LARK_APP_ID`、`TIBO_LARK_APP_SECRET`、`TIBO_LARK_CHAT_IDS`（逗号分隔的 `oc_...` 群 ID）。国际版配置 `TIBO_LARK_DOMAIN=lark`。启动通过官方 API 自动获取 bot open_id；`TIBO_LARK_BOT_OPEN_ID` 可选，只用于断言身份一致。
 
 在自己的自建应用中启用机器人、长连接事件订阅 `im.message.receive_v1`，授权群内 @ 消息读取和 `im:message:send_as_bot`，发布应用并加入配置群。启动 `bun run lark` 或可执行文件 `tibo-lark`。
 
@@ -104,6 +104,8 @@ bun bin/tibo.mjs posts --limit 3 --offline
 只响应配置群中用户准确@本机器人的业务查询，固定指令和可选语义模式共用命令目录。群消息只发送经过隐私过滤的业务结果，错误用通用提示，维护命令不开放到群或AI。北京时间早晚报允许当前时段前15分钟内补发，错过时段不追发。只有成功送达的预测才更新该群上一份报告。
 
 投递前持久化账本，消息使用稳定 UUID；只有 API code=0 且返回 message_id 才标记 sent。未知结果记录 uncertain，重启不自动重发。遗留实例锁需先确认旧进程已停止再处理。
+
+命令先持久化到最多32条的收件箱，再返回平台 ACK；重启继续处理已接收的查询，存在投递记录的任务不重复执行。独立入口支持 `check`、`status` 和 `service install/restart/status/uninstall`。接入配置、安装与真实群试用见[飞书接入](docs/lark.md)。
 
 真实飞书群内收发、权限与定时报送需要部署环境试用，本地协议模拟不能替代。参考协议：[MCP stdio](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports)、[X oEmbed](https://docs.x.com/x-for-websites/oembed-api)、[飞书消息 API](https://open.feishu.cn/document/server-docs/im-v1/message/create)。
 
