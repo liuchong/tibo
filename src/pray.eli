@@ -1,0 +1,141 @@
+;; Entertainment state is separate from reset evidence and prediction experience.
+(module tibo.pray
+  (import "node:process" :default process)
+  (import "node:crypto" createHash randomUUID)
+  (import "./host.eli" Date Number RegExp)
+  (import "./state.eli" read-state write-state with-lock)
+  (import "./util.eli" iso ms fail)
+  (defconst milestones (js-array 1 3 10 30 50 100 233 500 1000))
+  (defconst titles (js-array "试用香客" "在线上香员" "额度守望者" "异步祈祷工程师" "天庭 SRE" "重置玄学研究员" "首席愿力官" "赛博方丈" "功德编译器"))
+  (defconst events (js-array
+    "点亮第一炷电子香。你的请求已进入天庭队列，暂不提供 SLA。"
+    "解锁「三连诚心」。天庭回执：请求已收到，尚未承诺重置。"
+    "解锁「额度守望者」。获得一张虚拟免焦虑券，有效期：直到你再次刷新。"
+    "解锁「异步祈祷工程师」。你已熟练掌握 await reset，但回调仍由现实决定。"
+    "晋升「天庭 SRE」。今日值班任务：确保香炉高可用，别让功德内存泄漏。"
+    "解锁「百次回向」。颁发虚拟金香炉：支持断电保存，不支持充值。"
+    "触发「233 笑到功德溢出」。天庭将你的日志级别调整为哈哈哈哈。"
+    "晋升「赛博方丈」。主持群内电子法会，但仍不能替 Tibo 按下重置按钮。"
+    "解锁「功德编译器」。愿望已成功编译；执行时间未定义。"))
+  (defconst lines (js-array
+    (js-array "电子香已点亮。先放下刷新键，天庭不支持催单。" "收到。功德已入账，额度仍按现实规则运行。" "你的愿望已转交天庭前台，回复格式不是 JSON。")
+    (js-array "天庭客服已经记住你的香客编号了。" "你的电子香排列得很整齐，重置开关依然归 Tibo 管。" "功德在攒，刷新键建议轮休。")
+    (js-array "你已从求重置，进化为研究重置。" "今日论文题目：祈祷次数与页面刷新次数的弱相关性。" "愿力研究取得进展：证实连续点击不会改变 UTC。")
+    (js-array "香炉负载平稳。天庭值班员请关注功德 P99 延迟。" "已为愿望开启长连接，心跳正常，重置时间未返回。" "你的功德流水很漂亮，银行表示它暂时不能兑换额度。")
+    (js-array "方丈，香炉已经托管。今天考虑让刷新键下班吗？" "你的功德需要分片了。请勿把「愿力池」当成额度池。" "天庭已任命你为愿力架构师。第一项决策：坚持 banked 和 global 分离。")))
+  (defun digest (text) (js-call (js-call (createHash "sha256") :update text) :digest "hex"))
+  (defun has-pray? (text)
+    (and (= (value-type text) "string") (js-call (new RegExp "🙏" "u") :test text)))
+  (defun only-pray? (text)
+    (and (has-pray? text) (= (js-call (js-call text :replace (new RegExp "🙏[\\uFE0F\\u{1F3FB}-\\u{1F3FF}]*" "gu") "") :trim) "")))
+  (defun day-at (now) (js-call (iso (+ now 28800000)) :slice 0 10))
+  (defun title-at (merit)
+    (let ((index 0))
+      (while (and (< (+ index 1) (get milestones :length)) (>= merit (get milestones (+ index 1)))) (setq index (+ index 1)))
+      (get titles index)))
+  (defun scope-key (context) (str "pray-" (js-call (digest (str (get context :transport) ":" (get context :scope))) :slice 0 40)))
+  (defun valid-context? (context)
+    (when context
+      (cond ((= (get context :transport) "cli")
+              (and (= (get context :actor) (str "uid:" (js-call process :getuid))) (= (get context :scope) "local")))
+            ;; Only trusted adapters supply identity, never user-controlled query args.
+            ((= (get context :authenticated) t)
+              (js-call (js-array "transport" "actor" "scope") :every (lambda (key)
+                (let ((value (get context key)))
+                  (and (= (value-type value) "string") (> (get value :length) 0) (<= (get value :length) 200))))))
+            (t false))))
+  (defun fresh () (js-object :schemaVersion 1 :members (js-array) :offers 0 :merit 0 :receipts (js-array) :festivals (js-array)))
+  (defun verify-state (state)
+    (unless (and (= (get state :schemaVersion) 1) (Array/isArray (get state :members)) (Array/isArray (get state :receipts))
+                 (Array/isArray (get state :festivals)) (Number/isSafeInteger (get state :offers)) (Number/isSafeInteger (get state :merit))
+                 (>= (get state :offers) (get state :merit)) (>= (get state :merit) 0)
+                 (js-call (get state :members) :every (lambda (m)
+                   (and m (= (value-type (get m :id)) "string") (= (value-type (get m :alias)) "string")
+                        (Number/isSafeInteger (get m :offers)) (Number/isSafeInteger (get m :merit))
+                        (>= (get m :offers) (get m :merit)) (>= (get m :merit) 0)
+                        (Number/isSafeInteger (get m :streak)) (Array/isArray (get m :badges)))))) (fail "祈祷档案不可读")) state)
+  (defun personal-text (m today)
+    (if (not m) "**🙏 我的香客档案**\n还没有电子香火。发送 pray 或 🙏，领取香客编号。"
+      (str "**🙏 " (get m :alias) " 的香客档案**\n"
+        "• 称号：" (title-at (get m :merit)) "\n• 累计🙏：" (get m :offers) "；功德：" (get m :merit)
+        "\n• 今日🙏：" (if (= (get m :lastDay) today) (get m :daily) 0)
+        "；连续打卡：" (if (or (= (get m :lastDay) today) (= (- (ms (str today "T00:00:00Z")) (ms (str (get m :lastDay) "T00:00:00Z"))) 86400000)) (get m :streak) 0)
+        "天；最长：" (get m :bestStreak) "天"
+        "\n• 成就：" (if (> (get (get m :badges) :length) 0) (js-call (get m :badges) :join "、") "尚未解锁")
+        "\n• 第一次上香：" (get m :firstAt) "\n• 最近上香：" (get m :lastAt)
+        "\n娱乐愿力，不影响真实重置概率。")))
+  (defun ranked (state)
+    (js-call (js-call (get state :members) :slice) :sort (lambda (a b)
+      (let ((merit (- (get b :merit) (get a :merit))) (offers (- (get b :offers) (get a :offers))))
+        (if (not (= merit 0)) merit (if (not (= offers 0)) offers (js-call (get a :alias) :localeCompare (get b :alias))))))))
+  (defun board-text (state limit member)
+    (let ((rows (ranked state)))
+      (str "**🏆 本会话功德榜**\n"
+        (if (= (get rows :length) 0) "香炉尚未开张，首席香客虚位以待。"
+          (js-call (js-call (js-call rows :slice 0 limit) :map (lambda (m i)
+            (str "• " (+ i 1) ". " (get m :alias) "｜" (title-at (get m :merit)) "｜功德 " (get m :merit) "｜🙏 " (get m :offers)))) :join "\n"))
+        (if member (str "\n• 你的名次：" (+ 1 (js-call rows :findIndex (lambda (m) (= (get m :id) (get member :id))))) "；" (get member :alias)) "")
+        "\n同群匿名编号，不展示真实身份；功德不兑换额度。")))
+  (defun stats-text (state today)
+    (let ((active (js-call (get state :members) :filter (lambda (m) (= (get m :lastDay) today)))))
+      (str "**🕯️ 本会话愿力池**\n• 香客：" (get (get state :members) :length) "人；今日上香：" (get active :length) "人"
+        "\n• 累计🙏：" (get state :offers) "；累计功德：" (get state :merit)
+        "\n• 今日🙏：" (js-call active :reduce (lambda (sum m) (+ sum (get m :daily))) 0)
+        "\n• 集体彩蛋：" (if (> (get (get state :festivals) :length) 0) (js-call (get state :festivals) :join "、") "等待开张")
+        "\n各接入方式、会话分别统计；CLI单独记账。娱乐数值不进入预测算法。")))
+  (defasync pray (args context)
+    (if (not (valid-context? context)) (js-object :ok false :text "祈祷档案需要本人身份，请在本地CLI或授权群使用；MCP不记录祈祷。")
+      (await (with-lock (scope-key context) (async ()
+        (let* ((key (scope-key context)) (state (verify-state (or (await (read-state key)) (fresh)))) (now (Date/now)) (today (day-at now))
+               (id (digest (str (get context :transport) ":" (get context :actor)))) (member (js-call (get state :members) :find (lambda (m) (= (get m :id) id))))
+               (action (get args :action "offer")))
+          (cond ((= action "me") (js-object :ok t :text (personal-text member today)))
+                ((= action "board") (js-object :ok t :text (board-text state (get args :limit 10) member)))
+                ((= action "stats") (js-object :ok t :text (stats-text state today)))
+                (t
+                  (let* ((request (digest (str id ":" (or (get context :requestId) (randomUUID)))))
+                         (receipt (js-call (get state :receipts) :find (lambda (r) (= (get r :id) request)))))
+                    (if receipt (js-object :ok t :text (get receipt :text))
+                      (progn
+                        (unless member
+                          (setq member (js-object :id id :alias (str "香客" (js-call (str (+ 1 (get (get state :members) :length))) :padStart 3 "0"))
+                            :offers 0 :merit 0 :daily 0 :lastDay today :streak 0 :bestStreak 0 :badges (js-array) :firstAt (iso now) :lastAt (iso now) :creditedAt 0))
+                          (js-call (get state :members) :push member))
+                        (let* ((credited (or (= (get member :merit) 0) (>= (- now (get member :creditedAt)) 15000)))
+                               (notices (js-array)) (before (get member :merit)) (text ""))
+                          (unless (= (get member :lastDay) today)
+                            (put member :streak (if (= (- (ms (str today "T00:00:00Z")) (ms (str (get member :lastDay) "T00:00:00Z"))) 86400000) (+ (get member :streak) 1) 1))
+                            (put member :daily 0))
+                          (when (= (get member :streak) 0) (put member :streak 1))
+                          (put member :bestStreak (Math/max (get member :bestStreak) (get member :streak)))
+                          (put member :lastDay today) (put member :daily (+ 1 (get member :daily)))
+                          (put member :offers (+ 1 (get member :offers))) (put member :lastAt (iso now))
+                          (put state :offers (+ 1 (get state :offers)))
+                          (when credited
+                            (put member :merit (+ before 1)) (put member :creditedAt now) (put state :merit (+ 1 (get state :merit)))
+                            (js-call milestones :forEach (lambda (point i)
+                              (when (= (get member :merit) point)
+                                (js-call (get member :badges) :push (str "功德" point)) (js-call notices :push (get events i)))))
+                            (js-call (js-array 10 50 100 233 500 1000) :forEach (lambda (point)
+                              (when (= (get state :merit) point)
+                                (let ((badge (str "集体愿力" point)))
+                                  (js-call (get state :festivals) :push badge)
+                                  (js-call notices :push (str "🎉 全群触发「" badge "」：电子香炉开起了云端法会。额度开关依然不归香炉管。")))))))
+                          (js-call (js-array 3 7) :forEach (lambda (point)
+                            (let ((badge (str "连续" point "日")))
+                              (when (and (>= (get member :streak) point) (not (js-call (get member :badges) :includes badge)))
+                                (js-call (get member :badges) :push badge) (js-call notices :push (str "📅 解锁「" badge "」：你的诚心有连续提交记录。"))))))
+                          (let* ((merit (get member :merit)) (tier (cond ((< merit 3) 0) ((< merit 10) 1) ((< merit 30) 2) ((< merit 100) 3) (t 4)))
+                                 (pool (get lines tier)) (next (js-call (js-array 10 50 100 233 500 1000) :find (lambda (point) (> point (get state :merit))))))
+                            (setq text (str "**🙏 " (get member :alias) " · " (title-at merit) "**\n"
+                              "• 累计🙏 " (get member :offers) "｜功德 " merit "（本次" (if credited "+1" "不叠加") "）"
+                              "\n• 今日🙏 " (get member :daily) "｜连续打卡 " (get member :streak) "天"
+                              "\n" (if credited (get pool (% (- merit 1) (get pool :length)))
+                                (str "心诚不在刷屏。香炉冷却还剩 " (Math/ceil (/ (- 15000 (- now (get member :creditedAt))) 1000)) " 秒；🙏已记档，功德不叠加。"))
+                              (if (> (get notices :length) 0) (str "\n" (js-call notices :join "\n")) "")
+                              "\n• 本会话愿力池：" (get state :merit) (if next (str "/" next "，到达后触发集体彩蛋") "，已解锁全部集体彩蛋")
+                              "\n娱乐愿力，不影响真实重置概率。查看：pray me / pray board / pray stats。")))
+                          (put state :receipts (js-call (js-call (get state :receipts) :concat (js-array (js-object :id request :text text))) :slice -512))
+                          (await (write-state key state))
+                          (js-object :ok t :text text)))))))))))))
+  (export pray has-pray? only-pray? scope-key))

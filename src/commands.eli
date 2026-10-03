@@ -6,6 +6,7 @@
   (import "./ai-runtime.eli" ai-call)
   (import "./privacy.eli" public-text private-question?)
   (import "./admin.eli" is-admin manage)
+  (import "./pray.eli" pray only-pray?)
   (import "./util.eli" fail ms iso utc beijing clean days decimal last-item sorted)
   (defconst catalog
     (js-array
@@ -23,6 +24,9 @@
       (js-object :name "signals" :aliases (js-array "信号") :purpose "查询近48h已识别的承诺、暗示、补偿及发布信号" :params (js-object) :positionals (js-array))
       (js-object :name "stats" :aliases (js-array "统计") :purpose "查询历史global间隔的均值、中位数、最短/最长及可用样本量" :params (js-object) :positionals (js-array))
       (js-object :name "help" :aliases (js-array "帮助" "commands" "命令") :purpose "查看当前身份可用的业务命令和参数" :params (js-object) :positionals (js-array))
+      (js-object :name "pray" :aliases (js-array "祈祷" "上香" "🙏") :purpose "趣味电子上香；offer祈祷一次，me查看本人档案，board查看本会话匿名功德榜，stats查看本会话愿力池。不能改变重置概率，需要可信本人身份"
+        :params (js-object :action (js-object :type "string" :enum (js-array "offer" "me" "board" "stats") :default "offer")
+          :limit (js-object :type "integer" :minimum 1 :maximum 20 :default 10)) :positionals (js-array "action" "limit"))
       (js-object :name "clear-history" :aliases (js-array "清空历史" "重置历史") :purpose "危险写操作：申请清空本地历史缓存，需要管理员及二次确认" :admin t :params (js-object) :positionals (js-array))
       (js-object :name "clear-experience" :aliases (js-array "清空经验") :purpose "危险写操作：申请清空预测经验，需要管理员及二次确认" :admin t :params (js-object) :positionals (js-array))
       (js-object :name "reset-ai" :aliases (js-array "恢复AI" "ai-reset") :purpose "写操作：申请清除AI暂停与缓存，需要管理员及二次确认" :admin t :params (js-object) :positionals (js-array))
@@ -64,6 +68,7 @@
                 (put values key value)))))))
       (js-object :command name :args values)))
   (defun fixed-query (text)
+    (when (only-pray? text) (setq text "pray"))
     (let* ((text (clean text)) (tokens (js-call text :match (new RegExp "\"[^\"]*\"|'[^']*'|\\S+" "g")))
            (name (if tokens (canonical (get tokens 0)) nil)))
       (when name
@@ -107,7 +112,7 @@
                    (if (get p :maximum) (str " " (get p :minimum) ".." (get p :maximum)) "")
                    (if (Object/hasOwn p "default") (str " 默认=" (get p :default)) "")
                    (if (get p :required) " 必填" "") ")")))) :join "、"))))) :join "\n")
-      "\n示例：预测 24；发言 5 reset；历史 5 global；状态 2026-10-02T00:00:00Z。可用 --hours 等同名参数。开启语义查询后也可直接提问，如“有哪些命令能用”。"
+      "\n示例：预测 24；发言 5 reset；历史 5 global；状态 2026-10-02T00:00:00Z；pray；🙏；pray me；pray board 10；pray stats。可用 --hours 等同名参数。开启语义查询后也可直接提问，如“有哪些命令能用”“查看我的祈祷档案”。"
       (if (is-admin context) "\n管理员写操作：clear-history / clear-experience / reset-ai 仅申请；收到确认ID后，使用 confirm ID（确认 ID）或 cancel ID（取消 ID）。五分钟有效，绑定申请人与当前会话。" "")))
   (defun event-text (event)
     (if (not event) "未见可用记录"
@@ -149,6 +154,9 @@
               (setq query (validate-query query) args (get query :args))
               (if (get (definition name) :admin) (await (manage name args (get options :context)))
                 (if (= name "help") (js-object :text (help-text (get options :context)) :ok t)
+                (if (= name "pray")
+                  (let ((response (await (pray args (get options :context)))))
+                    (put response :text (public-text (get response :text))) response)
                 (if (= name "forecast")
                   (let ((result (await (run-report (Object/assign (js-object) options (js-object :noAi (get args :noAi)))))))
                     (js-object :text (public-forecast result (get args :horizon) (get options :titleTime)) :result result :ok t))
@@ -195,5 +203,5 @@
                                 "；中位数：" (decimal (/ (+ (get durations (Math/floor (/ (- n 1) 2))) (get durations (Math/floor (/ n 2)))) 2)) "天"
                                 "\n• 最短/最长：" (decimal (get durations 0)) "/" (decimal (get durations (- n 1))) "天") "")
                               "\n• 距上次global：" (decimal (get history :elapsedDays)) "天；公开公告历史可能有遗漏。"))))))
-                    (js-object :text (public-text text) :ok t)))))))))
+                    (js-object :text (public-text text) :ok t))))))))))
   (export catalog visible-catalog canonical validate-query fixed-query resolve-query execute-query public-forecast help-text))

@@ -79,8 +79,8 @@
                               (unless (or (not (get frame :encoding)) (= (get frame :encoding) "") (= (get frame :encoding) "gzip")) (fail "Unsupported event encoding"))
                               (let ((event (JSON/parse (js-call decoder :decode bytes))) (started (Date/now)) (code 200))
                                 (try
-                                  (when (= (get (get event :header) :event_type) "im.message.receive_v1")
-                                    (await (funcall handler (get event :event))))
+                                  (when (js-call (js-array "im.message.receive_v1" "im.message.reaction.created_v1") :includes (get (get event :header) :event_type))
+                                    (await (funcall handler (get event :event) (get event :header))))
                                   (catch error (setq code 500) (console/error "tibo-lark: 事件入队失败，等待平台重投")))
                                 (js-call (get frame :headers) :push (js-object :key "biz_rt" :value (str (- (Date/now) started))))
                                 (put frame :payload (js-call encoder :encode (JSON/stringify (js-object :code code))))
