@@ -7,12 +7,16 @@ Tibo是独立应用，CLI、MCP和IM都调用同一套Eliscript业务核心。`s
 接入程序在验证真实身份后生成内部context：
 
 ```text
-{transport: 平台唯一名, actor: 本平台验证的用户标识,
+{transport: 平台唯一名, account: 本接入应用的稳定命名空间, actor: 本平台验证的用户标识,
  scope: 已授权会话标识, authenticated: true,
  requestId: 本会话内稳定的请求标识}
 ```
 
 这些字段只能来自可信接入程序，不能来自消息文本、AI返回值或MCP参数。语义提示不上传context。祈祷档案按transport+scope隔离，成员按transport+actor摘要区分，重投使用requestId返回原结果，不重复记账。未来IM可复用祈祷核心，无需增加平台分支；每个平台需自己保存可靠的投递去重记录，核心仅缓存最近512条祈祷回执。
+
+`src/subscriptions.eli`按transport+account维护本人订阅，一个人在不同会话操作同一份订阅；account由可信接入生成，Lark使用平台域与App ID的摘要，切换应用不会混发旧订阅者。没有第三方目的地址或自定义推送时刻参数。其他IM同样传入可信身份并实现私聊路由，即可复用订阅核心。
+
+`src/schedule.eli`固定北京时间09:00、21:00；`src/bulletin.eli`按唯一UTC定点保留生成占位及结果。所有IM共用同一个状态目录时调用`ensure-bulletin`复用该结果，绝不能在收件人循环中调用预测。报告生成与接入分发计划分别持久化，生成失败/中断不自动重跑该定点。接入负责收件人快照、退订核对、速率控制、独立投递账本及停止处理；个人失败不能触发重生成。实时手动查询与采集daemon的周期报告是独立用途，不由订阅人数驱动。
 
 祈祷只改本人的娱乐计数。历史、经验、AI暂停等管理动作继续需要各接入明确实现管理员白名单与二次确认；现有管理权限仅实现本地CLI和Lark，其他transport默认无管理权限。MCP不接受context，保持无写权限。
 
