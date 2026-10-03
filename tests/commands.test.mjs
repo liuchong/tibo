@@ -1,7 +1,7 @@
 import {test,expect} from 'bun:test';import {mkdtemp,writeFile,rm} from 'node:fs/promises';import {tmpdir,homedir,userInfo} from 'node:os';import {join,resolve} from 'node:path';import {spawnSync} from 'node:child_process';
 import {catalog,visible_catalog,fixed_query,validate_query,execute_query,public_forecast} from '../dist/src/commands.mjs';import {public_text} from '../dist/src/privacy.mjs';import {judge} from '../dist/src/engine.mjs';import {snapshot,post,event} from './fixture.mjs';
 test('one command registry defines aliases, defaults, bounds and rejects all operations or extra arguments',()=>{
- expect(visible_catalog().map(c=>c.name)).toEqual(['forecast','status','posts','history','banked','signals','stats','help','pray']);
+ expect(visible_catalog().map(c=>c.name)).toEqual(['forecast','status','posts','history','banked','signals','stats','help','pray','subscribe','unsubscribe','subscription']);
  expect(fixed_query('预测 48')).toEqual({command:'forecast',args:{horizon:'48',noAi:false}});
  expect(fixed_query('发言 5 reset --hours 24')).toEqual({command:'posts',args:{limit:5,hours:24,keyword:'reset'}});
  expect(fixed_query('历史 3 global').args).toEqual({limit:3,kind:'global'});expect(fixed_query('forecast --no-ai').args.noAi).toBe(true);
@@ -38,6 +38,11 @@ test('semantic routing uploads only catalog, sanitized question and business clo
 test('routing cache separates different questions; invalid provider output cannot execute anything',async()=>{
  const r=await subprocess(`let calls=0;globalThis.fetch=async()=>{calls++;return new Response(JSON.stringify({choices:[{finish_reason:'stop',message:{content:JSON.stringify(calls===1?{command:'posts',args:{limit:2}}:{command:'service',args:{}})}}]}))};const {resolve_query}=await import(${module});const a=await resolve_query('给我两条最新发言'),b=await resolve_query('想看看历史情况');console.log(JSON.stringify({a,b,calls}));`);
  expect(r.calls).toBe(2);expect(r.a.command).toBe('posts');expect(r.b.command).toBe('semantic-error');
+});
+test('semantic subscription, cancellation and status reuse the registry, exclude identity and refuse custom schedules',async()=>{
+ const r=await subprocess(`let sent=[];globalThis.fetch=async(u,o)=>{const body=JSON.parse(o.body);sent.push(body);const q=JSON.parse(body.messages[1].content).question;const command=q.includes('取消')?'unsubscribe':q.includes('有没有')?'subscription':'subscribe';return new Response(JSON.stringify({choices:[{finish_reason:'stop',message:{content:JSON.stringify({command,args:q.includes('十点')?{time:'10:00'}:{}})}}]}))};const {resolve_query}=await import(${module});const context={transport:'lark',actor:'ou_private123',scope:'oc_private123',account:'private-app',authenticated:true};const a=await resolve_query('每天早晚私聊发我一份报告',context),b=await resolve_query('取消给我的定时推送',context),c=await resolve_query('我有没有订阅',context),d=await resolve_query('改成十点推送',context);console.log(JSON.stringify({a,b,c,d,sent}));`);
+ expect(r.a.command).toBe('subscribe');expect(r.b.command).toBe('unsubscribe');expect(r.c.command).toBe('subscription');expect(r.d.command).toBe('semantic-error');
+ for(const body of r.sent){const input=JSON.parse(body.messages[1].content);expect(input.commands.find(x=>x.name==='subscribe').params).toEqual({});expect(JSON.stringify(body.messages)).not.toMatch(/ou_private|oc_private|private-app/);}
 });
 test('Lark semantic errors send one generic reply and never send supplier error bodies or configuration',async()=>{
  const r=await subprocess(`globalThis.fetch=async()=>new Response('fixture-router-secret /Users/private deepseek-flash',{status:401});const {deliver}=await import(${JSON.stringify(resolve('dist/adapters/lark/service.mjs'))});let sent=[];const client={send:async m=>{sent.push(m);return {code:0,data:{message_id:'fixture'}}}};await deliver(client,'oc_fixture','message-one','帮我查询最近发言');console.log(JSON.stringify(sent));`);

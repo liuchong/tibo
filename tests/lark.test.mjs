@@ -12,8 +12,9 @@ test('group allowlist and exact bot mention admit only bounded user query text',
  expect(command_of(event({content:JSON.stringify({text:'@_user_1 '+'x'.repeat(801)})}),['oc_test'],'ou_bot')).toBeNull();
 });
 test('morning/evening schedule is Beijing time, bounded, exact header slot',()=>{
- expect(slot_at('2026-10-03T01:02:33Z').at).toBe('2026-10-03T01:00:00.000Z');
- expect(slot_at('2026-10-03T13:14:59Z').at).toBe('2026-10-03T13:00:00.000Z');
+ expect(slot_at('2026-10-03T01:00:33Z').at).toBe('2026-10-03T01:00:00.000Z');
+ expect(slot_at('2026-10-03T13:00:59Z').at).toBe('2026-10-03T13:00:00.000Z');
+ expect(slot_at('2026-10-03T01:02:33Z')).toBeNull();expect(slot_at('2026-10-03T13:14:59Z')).toBeNull();
  expect(slot_at('2026-10-03T13:15:00Z')).toBeNull();expect(slot_at('2026-10-03T09:00:00Z')).toBeNull();
 });
 test('markdown is sent as a post with idempotency UUID, requires success plus message id',async()=>{

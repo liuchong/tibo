@@ -25,9 +25,11 @@
                      (js-object :redirect "error" :headers (js-object :authorization (str "Bearer " (await (funcall access)))))))))
               (unless (and (= (get result :code) 0) (get (get result :bot) :open_id)) (fail "Lark 机器人信息不可用，检查机器人能力与应用发布状态"))
               (get result :bot)))
-          :send (async (body)
+          :send (async (body &optional recipient-type)
+            (setq recipient-type (or recipient-type "chat_id"))
+            (unless (or (= recipient-type "chat_id") (= recipient-type "open_id")) (fail "消息接收者类型无效"))
             ;; Message creation is never automatically retried after unknown I/O.
-            (await (request-json (str base "/open-apis/im/v1/messages?receive_id_type=chat_id")
+            (await (request-json (str base "/open-apis/im/v1/messages?receive_id_type=" recipient-type)
               (js-object :method "POST" :redirect "error" :headers (js-object :content-type "application/json" :authorization (str "Bearer " (await (funcall access))))
                 :body (JSON/stringify body)))))
           :connectConfig (async ()
