@@ -57,6 +57,12 @@
             (when (and proposal (get proposal :value))
               (put row :aiPrediction (js-object :p24 (get (get proposal :value) :p24) :p48 (get (get proposal :value) :p48)))
               (put row :baselinePrediction (get ai :baseline)))
+            (when ai
+              (let* ((features (get ai :features)) (research (get features :research)) (review (get features :review)))
+                (when (and research (get research :value))
+                  (put row :researchFeatures (js-call (get (get research :value) :facts) :map (lambda (f)
+                    (js-object :kind (get f :kind) :scope (get f :scope) :status (get f :status) :impact (get f :impact))))))
+                (when (and review (get review :value)) (put row :aiReview (js-object :accept (get (get review :value) :accept) :reason (get (get review :value) :reason))))))
             (js-call rows :push row)))
         (setq rows (js-call rows :slice -1000))
         (let ((stats (accuracy rows)))

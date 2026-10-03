@@ -4,7 +4,8 @@
   (import "node:crypto" createHash)
   (import "./state.eli" read-state write-state with-lock)
   (import "./util.eli" iso)
-  (defconst feature-names (js-array "signals" "forecast" "brief" "router"))
+  (defconst feature-names (js-array "signals" "research" "search" "forecast" "review" "brief" "router"))
+  (defconst token-limits (js-object :signals 1100 :research 1400 :search 220 :forecast 500 :review 320 :brief 650 :router 220))
   (defun digest (text) (js-call (js-call (createHash "sha256") :update text) :digest "hex"))
   (defun config ()
     (let* ((env (get process :env)) (key (get env :DEEPSEEK_API_KEY ""))
@@ -33,16 +34,19 @@
     (let ((input (get payload :evidence)))
       ;; Cache stable evidence, not the ever-changing collection clock. Every hit
       ;; is still revalidated against the current post/window eligibility.
-      (if (= feature "router") (digest (JSON/stringify payload))
-        (digest (JSON/stringify (js-object :feature feature :instruction (get payload :instruction)
-        :posts (get input :posts) :lastGlobal (get input :lastGlobal) :lastBanked (get input :lastBanked)
-        :baseline (get input :baseline) :signals (get input :signals) :forecast (get input :forecast) :final (get input :final)
-        :unknowns (js-call (get input :unknowns (js-array)) :map (lambda (s)
-          (js-call s :replace (new RegExp "UTC [0-9-]+ [0-9:]+" "g") "UTC [cache time]")))))))))
+      (digest (JSON/stringify (js-object :feature feature :instruction (get payload :instruction)
+        :evidence (if (= feature "router") input (Object/fromEntries (js-call (Object/entries input) :filter (lambda (row) (not (= (get row 0) "now")))))))))))
+  (defun account-usage (state feature usage elapsed)
+    (let* ((all (get state :usage (js-object))) (row (get all feature (js-object :calls 0 :promptTokens 0 :completionTokens 0))))
+      (put row :calls (+ (get row :calls) 1))
+      (put row :promptTokens (+ (get row :promptTokens) (get (or usage (js-object)) :promptTokens 0)))
+      (put row :completionTokens (+ (get row :completionTokens) (get (or usage (js-object)) :completionTokens 0)))
+      (put row :lastLatencyMs elapsed) (put all feature row) (put state :usage all)))
   (defasync ai-call (feature payload validator &optional timeout)
     (let* ((cfg (config)) (key (get cfg :key)))
       (cond ((= (get key :length) 0) (js-object :state "disabled" :reason "未配置密钥"))
             ((not (js-call (get cfg :features) :includes feature)) (js-object :state "disabled" :reason "功能未启用"))
+            ((> (get (JSON/stringify (get payload :evidence)) :length) 24000) (js-object :state "skipped" :reason "任务输入超限，保留基础判断"))
             (t
               (try
                 (await (with-lock "ai-gateway" (async ()
@@ -56,7 +60,7 @@
                          (hit (js-call cache :find (lambda (r) (= (get r :key) cache-key)))))
                     (if blocked (js-object :state "blocked" :reason (get blocked :reason) :retryAt (js-call (new Date (get blocked :until)) :toISOString))
                       (if hit
-                        (try (js-object :state "cached" :value (funcall validator (get hit :value)))
+                        (try (js-object :state "cached" :value (funcall validator (get hit :value)) :usage (js-object :promptTokens 0 :completionTokens 0))
                           (catch error (js-object :state "fallback" :reason "缓存未通过校验")))
                         (let ((status 0) (retry 60000) (value nil) (usage nil) (valid false))
                           (try
@@ -64,7 +68,7 @@
                                     :headers (js-object :Content-Type "application/json" :Authorization (str "Bearer " key))
                                     :signal (AbortSignal/timeout (or timeout 15000))
                                     :body (JSON/stringify (js-object :model (get cfg :model) :stream false
-                                      :thinking (js-object :type "disabled") :response_format (js-object :type "json_object") :max_tokens 1800
+                                    :thinking (js-object :type "disabled") :temperature 0 :response_format (js-object :type "json_object") :max_tokens (get token-limits feature 500)
                                       :messages (js-array (js-object :role "system" :content (get payload :instruction))
                                                          (js-object :role "user" :content (JSON/stringify (get payload :evidence))))))))))
                                    (body nil))
@@ -74,17 +78,18 @@
                                 (let ((text (await (js-call response :text))))
                                   (when (> (get text :length) 100000) (throw "size"))
                                   (setq body (JSON/parse text)))
+                                (let ((u (get body :usage (js-object))))
+                                  (setq usage (js-object :promptTokens (get u :prompt_tokens 0) :completionTokens (get u :completion_tokens 0))))
                                 (let* ((choice (get (get body :choices) 0)) (content (get (get choice :message) :content)))
                                   (unless (and (= (get choice :finish_reason) "stop") (= (value-type content) "string") (> (get content :length) 0)) (throw "output"))
-                                  (setq value (funcall validator (JSON/parse content)) valid t)
-                                  (let ((u (get body :usage (js-object))))
-                                    (setq usage (js-object :promptTokens (get u :prompt_tokens 0) :completionTokens (get u :completion_tokens 0)))))))
+                                  (setq value (funcall validator (JSON/parse content)) valid t))))
                             (catch error (when (or (= (get error :name) "TimeoutError") (= (get error :name) "AbortError")) (setq status 0))))
+                          (account-usage state feature usage (- (Date/now) now))
                           (if valid
                             (progn
                               (put state :provider (js-object :failures 0 :until 0))
                               (put features feature (js-object :failures 0 :until 0))
-                              (js-call cache :push (js-object :key cache-key :until (+ (Date/now) 1200000) :value value))
+                              (js-call cache :push (js-object :key cache-key :until (+ (Date/now) (if (js-call (js-array "signals" "research" "search") :includes feature) 21600000 1200000)) :value value))
                               (put state :cache (js-call cache :slice -128))
                               (await (write-state "ai" state))
                               (js-object :state "ok" :value value :usage usage))
@@ -102,7 +107,8 @@
       (try
         (let ((stored (await (read-state "ai"))))
           (js-object :model (get cfg :model) :configured (> (get (get cfg :key) :length) 0)
-            :enabledFeatures (get cfg :features) :weight (get cfg :weight)
+            :enabledFeatures (get cfg :features) :weight (get cfg :weight) :tokenLimits token-limits
+            :usage (if (and stored (= (get stored :identity) (get cfg :identity))) (get stored :usage (js-object)) nil)
             :circuit (if (and stored (= (get stored :identity) (get cfg :identity)))
                        (js-object :provider (get stored :provider) :features (get stored :features) :cached (get (get stored :cache) :length)) nil)))
         (catch error (js-object :state "unavailable")))))
