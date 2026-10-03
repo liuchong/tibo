@@ -17,7 +17,7 @@
               ((= (get context :transport) "lark")
                 (and (js-call (new RegExp "^ou_[A-Za-z0-9]+$") :test (get context :actor ""))
                      (js-call (js-call (get env :TIBO_LARK_ADMIN_OPEN_IDS "") :split ",") :includes (get context :actor))
-                     (js-call (js-call (get env :TIBO_LARK_CHAT_IDS "") :split ",") :includes (get context :scope))))
+                     (js-call (js-call (js-call (get env :TIBO_LARK_CHAT_IDS "") :split ",") :map (lambda (id) (js-call id :trim))) :includes (get context :scope))))
               (t false)))))
   (defconst actions (js-object :clear-history "清空本地历史缓存（下一次联网采集会重建）"
                               :clear-experience "清空本地预测经验与成绩"

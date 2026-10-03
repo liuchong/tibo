@@ -30,3 +30,10 @@ test('uncertain send outcome is retained across restarts and never auto-replayed
   await expect(deliver(client,'oc_test','one','help')).rejects.toThrow('重复');expect(calls).toBe(1);
  }finally{if(old===undefined)delete process.env.TIBO_STATE_DIR;else process.env.TIBO_STATE_DIR=old;await rm(dir,{recursive:true,force:true});}
 });
+test('explicit API rejection records only its numeric code locally and is not retried',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'tibo-lark-rejected-'));const old=process.env.TIBO_STATE_DIR;process.env.TIBO_STATE_DIR=dir;
+ try{
+  await expect(deliver({send:async()=>({code:230002,msg:'private diagnostic /Users/private'})},'oc_test','rejected','help')).rejects.toThrow();
+  const ledger=await read_state(delivery_key('oc_test','rejected'));expect(ledger.state).toBe('rejected');expect(ledger.larkCode).toBe(230002);expect(JSON.stringify(ledger)).not.toContain('private');
+ }finally{if(old===undefined)delete process.env.TIBO_STATE_DIR;else process.env.TIBO_STATE_DIR=old;await rm(dir,{recursive:true,force:true});}
+});

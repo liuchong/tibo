@@ -117,9 +117,9 @@
   (defun post-text (post)
     (str (utc (get post :at)) "｜" (if (= (get post :provenance) "primary") "原文已核实" "存档原文") "\n"
       (get post :text) "\n" (if (js-call (new RegExp "^[0-9]{15,20}$") :test (get post :id)) (str "https://x.com/thsottiaux/status/" (get post :id)) "")))
-  (defun public-forecast (result horizon)
+  (defun public-forecast (result horizon &optional title-time)
     (let* ((p (get result :forecast)) (s (get result :signals)) (snapshot (get result :snapshot))
-           (lines (js-array (str "**Codex 重置概率｜北京时间 " (beijing (get snapshot :now)) "**"))))
+           (lines (js-array (str "**Codex 重置概率｜北京时间 " (beijing (or title-time (get snapshot :now))) "**"))))
       (unless (= horizon "48") (js-call lines :push (str "• 24h：" (get p :p24) "%")))
       (unless (= horizon "24") (js-call lines :push (str "• 48h（含24h）：" (get p :p48) "%")))
       (js-call lines :push (str "• 依据：历史算法" (if (= (get p :mode) "ai-blend") "与可用AI建议" "") "；概率尚未校准"))
@@ -151,7 +151,7 @@
                 (if (= name "help") (js-object :text (help-text (get options :context)) :ok t)
                 (if (= name "forecast")
                   (let ((result (await (run-report (Object/assign (js-object) options (js-object :noAi (get args :noAi)))))))
-                    (js-object :text (public-forecast result (get args :horizon)) :result result :ok t))
+                    (js-object :text (public-forecast result (get args :horizon) (get options :titleTime)) :result result :ok t))
                   (let* ((snapshot (await (load-snapshot (get options :snapshotPath) (get options :offline))))
                          (result (observe snapshot)) (signals (get result :signals)) (text ""))
                     (cond
