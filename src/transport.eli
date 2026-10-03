@@ -1,6 +1,5 @@
 (module tibo.transport
   (import "./host.eli" Error Date Promise RegExp Map Set Number Intl fetch AbortSignal)
-  (import "node:process" :default process)
   (import "./util.eli" fail)
   (defasync request (url &optional options)
     (let* ((settings (Object/assign (js-object :headers (js-object :user-agent "tibo/0.1 public-evidence-reader")) options
@@ -11,12 +10,4 @@
         (when (> (get text :length) 2000000) (fail "Source exceeds 2 MB limit"))
         text)))
   (defasync request-json (url &optional options) (JSON/parse (await (request url options))))
-  (defasync scrape (url)
-    (let ((key (get (get process :env) :FIRECRAWL_API_KEY)))
-      (unless (and key (> (get key :length) 0)) (fail "Firecrawl 未配置"))
-      (let ((result (await (request-json "https://api.firecrawl.dev/v2/scrape"
-                     (js-object :method "POST" :headers (js-object :authorization (str "Bearer " key) :content-type "application/json")
-                                :body (JSON/stringify (js-object :url url :formats (js-array "html" "markdown") :maxAge 0)))))))
-        (unless (get result :success) (fail "Firecrawl 抓取失败"))
-        (get result :data))))
-  (export request request-json scrape))
+  (export request request-json))

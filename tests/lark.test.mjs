@@ -16,15 +16,15 @@ test('morning/evening schedule is Beijing time, bounded, exact header slot',()=>
  expect(slot_at('2026-10-03T13:15:00Z')).toBeNull();expect(slot_at('2026-10-03T09:00:00Z')).toBeNull();
 });
 test('markdown is sent as a post with idempotency UUID, requires success plus message id',async()=>{
- let args;const client={im:{message:{create:async x=>{args=x;return {code:0,data:{message_id:'om_test'}};}}}};
+ let args;const client={send:async x=>{args=x;return {code:0,data:{message_id:'om_test'}};}};
  expect(await send_report(client,'oc_test','fixed-key','**报告**')).toBe('om_test');
- expect(args.data.msg_type).toBe('post');expect(JSON.parse(args.data.content).zh_cn.content[0][0].tag).toBe('md');expect(args.data.uuid).toBe('fixed-key');
- await expect(send_report({im:{message:{create:async()=>({code:0,data:{}})}}},'oc_test','key','text')).rejects.toThrow();
+ expect(args.msg_type).toBe('post');expect(JSON.parse(args.content).zh_cn.content[0][0].tag).toBe('md');expect(args.uuid).toBe('fixed-key');
+ await expect(send_report({send:async()=>({code:0,data:{}})},'oc_test','key','text')).rejects.toThrow();
 });
 test('uncertain send outcome is retained across restarts and never auto-replayed',async()=>{
  const dir=await mkdtemp(join(tmpdir(),'tibo-lark-'));const old=process.env.TIBO_STATE_DIR;process.env.TIBO_STATE_DIR=dir;
  try{
-  let calls=0;const client={im:{message:{create:async()=>{calls++;throw new Error('network disconnected');}}}};
+  let calls=0;const client={send:async()=>{calls++;throw new Error('network disconnected');}};
   await expect(deliver(client,'oc_test','one','help')).rejects.toThrow();expect((await read_state(delivery_key('oc_test','one'))).state).toBe('uncertain');
   await expect(deliver(client,'oc_test','one','help')).rejects.toThrow('重复');expect(calls).toBe(1);
  }finally{if(old===undefined)delete process.env.TIBO_STATE_DIR;else process.env.TIBO_STATE_DIR=old;await rm(dir,{recursive:true,force:true});}

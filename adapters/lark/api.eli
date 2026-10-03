@@ -1,0 +1,31 @@
+(module tibo.lark.api
+  (import "../../src/host.eli" Date Promise)
+  (import "../../src/transport.eli" request-json)
+  (import "../../src/util.eli" fail)
+  (defun create-client (app-id secret domain)
+    (let ((base (if (= domain "lark") "https://open.larksuite.com" "https://open.feishu.cn"))
+          (token nil) (expires 0) (refresh nil))
+      (let ((access (async ()
+              (when (or (not token) (>= (Date/now) expires))
+                (unless refresh
+                  (setq refresh (request-json (str base "/open-apis/auth/v3/tenant_access_token/internal")
+                    (js-object :method "POST" :headers (js-object :content-type "application/json")
+                      :body (JSON/stringify (js-object :app_id app-id :app_secret secret))))))
+                (try
+                  (let ((result (await refresh)))
+                    (unless (and (= (get result :code) 0) (get result :tenant_access_token) (> (get result :expire 0) 60))
+                      (fail "Lark token 请求失败，检查应用凭据与权限"))
+                    (setq token (get result :tenant_access_token) expires (+ (Date/now) (* (- (get result :expire) 60) 1000))))
+                  (finally (setq refresh nil))))
+              token)))
+        (js-object
+          :send (async (body)
+            ;; Message creation is never automatically retried after unknown I/O.
+            (await (request-json (str base "/open-apis/im/v1/messages?receive_id_type=chat_id")
+              (js-object :method "POST" :headers (js-object :content-type "application/json" :authorization (str "Bearer " (await (funcall access))))
+                :body (JSON/stringify body)))))
+          :connectConfig (async ()
+            (await (request-json (str base "/callback/ws/endpoint")
+              (js-object :method "POST" :headers (js-object :content-type "application/json" :locale "zh")
+                :body (JSON/stringify (js-object :AppID app-id :AppSecret secret))))))))))
+  (export create-client))
