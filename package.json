@@ -1,0 +1,27 @@
+{
+  "name": "tibo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Evidence-led Codex global reset observer and forecast bot",
+  "bin": {
+    "tibo": "bin/tibo.mjs"
+  },
+  "scripts": {
+    "build": "bun tools/build.mjs",
+    "test": "bun run build && bun test tests",
+    "start": "bun bin/tibo.mjs",
+    "mcp": "bun bin/tibo.mjs mcp",
+    "lark": "bun adapters/lark/start.mjs"
+  },
+  "engines": {
+    "bun": ">=1.3.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.28.0",
+    "cheerio": "^1.2.0"
+  },
+  "devDependencies": {
+    "eliscript": "file:../eliscript"
+  }
+}

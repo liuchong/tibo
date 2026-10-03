@@ -1,0 +1,13 @@
+;; Host symbols only. Business code remains in ordinary Eliscript forms.
+(module tibo.host
+  (defconst Error (js* "globalThis.Error"))
+  (defconst Date (js* "globalThis.Date"))
+  (defconst Promise (js* "globalThis.Promise"))
+  (defconst RegExp (js* "globalThis.RegExp"))
+  (defconst Map (js* "globalThis.Map"))
+  (defconst Set (js* "globalThis.Set"))
+  (defconst Number (js* "globalThis.Number"))
+  (defconst Intl (js* "globalThis.Intl"))
+  (defconst fetch (js* "globalThis.fetch"))
+  (defconst AbortSignal (js* "globalThis.AbortSignal"))
+  (export Error Date Promise RegExp Map Set Number Intl fetch AbortSignal))

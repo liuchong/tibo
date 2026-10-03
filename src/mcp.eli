@@ -1,0 +1,48 @@
+(module tibo.mcp
+  (import "./host.eli" Error Date Promise RegExp Map Set Number Intl fetch AbortSignal)
+  (import "node:process" :default process)
+  (import "@modelcontextprotocol/sdk/server/index.js" Server)
+  (import "@modelcontextprotocol/sdk/server/stdio.js" StdioServerTransport)
+  (import "@modelcontextprotocol/sdk/types.js" ListToolsRequestSchema CallToolRequestSchema)
+  (import "./engine.eli" run-report judge observe load-snapshot reset-status)
+  (import "./state.eli" with-lock)
+  (import "./history.eli" summarize-history)
+  (import "./util.eli" json fail ms)
+  (defconst tools
+    (js-array
+      (js-object :name "codex_reset_forecast" :description "根据最新公开证据独立判断24/48h global重置概率；返回v1.1 Lark markdown。"
+        :inputSchema (js-object :type "object" :properties (js-object) :additionalProperties false)
+        :annotations (js-object :readOnlyHint t :openWorldHint t))
+      (js-object :name "codex_reset_status" :description "观测最近global公告；区分已核实完成与站点记录，不推断个人账户刷新。"
+        :inputSchema (js-object :type "object" :properties (js-object :since (js-object :type "string" :format "date-time")) :additionalProperties false)
+        :annotations (js-object :readOnlyHint t :openWorldHint t))
+      (js-object :name "codex_reset_history" :description "读取重新采集的历史、条件样本和banked到global间隔。"
+        :inputSchema (js-object :type "object" :properties (js-object :offset (js-object :type "integer" :minimum 0) :limit (js-object :type "integer" :minimum 1 :maximum 100)) :additionalProperties false)
+        :annotations (js-object :readOnlyHint t :openWorldHint t))))
+  (defasync handle-tool (request)
+    (try
+      (let* ((params (get request :params)) (name (get params :name)) (args (get params :arguments (js-object))))
+        (when (js-call (Object/keys args) :some (lambda (k) (not (if (= name "codex_reset_status") (= k "since")
+          (if (= name "codex_reset_history") (or (= k "offset") (= k "limit")) false))))) (fail "未知参数"))
+        (cond
+          ((= name "codex_reset_forecast")
+            (let ((result (await (with-lock "mcp-report" (async () (await (run-report (js-object :channel "mcp" :snapshotPath (get (get process :env) :TIBO_SNAPSHOT)))))))))
+              (js-object :content (js-array (js-object :type "text" :text (get result :report))))))
+          ((or (= name "codex_reset_status") (= name "codex_reset_history"))
+            (let* ((result (observe (await (load-snapshot (get (get process :env) :TIBO_SNAPSHOT)))))
+                   (since (get args :since)) (offset (get args :offset 0)) (limit (get args :limit 50)))
+              (when since (ms since))
+              (unless (and (Number/isInteger offset) (>= offset 0) (Number/isInteger limit) (>= limit 1) (<= limit 100)) (fail "分页参数非法"))
+              (js-object :content (js-array (js-object :type "text" :text
+                (json (if (= name "codex_reset_status") (reset-status result since)
+                  (js-object :history (summarize-history (get result :events) (get (get result :snapshot) :now)) :total (get (get result :events) :length)
+                    :events (js-call (get result :events) :slice offset (+ offset limit))))))))))
+          (t (fail "未知工具"))))
+      (catch error (js-object :isError t :content (js-array (js-object :type "text" :text (get error :message "判断失败")))))))
+  (defasync start-mcp ()
+    (let ((server (new Server (js-object :name "tibo" :version "0.1.0") (js-object :capabilities (js-object :tools (js-object))))))
+      (js-call server :setRequestHandler ListToolsRequestSchema (async () (js-object :tools tools)))
+      (js-call server :setRequestHandler CallToolRequestSchema handle-tool)
+      (await (js-call server :connect (new StdioServerTransport)))
+      server))
+  (export tools handle-tool start-mcp))
