@@ -7,8 +7,8 @@
   (import "./util.eli" json fail ms)
   (defconst tools
     (js-array
-      (js-object :name "codex_reset_forecast" :description "根据公开证据与本地历史计算24/48h global历史概率；返回独立报告。"
-        :inputSchema (js-object :type "object" :properties (js-object) :additionalProperties false)
+      (js-object :name "codex_reset_forecast" :description "自有算法计算24/48h概率，可选AI增强；AI失败保留核心报告。"
+        :inputSchema (js-object :type "object" :properties (js-object :noAi (js-object :type "boolean")) :additionalProperties false)
         :annotations (js-object :readOnlyHint t :openWorldHint t))
       (js-object :name "codex_reset_status" :description "观测最近global公告；区分已核实完成与站点记录，不推断个人账户刷新。"
         :inputSchema (js-object :type "object" :properties (js-object :since (js-object :type "string" :format "date-time")) :additionalProperties false)
@@ -20,10 +20,11 @@
     (try
       (let* ((params (get request :params)) (name (get params :name)) (args (get params :arguments (js-object))))
         (when (js-call (Object/keys args) :some (lambda (k) (not (if (= name "codex_reset_status") (= k "since")
-          (if (= name "codex_reset_history") (or (= k "offset") (= k "limit")) false))))) (fail "未知参数"))
+          (if (= name "codex_reset_history") (or (= k "offset") (= k "limit")) (and (= name "codex_reset_forecast") (= k "noAi"))))))) (fail "未知参数"))
         (cond
           ((= name "codex_reset_forecast")
-            (let ((result (await (with-lock "mcp-report" (async () (await (run-report (js-object :channel "mcp" :snapshotPath (get (get process :env) :TIBO_SNAPSHOT)))))))))
+            (when (and (Object/hasOwn args "noAi") (not (= (value-type (get args :noAi)) "boolean"))) (fail "noAi 必须为布尔值"))
+            (let ((result (await (with-lock "mcp-report" (async () (await (run-report (js-object :channel "mcp" :noAi (get args :noAi) :snapshotPath (get (get process :env) :TIBO_SNAPSHOT)))))))))
               (js-object :content (js-array (js-object :type "text" :text (get result :report))))))
           ((or (= name "codex_reset_status") (= name "codex_reset_history"))
             (let* ((result (observe (await (load-snapshot (get (get process :env) :TIBO_SNAPSHOT)))))

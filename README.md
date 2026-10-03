@@ -2,7 +2,7 @@
 
 纯 Eliscript 的 Codex global 重置观测与历史概率程序，运行在 Bun 上。提供 CLI、MCP stdio 和独立飞书机器人：群内查询、北京时间 09:00 / 21:00 推送。
 
-**零第三方运行库**：采集、HTML 解析、预测、MCP、飞书 HTTP API、WebSocket 与 protobuf 都由本程序实现。运行不需要抓取服务、模型服务、数据库或核心 API key；飞书接入需要自己的应用凭据。`.mjs` 仅负责构建启动和测试，业务代码全部在 `.eli` 中。
+**零第三方运行库**：采集、HTML 解析、预测、MCP、飞书 HTTP API、WebSocket 与 protobuf 都由本程序实现。核心运行不需要抓取服务、模型服务、数据库或 API key；可选 DeepSeek 增强通过内置 HTTP 调用，飞书接入需要自己的应用凭据。`.mjs` 仅负责构建启动和测试，业务代码全部在 `.eli` 中。
 
 联网采集仍需要公开数据源；程序不能脱离外部世界发现新公告。历史保存在本地，任何一个网站失败都不会清空已有证据。首次启动没有历史且抓不到数据时，状态为 unknown，预测拒绝编造数值。
 
@@ -32,7 +32,26 @@ bun run compile
 
 `--offline` 用当前 UTC 时间和本地 ledger，完全不联网，明确标记信息未更新。`--snapshot FILE` 按 schemaVersion=1 证据快照中的时间复现。`evaluate` 默认离线输出模型权重、Brier 回放分数和已保存预测的成绩。
 
-Bun 自动读取项目 `.env`。`TIBO_STATE_DIR` 默认当前目录 `.tibo/`，包含本地历史、原文、预测经验、上一份报告和飞书投递账本；这些运行数据和 `.env` 不进入 Git。
+Bun 自动读取项目 `.env`。程序也读取 `~/.config/tibo/config.env`（可用 `TIBO_CONFIG_FILE` 指定），已有环境变量优先，配置按普通 KEY=VALUE 解析，不执行 shell。`TIBO_STATE_DIR` 未配置时默认当前目录 `.tibo/`；安装守护进程后使用配置里的固定状态目录，包含历史、原文、预测经验、报告及飞书投递账本。
+
+## 可选 AI 与守护进程
+
+使用国际版 DeepSeek `deepseek-flash`，只发公开帖子与统计，不发本地凭据或飞书消息。`TIBO_AI_FEATURES=signals,forecast,brief` 分别启用原帖语义解读、带引用的概率建议、中文摘要与跟进。任意组合可用，空值全部关闭；`forecast --no-ai` 只关闭本次 AI。离线与快照模式始终不调用 AI，status/history/evaluate 也无需 AI。
+
+AI 概率建议默认占最终结果 20%，最多 35%，自有算法基线单独保留。改变概率必须引用近 48h、前次 global 之后的相关原文连续片段；引用校验不能证明模型推论正确。报告把 AI 推断单列，AI 不改写历史、完成状态或账户生效信息。所有功能失败时仍输出自有算法结果。
+
+认证错误暂停 24h、余额不足 1h、限流遵守 Retry-After（1min 至 24h）；参数错误暂停对应功能 6h，输出校验连续失败两次暂停该功能 15min，网络/服务连续失败三次开始 1–15min 指数冷却。状态持久化，换 key 自动清除旧暂停；`ai-status` 查看、`ai-reset` 手动恢复。每次最多三个请求，不即时重试；AI 总时限 45s，单项 15s；同一证据缓存 20min，最多 128 项，并在命中时重新校验。累计至少 30 个已完成的前瞻 AI 窗口后，若 AI 比自有基线差，自动降低 AI 权重。
+
+macOS 安装与重装统一执行：
+
+```sh
+bun run service:install
+~/.local/lib/tibo/tibo service status
+~/.local/lib/tibo/tibo daemon-status
+~/.local/lib/tibo/tibo service restart
+```
+
+后台服务默认每 15 分钟采集并保存报告，由用户级 launchd 自动启动和重启；不发送 Lark 消息。重装保留配置、历史与经验。完整安装、卸载、日志及故障恢复步骤见 [运行维护](docs/operations.md)，后续开发修改程序后按该文档重装并实际验证。
 
 ## 数据与算法
 

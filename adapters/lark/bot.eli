@@ -1,6 +1,7 @@
 (module tibo.lark.bot
   (import "./api.eli" create-client)
   (import "./socket.eli" open-socket)
+  (import "../../src/config.eli" load-config)
   (import "node:process" :default process)
   (import "node:timers" setTimeout setInterval clearInterval)
   (import "../../src/host.eli" Error Date Promise RegExp Map Set Number Intl fetch AbortSignal)
@@ -8,6 +9,7 @@
   (import "../../src/util.eli" iso ms fail)
   (import "./service.eli" group-config command-of slot-at delivery-key deliver)
   (defasync start-lark ()
+    (await (load-config))
     (let* ((env (get process :env)) (groups (group-config))
            (app-id (get env :TIBO_LARK_APP_ID)) (app-secret (get env :TIBO_LARK_APP_SECRET))
            (bot-id (get env :TIBO_LARK_BOT_OPEN_ID)) (queue (Promise/resolve nil)) (timer nil) (stopping false))
