@@ -3,12 +3,13 @@ import {mkdtemp,rm} from 'node:fs/promises';import {tmpdir} from 'node:os';impor
 import {command_of,slot_at,markdown_post,send_report,deliver,delivery_key} from '../dist/adapters/lark/service.mjs';
 import {read_state} from '../dist/src/state.mjs';
 const event=(overrides={})=>({sender:{sender_type:'user'},message:{chat_id:'oc_test',chat_type:'group',message_type:'text',content:JSON.stringify({text:'@_user_1 预测'}),mentions:[{key:'@_user_1',id:{open_id:'ou_bot'}}],...overrides}});
-test('group allowlist plus exact bot mention and command required',()=>{
- expect(command_of(event(),['oc_test'],'ou_bot')).toBe('forecast');
+test('group allowlist and exact bot mention admit only bounded user query text',()=>{
+ expect(command_of(event(),['oc_test'],'ou_bot')).toBe('预测');
  expect(command_of(event(),['oc_other'],'ou_bot')).toBeNull();
  expect(command_of(event(),['oc_test'],'ou_other')).toBeNull();
  expect(command_of(event({mentions:[]}),['oc_test'],'ou_bot')).toBeNull();
- expect(command_of(event({content:JSON.stringify({text:'@_user_1 this is not a command'})}),['oc_test'],'ou_bot')).toBeNull();
+ expect(command_of(event({content:JSON.stringify({text:'@_user_1 最近发言是什么'})}),['oc_test'],'ou_bot')).toBe('最近发言是什么');
+ expect(command_of(event({content:JSON.stringify({text:'@_user_1 '+'x'.repeat(801)})}),['oc_test'],'ou_bot')).toBeNull();
 });
 test('morning/evening schedule is Beijing time, bounded, exact header slot',()=>{
  expect(slot_at('2026-10-03T01:02:33Z').at).toBe('2026-10-03T01:00:00.000Z');

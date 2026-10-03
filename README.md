@@ -36,11 +36,11 @@ Bun 自动读取项目 `.env`。程序也读取 `~/.config/tibo/config.env`（�
 
 ## 可选 AI 与守护进程
 
-使用国际版 DeepSeek `deepseek-flash`，只发公开帖子与统计，不发本地凭据或飞书消息。`TIBO_AI_FEATURES=signals,forecast,brief` 分别启用原帖语义解读、带引用的概率建议、中文摘要与跟进。任意组合可用，空值全部关闭；`forecast --no-ai` 只关闭本次 AI。离线与快照模式始终不调用 AI，status/history/evaluate 也无需 AI。
+使用国际版 DeepSeek `deepseek-flash`，预测增强只发公开帖子与统计。`TIBO_AI_FEATURES=signals,forecast,brief,router` 分别启用原帖解读、概率建议、摘要与跟进、业务命令语义解析。任意组合可用，空值全部关闭；`forecast --no-ai` 只关闭本次预测AI。离线与快照预测始终不调用AI，status/history/evaluate也无需AI。
 
 AI 概率建议默认占最终结果 20%，最多 35%，自有算法基线单独保留。改变概率必须引用近 48h、前次 global 之后的相关原文连续片段；引用校验不能证明模型推论正确。报告把 AI 推断单列，AI 不改写历史、完成状态或账户生效信息。所有功能失败时仍输出自有算法结果。
 
-认证错误暂停 24h、余额不足 1h、限流遵守 Retry-After（1min 至 24h）；参数错误暂停对应功能 6h，输出校验连续失败两次暂停该功能 15min，网络/服务连续失败三次开始 1–15min 指数冷却。状态持久化，换 key 自动清除旧暂停；`ai-status` 查看、`ai-reset` 手动恢复。每次最多三个请求，不即时重试；AI 总时限 45s，单项 15s；同一证据缓存 20min，最多 128 项，并在命中时重新校验。累计至少 30 个已完成的前瞻 AI 窗口后，若 AI 比自有基线差，自动降低 AI 权重。
+认证错误暂停 24h、余额不足 1h、限流遵守 Retry-After（1min 至 24h）；参数错误暂停对应功能 6h，输出校验连续失败两次暂停该功能 15min，网络/服务连续失败三次开始 1–15min 指数冷却。状态持久化，换 key 自动清除旧暂停；`ai-status` 查看、`reset-ai` 申请恢复，确认ID后执行。每次预测增强最多三个请求，不即时重试；增强总时限45s，单项15s；语义解析额外一次，最多15s。同一证据缓存20min，最多128项，并在命中时重新校验。累计至少30个已完成的前瞻AI窗口后，若AI比自有基线差，自动降低AI权重。
 
 macOS 安装与重装统一执行：
 
@@ -79,7 +79,17 @@ bun run service:install
 }
 ```
 
-也可直接用可执行文件作为 command。工具为 `codex_reset_forecast`、`codex_reset_status`（可选 `since`）和 `codex_reset_history`（`offset`、`limit`，最多 100）。协议为 MCP 2025-11-25 stdio，stdout 只输出 JSON-RPC。开发复现可配置 `TIBO_SNAPSHOT`，飞书实际投递禁止使用测试快照。
+也可直接用可执行文件作为 command。工具为 `codex_reset_forecast`、`codex_reset_status`（可选 `since`）、`codex_reset_history`（`offset`、`limit`，最多100），以及统一查询的 `tibo_query` / `tibo_ask`。协议为MCP 2025-11-25 stdio，stdout只输出JSON-RPC。开发复现可配置 `TIBO_SNAPSHOT`，飞书实际投递禁止使用测试快照。
+
+## 查询命令
+
+支持预测、状态、X发言、公告历史、banked发卡、近期信号、历史统计、帮助。固定指令直接执行，开启router后可用自然语言；AI只选白名单命令与参数，解析失败不猜测执行。用 `tibo help` / `tibo commands` 或“有哪些命令能用”查看生成的帮助，详见[命令与参数列表](docs/commands.md)。
+
+```sh
+bun bin/tibo.mjs query "发言 3 reset"
+bun bin/tibo.mjs ask "最近一次banked是什么时候？"
+bun bin/tibo.mjs posts --limit 3 --offline
+```
 
 ## 飞书
 
@@ -89,8 +99,10 @@ bun run service:install
 
 无需 SDK 或公网 webhook：自行获取 tenant token，直调消息 API，使用 Bun 原生 WebSocket 接收 protobuf 事件，处理心跳、断线重连、分片与 ACK。Token 只存内存，日志不输出凭据或连接 URL。
 
-只有配置群中的用户准确 @ 本机器人并发送 `预测` / `重置` / `forecast` / `/tibo`、`状态` / `status`、`帮助` / `help` 才响应。北京时间早晚报允许当前时段前 15 分钟内补发，错过时段不追发。只有成功送达的预测才更新该群上一份报告。
+只响应配置群中用户准确@本机器人的业务查询，固定指令和可选语义模式共用命令目录。群消息只发送经过隐私过滤的业务结果，错误用通用提示，维护命令不开放到群或AI。北京时间早晚报允许当前时段前15分钟内补发，错过时段不追发。只有成功送达的预测才更新该群上一份报告。
 
 投递前持久化账本，消息使用稳定 UUID；只有 API code=0 且返回 message_id 才标记 sent。未知结果记录 uncertain，重启不自动重发。遗留实例锁需先确认旧进程已停止再处理。
 
 真实飞书群内收发、权限与定时报送需要部署环境试用，本地协议模拟不能替代。参考协议：[MCP stdio](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports)、[X oEmbed](https://docs.x.com/x-for-websites/oembed-api)、[飞书消息 API](https://open.feishu.cn/document/server-docs/im-v1/message/create)。
+
+清空历史、清空预测经验与重置AI暂停仅向管理员开放，第一次返回五分钟有效的确认ID，第二次需本人在同一会话发送 `确认 ID`。Lark使用open_id白名单，本地CLI使用安装账户UID；MCP始终只读，AI不能代为确认。配置与重装、重启步骤见[运行维护](docs/operations.md)。

@@ -15,9 +15,14 @@ test('dependency-free MCP subprocess negotiates lifecycle, calls tools, validate
   expect((await request('tools/list')).error.code).toBe(-32002);
   expect((await request('initialize',{protocolVersion:'2025-11-25',capabilities:{},clientInfo:{name:'native-test',version:'1'}})).result.protocolVersion).toBe('2025-11-25');
   send({jsonrpc:'2.0',method:'notifications/initialized'});
-  expect((await request('tools/list')).result.tools.map(x=>x.name)).toEqual(['codex_reset_forecast','codex_reset_status','codex_reset_history']);
+  expect((await request('tools/list')).result.tools.map(x=>x.name)).toEqual(['codex_reset_forecast','codex_reset_status','codex_reset_history','tibo_query','tibo_ask']);
   const forecast=(await request('tools/call',{name:'codex_reset_forecast',arguments:{}})).result;
-  expect(forecast.isError).not.toBe(true);expect(forecast.content[0].text).toContain('**Codex 重置判断');
+  expect(forecast.isError).not.toBe(true);expect(forecast.content[0].text).toContain('**Codex 重置概率');
+  const posts=(await request('tools/call',{name:'tibo_query',arguments:{command:'posts',args:{limit:1}}})).result;
+  expect(posts.isError).not.toBe(true);expect(posts.content[0].text).toContain('Tibo X 发言');
+  expect((await request('tools/call',{name:'tibo_ask',arguments:{question:'帮助'}})).result.content[0].text).toContain('Tibo 查询命令');
+  expect((await request('tools/call',{name:'tibo_query',arguments:{command:'service',args:{}}})).result.isError).toBe(true);
+  expect((await request('tools/call',{name:'tibo_query',arguments:{command:'clear-history',args:{}}})).result.isError).toBe(true);
   const status=(await request('tools/call',{name:'codex_reset_status',arguments:{since:'2026-09-23T00:00:00Z'}})).result;
   expect(JSON.parse(status.content[0].text).newSince).toBe('confirmed');
   const history=(await request('tools/call',{name:'codex_reset_history',arguments:{offset:1,limit:2}})).result;

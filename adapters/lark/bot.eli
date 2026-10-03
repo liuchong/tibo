@@ -7,7 +7,7 @@
   (import "../../src/host.eli" Error Date Promise RegExp Map Set Number Intl fetch AbortSignal)
   (import "../../src/state.eli" with-lock read-state)
   (import "../../src/util.eli" iso ms fail)
-  (import "./service.eli" group-config command-of slot-at delivery-key deliver)
+  (import "./service.eli" group-config command-of sender-context slot-at delivery-key deliver)
   (defasync start-lark ()
     (await (load-config))
     (let* ((env (get process :env)) (groups (group-config))
@@ -27,7 +27,7 @@
                       ;; Acknowledge immediately; evidence collection stays outside the 3s callback.
                       (setTimeout (lambda () (funcall enqueue (async ()
                         (unless (await (read-state (delivery-key (get message :chat_id) id)))
-                          (await (deliver client (get message :chat_id) id command)))))) 0))
+                          (await (deliver client (get message :chat_id) id command nil (sender-context event))))))) 0))
                     nil)))))
           (let ((tick (lambda ()
             (let ((slot (slot-at (iso (Date/now)))))
