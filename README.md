@@ -90,8 +90,11 @@ bun run service:install
 ```sh
 bun bin/tibo.mjs query "发言 3 reset"
 bun bin/tibo.mjs ask "最近一次banked是什么时候？"
+bun bin/tibo.mjs "给我两条Tibo最近的X发言"
 bun bin/tibo.mjs posts --limit 3 --offline
 ```
+
+CLI中未识别为固定CLI命令的输入，整句自动按 `ask` 处理，无需写ask前缀；中文业务别名也可直接输入。Lark群内未匹配固定指令的提问同样进入语义解析。已识别CLI命令的参数仍严格校验；语义模式未开启或出错时明确提示，不猜测执行。隐私过滤、管理员白名单与二次确认仍适用。
 
 ## 飞书
 
