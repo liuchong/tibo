@@ -10,6 +10,7 @@
   "scripts": {
     "build": "bun tools/build.mjs",
     "compile": "bun run build && bun build --compile bin/tibo.mjs --outfile .tibo/bin/tibo && bun build --compile adapters/lark/start.mjs --outfile .tibo/bin/tibo-lark",
+    "service:install": "bun run compile && .tibo/bin/tibo service install",
     "test": "bun run build && bun test tests",
     "start": "bun bin/tibo.mjs",
     "mcp": "bun bin/tibo.mjs mcp",

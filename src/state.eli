@@ -25,6 +25,24 @@
     (await (mkdir (state-root) (js-object :recursive t :mode 448)))
     (let ((lock (str (state-file key) ".lock")))
       (try (await (mkdir lock))
-        (catch error (fail (str "已有实例运行或遗留锁：" key "；先确认进程状态再移除锁"))))
-      (try (await (funcall operation)) (finally (await (rm lock (js-object :recursive t :force t)))))))
+        (catch error
+          (let ((owner nil) (dead false))
+            (try (setq owner (JSON/parse (await (readFile (join lock "owner.json") "utf8")))) (catch error nil))
+            (when (and owner (Number/isInteger (get owner :pid)) (> (get owner :pid) 0))
+              (try (js-call process :kill (get owner :pid) 0)
+                (catch error (when (= (get error :code) "ESRCH") (setq dead t)))))
+            (unless dead (fail (str "已有实例运行或无法确认锁的所有者：" key)))
+            ;; Atomic rename claims a dead owner's lock; never remove a live lock.
+            (let ((stale (str lock ".stale-" (randomUUID))) (recovery (str lock ".recovery")))
+              (await (mkdir recovery))
+              (try
+                (let ((current (JSON/parse (await (readFile (join lock "owner.json") "utf8")))))
+                  (unless (= (get current :pid) (get owner :pid)) (fail "锁所有者已变化")))
+                (await (rename lock stale)) (await (rm stale (js-object :recursive t)))
+                (await (mkdir lock))
+                (finally (await (rm recovery (js-object :recursive t)))))))))
+      (try
+        (await (writeFile (join lock "owner.json") (json (js-object :pid (get process :pid))) (js-object :mode 384)))
+        (await (funcall operation))
+        (finally (await (rm lock (js-object :recursive t :force t)))))))
   (export state-root read-state write-state with-lock))
