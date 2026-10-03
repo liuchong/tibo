@@ -27,13 +27,13 @@ bun run service:install
 
 ```dotenv
 DEEPSEEK_API_KEY=<实际密钥>
-TIBO_AI_FEATURES=signals,forecast,brief
+TIBO_AI_FEATURES=signals,forecast,brief,router
 TIBO_AI_WEIGHT=0.2
 TIBO_DAEMON_INTERVAL=900
 TIBO_STATE_DIR=/absolute/path/to/state
 ```
 
-`TIBO_AI_FEATURES` 可以为空、signals、forecast、brief或逗号组合。模型固定deepseek-flash，官方端点固定https://api.deepseek.com/chat/completions。配置文件不是shell脚本，不支持变量展开。环境变量优先；源代码运行时Bun自动加载的项目.env也属于环境变量。新配置在进程下次启动时加载。
+`TIBO_AI_FEATURES` 可以为空，或由signals、forecast、brief、router逗号组合。router是可选语义命令解析，固定查询不需要它。完整指令见[业务查询命令](commands.md)。模型固定deepseek-flash，官方端点固定https://api.deepseek.com/chat/completions。配置文件不是shell脚本，不支持变量展开。环境变量优先；源代码运行时Bun自动加载的项目.env也属于环境变量。新配置在进程下次启动时加载。
 
 ## 实际验收
 
@@ -74,14 +74,22 @@ restart适用于修改配置后重新加载，也可验证守护恢复；运行�
 
 ```sh
 ~/.local/lib/tibo/tibo ai-status
-~/.local/lib/tibo/tibo ai-reset
+~/.local/lib/tibo/tibo reset-ai
+# 上一步返回确认ID；检查动作后执行
+~/.local/lib/tibo/tibo confirm <确认ID>
 ~/.local/lib/tibo/tibo forecast --no-ai
 ~/.local/lib/tibo/tibo forecast --offline
 ```
 
-认证错误先修改配置中的key，重启后旧key的暂停自动失效；余额不足先充值。冷却到期后自动试探，成功复位。ai-reset只清除AI暂停与缓存，不改历史。AI状态损坏时核心仍运行，可用ai-reset重建。网络全部不可用时仍可用本地ledger离线查看；首次无历史则无法生成概率。
+认证错误先修改配置中的key，重启后旧key的暂停自动失效；余额不足先充值。冷却到期后自动试探，成功复位。reset-ai（ai-reset别名）需管理员与二次确认，只清除AI暂停与缓存，不改历史。AI状态损坏时核心仍运行；若状态不可读而无法备份，写操作会拒绝，需在本地停止进程后保留故障文件再处理。网络全部不可用时仍可用本地ledger离线查看；首次无历史则无法生成概率。
 
 锁包含创建者PID，只在系统明确返回该PID不存在时自动回收。仍存活、无所有者或不可确认的锁不会自动删除；先通过service status/进程状态确认，停止服务后再处理。不得删除运行中的状态目录。
+
+## 管理员配置与帮助
+
+安装器在本地配置缺少时写入安装账户的 `TIBO_LOCAL_ADMIN_UID`；只有该UID可申请/确认本地业务写操作。管理员可运行 `tibo help` 或 `tibo ask "有哪些命令可以用？"` 查看用法。清空历史、清空经验及重置AI均需二次确认，不能用旧版ai-reset绕过。
+
+接入Lark前，在本地配置填写 `TIBO_LARK_ADMIN_OPEN_IDS=<自己的open_id>` 与 `TIBO_LARK_CHAT_IDS=<授权群ID>`，与应用凭据分开保管；从真实官方事件确认open_id，不按昵称、文本自述或其他应用的ID猜测。没有管理员白名单时只允许查询。配置改动后重启独立Lark进程；采集daemon本身不收群消息。命令、身份绑定、五分钟确认与备份细节见[业务命令](commands.md)。确认票据持久化，重启不会重新计算过期时间；已执行、取消或不确定失败的ID不会重复执行。
 
 ## 后续开发要求
 
