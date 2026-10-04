@@ -43,6 +43,21 @@ test('semantic references and probability proposals reject invented or consumed 
  expect(()=>validate_forecast({...proposal,citations:[]},i)).toThrow();expect(()=>validate_forecast({...proposal,citations:[{postId:'event-24',quote:'Reset all propagated.'}]},i)).toThrow();expect(()=>validate_forecast({...proposal,p48:50},i)).toThrow();
  expect(()=>validate_brief({summary:'text',followups:['one','two'],citations:[]},i)).toThrow();
 });
+test('live citation failures: normalize HTML whitespace, allow historical context, but never consume conditional plans as certain promises',()=>{
+ const old={id:'last-global',at:'2026-09-24T00:00:00Z',text:'Reset all propagated.  Enjoy.',provenance:'primary'};
+ const input={posts:[{id:'mail',at:'2026-09-25T00:00:00Z',text:'What it did    - delete all categories of email',provenance:'primary'},
+   {id:'plan',at:'2026-09-25T00:00:00Z',text:'Each day we’ll either ship an improvement or ship a full reset.',provenance:'primary'}],lastGlobal:old,baseline:{p24:17,p48:31}};
+ expect(validate_signals({items:[{postId:'mail',quote:'What it did - delete all categories',kind:'other',summary:'使用案例'}]},input).items).toHaveLength(1);
+ expect(validate_signals({items:[{postId:'plan',quote:'ship a full reset',kind:'global-promise',summary:'二选一'}]},input).items[0].kind).toBe('conditional-promise');
+ expect(validate_brief({summary:'等待时钟以此前完成重置为起点',followups:['观察新公告','观察改进交付'],citations:[{postId:old.id,quote:'Reset all propagated. Enjoy.'}]},input).citations[0].quote).toBe('Reset all propagated. Enjoy.');
+ expect(()=>validate_brief({summary:'无事实',followups:['观察','观察'],citations:[{postId:old.id,quote:'Reset is coming tomorrow.'}]},input)).toThrow();
+ expect(()=>validate_forecast({p24:90,p48:95,reason:'旧完成不支持新概率',citations:[{postId:old.id,quote:'Reset all propagated.'}]},input)).toThrow();
+});
+test('output-contract upgrade releases obsolete schema circuits, preserves usage, and records bounded diagnostic stages',async()=>{
+ const r=await trial(`${prefix}globalThis.fetch=async()=>{calls++;return ${response}};const {config,ai_call,ai_status}=await import(${JSON.stringify(gateway)});const {write_state}=await import(${JSON.stringify(state)});await write_state('ai',{identity:config().identity,provider:{failures:0,until:0},features:{signals:{status:-2,failures:7,until:Date.now()+900000,reason:'输出未通过校验'}},cache:[],usage:{signals:{calls:13,promptTokens:100,completionTokens:20}}});const recovered=await ai_call('signals',payload,valid);globalThis.fetch=async()=>new Response(JSON.stringify({choices:[{finish_reason:'stop',message:{content:'{"fixture":false}'}}]}));const rejected=await ai_call('brief',payload,()=>{throw new Error('fixture-key secret upstream body')});console.log(JSON.stringify({recovered,rejected,calls,status:await ai_status()}));`);
+ expect(r.recovered.state).toBe('ok');expect(r.status.usage.signals.calls).toBe(14);expect(r.status.lastAttempts.signals.stage).toBe('validated');
+ expect(r.status.lastAttempts.brief.stage).toBe('schema');expect(JSON.stringify(r)).not.toContain('fixture-key');
+});
 test('AI calibration only reduces configured weight after 30 prospective resolved windows',()=>{
  const rows=Array.from({length:30},()=>({p24:30,p48:40,baselinePrediction:{p24:10,p48:20},aiPrediction:{p24:90,p48:95},outcome:{y24:0,y48:0},models:[]}));const stats=accuracy(rows);
  expect(stats.aiCalibration.n).toBe(30);expect(effective_weight(.2,stats)).toBeLessThan(.2);expect(effective_weight(.2,{aiCalibration:{...stats.aiCalibration,n:29}})).toBe(.2);

@@ -23,6 +23,13 @@ test('original evidence outranks archived copies and future promises never becom
  expect(events_from_posts([primary])[0].global).toBe(true);
  expect(events_from_posts([{...primary,text:'A banked reset has been added.'}])[0]).toMatchObject({global:false,banked:true});
 });
+test('HTTP 200 login pages are reported as parse failures while official oEmbed verification succeeds independently',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'tibo-primary-health-'));
+ const code=`globalThis.fetch=async u=>{if(String(u).includes('/oembed?'))return new Response(JSON.stringify({url:'https://x.com/thsottiaux/status/${id}',author_url:'https://x.com/thsottiaux',html:'<blockquote class="twitter-tweet"><p>Reset all propagated.  Enjoy.</p></blockquote>'}));if(String(u).includes('x.com/thsottiaux'))return new Response('<html>Log in to X</html>');return new Response('',{status:503})};const {write_state}=await import(${JSON.stringify(resolve('dist/src/state.mjs'))});await write_state('ledger',{posts:[{id:'${id}',url:'https://x.com/thsottiaux/status/${id}',at:'2026-10-02T21:18:48Z',author:'thsottiaux',text:'archived',provenance:'archive'}],events:[]});const {collect_sources}=await import(${JSON.stringify(resolve('dist/src/sources.mjs'))});const s=await collect_sources('${now}');console.log(JSON.stringify({sources:s.sources,post:s.posts[0]}));`;
+ try{const r=spawnSync(process.execPath,['--eval',code],{env:{...process.env,TIBO_STATE_DIR:dir},encoding:'utf8',timeout:5000});expect(r.status).toBe(0);const s=JSON.parse(r.stdout);
+ expect(s.sources.find(x=>x.name==='primary')).toMatchObject({ok:false,fetched:true});expect(s.sources.find(x=>x.name==='oembed')).toMatchObject({ok:true,fetched:true,attempted:1,verified:1});expect(s.post.text).toBe('Reset all propagated. Enjoy.');
+ }finally{await rm(dir,{recursive:true,force:true});}
+});
 test('all network sources can fail; local ledger still yields current offline observation without network I/O',async()=>{
  const dir=await mkdtemp(join(tmpdir(),'tibo-source-'));
  const code=`globalThis.fetch=async()=>{throw new Error('network unavailable')};

@@ -10,6 +10,7 @@
            (reason (if (get model :adaptive) "三模型按历史逐步回测误差加权" "回测不足 30 个时点，三模型等权"))
            (signal (cond (active "明确承诺待兑现")
                          ((get signals :compensation) "事故补偿暗示")
+                         ((js-call (get signals :hints) :some (lambda (hint) (get hint :conditional))) "条件性重置计划")
                          ((> (get (get signals :hints) :length) 0) "重置暗示") (t "未识别新承诺"))))
       ;; Wording and numeric history estimates are separate. Unvalidated hint boosts
       ;; or banked penalties must not masquerade as learned likelihood ratios.
