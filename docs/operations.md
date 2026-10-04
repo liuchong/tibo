@@ -41,12 +41,15 @@ TIBO_STATE_DIR=/absolute/path/to/state
 ~/.local/lib/tibo/tibo service status
 ~/.local/lib/tibo/tibo daemon-status
 ~/.local/lib/tibo/tibo ai-status
+~/.local/lib/tibo/tibo diagnose
 tail -n 20 ~/.local/state/tibo/daemon.stderr.log
 ```
 
 service status 的loaded为true，launchd输出中state=running且有pid，才说明服务已启动。还须等daemon-status出现state=ready、finishedAt和概率，并查看daemon-latest.json中的report；单凭安装成功不能证明采集成功。首次网络采集可能需要一分钟。
 
 `daemon.json`表示当前/最近轮次，`daemon-latest.json`是最近成功报告；`ledger.json`是历史，`experience.json`是前瞻预测，`ai.json`是暂停与缓存状态。报告记录ok/cached/disabled/skipped/blocked/fallback；skipped表示无适用信息而主动跳过。ai-status可看任务请求数、服务返回的输入/输出token累计与最近延迟；缓存命中不增加请求，网络失败未返回usage时无法知道供应商是否计费。全部AI失败仍产出自有算法概率。采集不足时daemon标为degraded并保留上次成功报告，下轮继续，不编造概率。
+
+`diagnose`读取最近一次实际查询/后台周期的诊断快照，不调用网络。`diagnostics-cli.json`与`diagnostics-daemon.json`记录最新帖子、存档缓存时间、各源解析结果、原帖核实数量、采用的官方资料、AI输入帖子ID和各任务结果。HTTP成功但主页没有可解析原帖时，primary的fetched=true、ok=false；oembed独立报告核实结果。搜索unavailable表示验证/脚本壳/请求失败，empty仅表示可解析页面未提供可用官方链接。首次升级需要实际执行一次query与后台周期，之后才有对应快照；不要将旧快照时间当成当前状态。
 
 ## 更新与重装
 

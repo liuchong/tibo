@@ -6,6 +6,7 @@
   (defun matches (pattern text) (js-call (new RegExp pattern "i") :test text))
   (defun match (pattern text) (js-call (new RegExp pattern "i") :exec text))
   (defun clean (text) (js-call (js-call (str text) :replace (new RegExp "[\\r\\n]+" "g") " ") :trim))
+  (defun canonical-text (text) (js-call (js-call (str (or text "")) :replace (new RegExp "\\s+" "g") " ") :trim))
   (defun ms (value)
     (let ((n (Date/parse value)))
       (if (Number/isFinite n) n (fail (str "Invalid UTC timestamp: " value)))))
@@ -23,4 +24,4 @@
   (defun unknown (items text) (js-call items :push text))
   (defun clamp (value) (Math/max 0 (Math/min 100 (Math/round value))))
   (defun json (value) (JSON/stringify value nil 2))
-  (export hour-ms day-ms fail matches match clean ms iso utc beijing days decimal values sorted last-item recent unknown clamp json))
+  (export hour-ms day-ms fail matches match clean canonical-text ms iso utc beijing days decimal values sorted last-item recent unknown clamp json))

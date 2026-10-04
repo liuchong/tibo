@@ -1,0 +1,18 @@
+(module tibo.diagnostics
+  (import "./research.eli" documents-from)
+  (import "./util.eli" sorted last-item ms)
+  ;; Local-only operational evidence. No HTML, credentials or upstream error bodies.
+  (defun diagnostics (result)
+    (let* ((snapshot (get result :snapshot)) (ai (get result :ai))
+      (latest (last-item (sorted (js-call (get snapshot :posts) :filter (lambda (p) (<= (ms (get p :at)) (ms (get snapshot :now))))) "at"))))
+      (js-object :at (get snapshot :now) :archiveCachedAt (get snapshot :cachedAt)
+        :latestPost (if latest (js-object :id (get latest :id) :at (get latest :at) :text (get latest :text)
+          :url (get latest :url) :provenance (get latest :provenance) :verifiedAt (get latest :cachedAt)
+          :truncated (get latest :truncated false)) nil)
+        :sources (js-call (get snapshot :sources) :map (lambda (s) (js-object :name (get s :name) :ok (get s :ok)
+          :fetched (get s :fetched false) :at (get s :at) :attempted (get s :attempted) :verified (get s :verified))))
+        :documents (if ai (get ai :documents) (documents-from snapshot))
+        :ai (if ai (js-object :postIds (get ai :postIds) :features (get ai :features) :weight (get ai :weight)) nil)
+        :forecast (js-object :p24 (get (get result :forecast) :p24) :p48 (get (get result :forecast) :p48)
+          :mode (get (get result :forecast) :mode) :signal (get (get result :forecast) :signal)))))
+  (export diagnostics))

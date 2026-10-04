@@ -6,6 +6,7 @@
   (import "./util.eli" iso)
   (defconst feature-names (js-array "signals" "research" "search" "forecast" "review" "brief" "router"))
   (defconst token-limits (js-object :signals 1100 :research 1400 :search 220 :forecast 500 :review 320 :brief 650 :router 220))
+  (defconst output-policy "2")
   (defun digest (text) (js-call (js-call (createHash "sha256") :update text) :digest "hex"))
   (defun config ()
     (let* ((env (get process :env)) (key (get env :DEEPSEEK_API_KEY ""))
@@ -30,11 +31,17 @@
     (let ((seconds (Number value)))
       (if (and value (Number/isFinite seconds)) (* 1000 (Math/max 0 seconds))
         (let ((date (Date/parse (or value "")))) (if (Number/isFinite date) (Math/max 0 (- date now)) 60000)))))
+  (defun validation-code (message)
+    (cond ((or (= message "AI 引用不是输入中的原文") (= message "调研引用不在已抓取资料中")) "citation-not-in-input")
+          ((or (= message "AI 调整没有引用") (= message "AI 摘要没有原文引用")) "missing-citation")
+          ((= message "AI 概率调整没有未消耗的相关引用") "consumed-or-unrelated-citation")
+          ((= message "调研枚举不合法") "invalid-enum")
+          (t "invalid-schema")))
   (defun cache-identity (feature payload)
     (let ((input (get payload :evidence)))
       ;; Cache stable evidence, not the ever-changing collection clock. Every hit
       ;; is still revalidated against the current post/window eligibility.
-      (digest (JSON/stringify (js-object :feature feature :instruction (get payload :instruction)
+      (digest (JSON/stringify (js-object :policy output-policy :feature feature :instruction (get payload :instruction)
         :evidence (if (= feature "router") input (Object/fromEntries (js-call (Object/entries input) :filter (lambda (row) (not (= (get row 0) "now")))))))))))
   (defun account-usage (state feature usage elapsed)
     (let* ((all (get state :usage (js-object))) (row (get all feature (js-object :calls 0 :promptTokens 0 :completionTokens 0))))
@@ -53,16 +60,24 @@
                   (let* ((now (Date/now)) (stored (await (read-state "ai")))
                          (state (if (and stored (= (get stored :identity) (get cfg :identity))) stored (fresh-state (get cfg :identity))))
                          (provider (get state :provider)) (features (get state :features))
-                         (local (get features feature (js-object :failures 0 :until 0)))
+                         (previous-local (get features feature (js-object :failures 0 :until 0)))
+                         ;; A repaired output contract releases only obsolete schema failures.
+                         ;; Authentication, rate limits and transport circuits remain intact.
+                         (local (if (and (= (get previous-local :status) -2) (not (= (get previous-local :outputPolicy) output-policy)))
+                           (js-object :failures 0 :until 0) previous-local))
                          (blocked (if (> (get provider :until) now) provider (if (> (get local :until) now) local nil)))
                          (cache-key (cache-identity feature payload))
                          (cache (js-call (get state :cache) :filter (lambda (r) (> (get r :until) now))))
                          (hit (js-call cache :find (lambda (r) (= (get r :key) cache-key)))))
+                    (when hit
+                      (try (funcall validator (get hit :value))
+                        (catch error
+                          (setq cache (js-call cache :filter (lambda (r) (not (= (get r :key) cache-key)))) hit nil))))
                     (if blocked (js-object :state "blocked" :reason (get blocked :reason) :retryAt (js-call (new Date (get blocked :until)) :toISOString))
                       (if hit
                         (try (js-object :state "cached" :value (funcall validator (get hit :value)) :usage (js-object :promptTokens 0 :completionTokens 0))
                           (catch error (js-object :state "fallback" :reason "缓存未通过校验")))
-                        (let ((status 0) (retry 60000) (value nil) (usage nil) (valid false))
+                        (let ((status 0) (retry 60000) (value nil) (usage nil) (valid false) (stage "transport") (detail nil))
                           (try
                             (let* ((response (await (fetch (get cfg :endpoint) (js-object :method "POST" :redirect "error"
                                     :headers (js-object :Content-Type "application/json" :Authorization (str "Bearer " key))
@@ -74,17 +89,25 @@
                                    (body nil))
                               (setq status (get response :status) retry (retry-delay (js-call (get response :headers) :get "retry-after") now))
                               (when (get response :ok)
-                                (setq status -2)
+                                (setq status -2 stage "response-json")
                                 (let ((text (await (js-call response :text))))
                                   (when (> (get text :length) 100000) (throw "size"))
                                   (setq body (JSON/parse text)))
                                 (let ((u (get body :usage (js-object))))
                                   (setq usage (js-object :promptTokens (get u :prompt_tokens 0) :completionTokens (get u :completion_tokens 0))))
                                 (let* ((choice (get (get body :choices) 0)) (content (get (get choice :message) :content)))
+                                  (setq stage (if (= (get choice :finish_reason) "length") "truncated" "empty-output"))
                                   (unless (and (= (get choice :finish_reason) "stop") (= (value-type content) "string") (> (get content :length) 0)) (throw "output"))
-                                  (setq value (funcall validator (JSON/parse content)) valid t))))
-                            (catch error (when (or (= (get error :name) "TimeoutError") (= (get error :name) "AbortError")) (setq status 0))))
+                                  (setq stage "output-json" value (JSON/parse content))
+                                  (setq stage "schema" value (funcall validator value) valid t))))
+                            (catch error
+                              (when (= stage "schema") (setq detail (validation-code (get error :message ""))))
+                              (when (or (= (get error :name) "TimeoutError") (= (get error :name) "AbortError")) (setq status 0 stage "timeout"))))
                           (account-usage state feature usage (- (Date/now) now))
+                          (let ((attempts (get state :lastAttempts (js-object))))
+                            (put attempts feature (js-object :at (iso (Date/now)) :state (if valid "ok" "fallback")
+                              :stage (if valid "validated" stage) :validationCode detail :code (if valid 200 status) :usage usage))
+                            (put state :lastAttempts attempts))
                           (if valid
                             (progn
                               (put state :provider (js-object :failures 0 :until 0))
@@ -96,6 +119,7 @@
                             (let* ((feature-failure (or (= status -2) (= status 400) (= status 404) (= status 422)))
                                    (bucket (if feature-failure local provider))
                                    (policy (failure-policy status retry (+ (get bucket :failures 0) 1) (Date/now))))
+                              (put policy :outputPolicy output-policy) (put policy :stage stage) (put policy :validationCode detail)
                               (if (= (get policy :scope) "feature") (put features feature policy) (put state :provider policy))
                               (put state :cache cache) (await (write-state "ai" state))
                               (js-object :state "fallback" :reason (get policy :reason) :code status
@@ -109,6 +133,7 @@
           (js-object :model (get cfg :model) :configured (> (get (get cfg :key) :length) 0)
             :enabledFeatures (get cfg :features) :weight (get cfg :weight) :tokenLimits token-limits
             :usage (if (and stored (= (get stored :identity) (get cfg :identity))) (get stored :usage (js-object)) nil)
+            :lastAttempts (if (and stored (= (get stored :identity) (get cfg :identity))) (get stored :lastAttempts (js-object)) nil)
             :circuit (if (and stored (= (get stored :identity) (get cfg :identity)))
                        (js-object :provider (get stored :provider) :features (get stored :features) :cached (get (get stored :cache) :length)) nil)))
         (catch error (js-object :state "unavailable")))))

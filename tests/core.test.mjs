@@ -6,6 +6,13 @@ import {render_report} from '../dist/src/report.mjs';
 import {parse_archive,parse_primary} from '../dist/src/sources.mjs';
 import {at,event,post,snapshot} from './fixture.mjs';
 const day=86400000;
+test('even a timed either-improvement-or-reset statement stays a conditional hint, without changing the clock or base probability',()=>{
+ const baseline=judge(snapshot());
+ const result=judge(snapshot({posts:[post(25,'Tomorrow 10am PT we will either ship an improvement or a global reset for all paid accounts.')]}));
+ expect(result.signals.promise).toBeNull();expect(result.signals.hints[0].conditional).toBe(true);
+ expect(result.forecast.signal).toBe('条件性重置计划');expect(result.signals.lastGlobal.at).toBe(baseline.signals.lastGlobal.at);
+ expect(result.forecast.p24).toBe(baseline.forecast.p24);expect(result.forecast.p48).toBe(baseline.forecast.p48);
+});
 
 test('strict conditional survival and inclusive +24/+48 endpoints',()=>{
  const rows=[1,2,3,4,5].map(n=>({duration:n*day,start:at(1)}));
