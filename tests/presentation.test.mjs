@@ -1,7 +1,7 @@
 import {test,expect} from 'bun:test';
 import {mkdtemp,rm,writeFile} from 'node:fs/promises';
 import {join,resolve} from 'node:path';import {tmpdir,homedir} from 'node:os';import {spawnSync} from 'node:child_process';
-import {parse_pipeline,detect_language,validate_stages} from '../dist/src/presentation.mjs';
+import {parse_pipeline,detect_language,validate_stages,language} from '../dist/src/presentation.mjs';
 import {snapshot,post} from './fixture.mjs';
 const commands=JSON.stringify(resolve('dist/src/commands.mjs'));
 const evidence=snapshot({posts:[post(24,'Older statement.',{id:'2100000000000000001'}),post(25,'Either an improvement or a full reset. 17% is a forecast, not a promise.',{id:'2100000000000000002',truncated:true})]});
@@ -18,6 +18,17 @@ test('pipe grammar preserves quoted keywords and apostrophes; validates all stag
  for(const text of ['posts |','posts |shell rm','posts |translate','posts |translate xx','posts |original x','posts |ask API key','posts |original |original |original |original','posts "unterminated'])expect(()=>parse_pipeline(text)).toThrow();
  for(const s of [[{name:'ask',instruction:'ok',command:'confirm'}],[{name:'original',args:{}}],[{name:'translate',language:'xx'}],[{name:'ask',instruction:'sk-fixtureprivatekey'}],{name:'original'}])expect(()=>validate_stages(s)).toThrow();
  expect(detect_language('查看发言')).toBe('zh');expect(detect_language('Show latest posts')).toBe('en');expect(detect_language('最近の投稿を見せて')).toBe('ja');expect(detect_language('Bonjour, les derniers messages ?')).toBe('fr');
+});
+test('recognized BCP47 languages and script/region tags are accepted without an eleven-language whitelist',()=>{
+ for(const tag of ['mn','mn-MN','mn-Mong','mn-Cyrl-MN','bo','ug','hi','sw','fil','he','en-US']){
+  expect(language(tag.toLowerCase())).toBe(tag);expect(parse_pipeline('posts 2 |translate '+tag).stages[0].language).toBe(tag);
+ }
+ for(const tag of ['zz','xx','qaa','und','zxx','mul','mn-Fake','en-QQ','mn-u-ca-gregory','蒙古语','mn /tmp/x',{},null])expect(language(tag)==null).toBe(true);
+});
+test('semantic routing accepts Mongolian replies and preserves source originals without reclassifying Cyrillic as Russian',async()=>{
+ const r=await trial(`const q=await resolve_query('请用蒙古语展示最新一条发言');const result=await execute_query(q,opts);console.log(JSON.stringify({q,result,sent}));`,
+ String.raw`globalThis.fetch=async(u,o)=>{const e=JSON.parse(JSON.parse(o.body).messages[1].content);sent.push(e);return reply(e.commands?{command:'posts',args:{limit:1},language:'mn'}:{text:'Монгол орчуулга\n'+e.text});};`);
+ expect(r.q.language).toBe('mn');expect(r.result.partial).toBe(false);expect(r.sent).toHaveLength(2);expect(r.sent[1].targetLanguage).toBe('mn');expect(r.result.text).toContain('Монгол орчуулга');expect(r.result.text).toContain(r.result.originalText);
 });
 test('fixed queries bypass AI; postId retrieves known older originals and flags source truncation',async()=>{
  const r=await trial(`const q=await resolve_query('原文 --postId 2100000000000000002');const raw=await execute_query(q,opts),older=await execute_query({command:'posts',args:{postId:'2100000000000000001',hours:1}},opts);console.log(JSON.stringify({raw,older,sent}));`,fake);

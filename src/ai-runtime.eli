@@ -8,7 +8,7 @@
   (defconst token-limits (js-object :signals 1100 :research 1400 :search 220 :forecast 500 :review 320 :brief 650 :router 280 :translate 2800 :answer 1200 :repair 400))
   (defconst output-policy "2")
   (defun feature-policy (feature)
-    (cond ((= feature "repair") "repair-1")
+    (cond ((= feature "repair") "repair-2") ((= feature "router") "language-3")
       ((js-call (js-array "translate" "answer") :includes feature) "text-3") (t output-policy)))
   (defun digest (text) (js-call (js-call (createHash "sha256") :update text) :digest "hex"))
   (defun config ()
