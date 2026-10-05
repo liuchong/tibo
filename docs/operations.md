@@ -27,13 +27,13 @@ bun run service:install
 
 ```dotenv
 DEEPSEEK_API_KEY=<实际密钥>
-TIBO_AI_FEATURES=signals,search,research,forecast,review,brief,router,translate,answer
+TIBO_AI_FEATURES=signals,search,research,forecast,review,brief,router,translate,answer,repair
 TIBO_AI_WEIGHT=0.2
 TIBO_DAEMON_INTERVAL=900
 TIBO_STATE_DIR=/absolute/path/to/state
 ```
 
-`TIBO_AI_FEATURES` 可为空，或由signals、search、research、forecast、review、brief、router、translate、answer逗号组合。router是语义命令解析，固定查询不需要它；translate用于显式翻译或按提问语言展示，answer用于一次性问答及ask文字管道。指令见[业务命令](commands.md)，任务和预算见[AI调研](ai-research.md)。旧配置不会被重装覆盖，升级后需要在原功能列表末尾添加translate、answer，并执行 `tibo service restart`；不需要重置历史、AI用量或已有订阅。重新安装及重启步骤沿用本文件下文。模型固定deepseek-flash，官方端点固定https://api.deepseek.com/chat/completions。配置不是shell脚本，不支持变量展开。环境变量优先，Bun读取的项目.env也属于环境变量；新配置在进程下次启动时加载。
+`TIBO_AI_FEATURES` 可为空，或由signals、search、research、forecast、review、brief、router、translate、answer、repair逗号组合。router是语义命令解析，固定查询不需要它；translate用于显式翻译或按提问语言展示，answer用于一次性问答及ask文字管道，repair只修复人类交互的实际解析错误。指令见[业务命令](commands.md)，任务和预算见[AI调研](ai-research.md)。旧配置不会被重装覆盖，启用本次升级的保底需在原功能列表末尾添加repair，并执行 `tibo service restart`（已接入Lark时也重装/重启独立Lark程序）；不需要重置历史、AI用量或已有订阅。重新安装及重启步骤沿用本文件下文。模型固定deepseek-flash，官方端点固定https://api.deepseek.com/chat/completions。配置不是shell脚本，不支持变量展开。环境变量优先，Bun读取的项目.env也属于环境变量；新配置在进程下次启动时加载。
 
 ## 实际验收
 

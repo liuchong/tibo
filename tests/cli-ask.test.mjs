@@ -23,7 +23,7 @@ test('bare natural question and split unknown CLI tokens enter the semantic rout
 });
 test('direct business aliases bypass AI, and malformed known CLI flags remain errors',async()=>{
  const fixed=await run(['帮助']);expect(fixed.status).toBe(0);expect(fixed.stdout).toContain('Tibo 查询命令');expect(fixed.request).toBeNull();
- const bad=await run(['posts','--bogus']);expect(bad.status).toBe(1);expect(bad.stderr).toContain('未知参数');expect(bad.request).toBeNull();
+ const bad=await run(['posts','--bogus']);expect(bad.status).toBe(2);expect(bad.stdout).toContain('未能识别');expect(bad.request).toBeNull();
 });
 test('automatic ask gives usable errors when disabled or failing and never uploads private queries',async()=>{
  const off=await run(['有哪些查询可以使用'],{features:''});expect(off.status).toBe(2);expect(off.stdout).toContain('语义查询尚未开启');expect(off.request).toBeNull();

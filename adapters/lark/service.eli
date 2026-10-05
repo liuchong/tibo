@@ -89,8 +89,10 @@
       ;; Reserve BEFORE invoking external I/O. Unknown send outcomes stay auditable.
       (await (write-state ledger-key (js-object :state "pending" :at (iso (Date/now)) :group group :key key)))
       (try
-        (let* ((response (if prepared (js-object :ok t :text (get prepared :text)) (try
-                  (await (execute-query (await (resolve-query command context)) (js-object :channel group :persist false :titleTime title-time :context context)))
+        (let* ((options (js-object :channel group :persist false :titleTime title-time :context context
+                 :humanInput (and (not prepared) context (= (get context :authenticated) t))))
+               (response (if prepared (js-object :ok t :text (get prepared :text)) (try
+                  (await (execute-query (await (resolve-query command context options)) options))
                   (catch error (js-object :ok false :text "查询暂时出了问题，请稍后再试。")))))
                (text (get response :text)) (result (get response :result)))
           (await (write-state ledger-key (js-object :state "sending" :at (iso (Date/now)) :group group :key key)))

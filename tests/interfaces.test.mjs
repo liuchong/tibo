@@ -42,11 +42,11 @@ test('CLI and independent Lark entry run with no node_modules directory',async()
  // Lark launcher has a different relative entry when copied as this test fixture.
  await writeFile(join(dir,'lark.mjs'),"import './dist/adapters/lark/main.mjs';\n");
  try{
-  const env={...process.env,TIBO_STATE_DIR:join(dir,'state'),TIBO_LARK_CHAT_IDS:'',TIBO_LARK_APP_ID:'',TIBO_LARK_APP_SECRET:''};
+  const env={...process.env,TIBO_STATE_DIR:join(dir,'state'),TIBO_CONFIG_FILE:join(dir,'absent.env'),TIBO_AI_FEATURES:'',DEEPSEEK_API_KEY:'',TIBO_LARK_CHAT_IDS:'',TIBO_LARK_APP_ID:'',TIBO_LARK_APP_SECRET:''};
   const run=args=>spawnSync(process.execPath,[join(dir,'bin/tibo.mjs'),...args],{cwd:dir,encoding:'utf8',env,timeout:5000});
   const f=run(['forecast','--snapshot',file]);expect(f.status).toBe(0);expect(f.stdout).toContain('• 模型验证');expect(f.stderr).toBe('');
   const s=run(['status','--snapshot',file,'--since','2026-09-23T00:00:00Z']);expect(s.status).toBe(0);expect(JSON.parse(s.stdout).accountApplied).toBe('unknown');
-  const bad=run(['status','--snapshot',file,'--since','no-time']);expect(bad.status).toBe(1);expect(bad.stdout).toBe('');
+  const bad=run(['status','--snapshot',file,'--since','no-time']);expect(bad.status).toBe(2);expect(bad.stdout).toContain('未能识别');
   const l=spawnSync(process.execPath,[join(dir,'lark.mjs')],{cwd:dir,encoding:'utf8',env,timeout:5000});expect(l.status).toBe(1);expect(l.stderr).toContain('本地配置');
  }finally{await rm(dir,{recursive:true,force:true});}
 });

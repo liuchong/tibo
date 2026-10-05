@@ -4,9 +4,10 @@
   (import "node:crypto" createHash)
   (import "./state.eli" read-state write-state with-lock)
   (import "./util.eli" iso)
-  (defconst feature-names (js-array "signals" "research" "search" "forecast" "review" "brief" "router" "translate" "answer"))
-  (defconst token-limits (js-object :signals 1100 :research 1400 :search 220 :forecast 500 :review 320 :brief 650 :router 280 :translate 2800 :answer 1200))
+  (defconst feature-names (js-array "signals" "research" "search" "forecast" "review" "brief" "router" "translate" "answer" "repair"))
+  (defconst token-limits (js-object :signals 1100 :research 1400 :search 220 :forecast 500 :review 320 :brief 650 :router 280 :translate 2800 :answer 1200 :repair 400))
   (defconst output-policy "2")
+  (defun feature-policy (feature) (if (= feature "repair") "repair-1" output-policy))
   (defun digest (text) (js-call (js-call (createHash "sha256") :update text) :digest "hex"))
   (defun config ()
     (let* ((env (get process :env)) (key (get env :DEEPSEEK_API_KEY ""))
@@ -41,8 +42,8 @@
     (let ((input (get payload :evidence)))
       ;; Cache stable evidence, not the ever-changing collection clock. Every hit
       ;; is still revalidated against the current post/window eligibility.
-      (digest (JSON/stringify (js-object :policy output-policy :feature feature :instruction (get payload :instruction)
-        :evidence (if (= feature "router") input (Object/fromEntries (js-call (Object/entries input) :filter (lambda (row) (not (= (get row 0) "now")))))))))))
+      (digest (JSON/stringify (js-object :policy (feature-policy feature) :feature feature :instruction (get payload :instruction)
+        :evidence (if (js-call (js-array "router" "repair") :includes feature) input (Object/fromEntries (js-call (Object/entries input) :filter (lambda (row) (not (= (get row 0) "now")))))))))))
   (defun account-usage (state feature usage elapsed)
     (let* ((all (get state :usage (js-object))) (row (get all feature (js-object :calls 0 :promptTokens 0 :completionTokens 0))))
       (put row :calls (+ (get row :calls) 1))
@@ -50,7 +51,7 @@
       (put row :completionTokens (+ (get row :completionTokens) (get (or usage (js-object)) :completionTokens 0)))
       (put row :lastLatencyMs elapsed) (put all feature row) (put state :usage all)))
   (defasync ai-call (feature payload validator &optional timeout)
-    (let* ((cfg (config)) (key (get cfg :key)))
+    (let* ((cfg (config)) (key (get cfg :key)) (contract (feature-policy feature)))
       (cond ((= (get key :length) 0) (js-object :state "disabled" :reason "未配置密钥"))
             ((not (js-call (get cfg :features) :includes feature)) (js-object :state "disabled" :reason "功能未启用"))
             ((> (get (JSON/stringify (get payload :evidence)) :length) 24000) (js-object :state "skipped" :reason "任务输入超限，保留基础判断"))
@@ -63,7 +64,7 @@
                          (previous-local (get features feature (js-object :failures 0 :until 0)))
                          ;; A repaired output contract releases only obsolete schema failures.
                          ;; Authentication, rate limits and transport circuits remain intact.
-                         (local (if (and (= (get previous-local :status) -2) (not (= (get previous-local :outputPolicy) output-policy)))
+                         (local (if (and (= (get previous-local :status) -2) (not (= (get previous-local :outputPolicy) contract)))
                            (js-object :failures 0 :until 0) previous-local))
                          (blocked (if (> (get provider :until) now) provider (if (> (get local :until) now) local nil)))
                          (cache-key (cache-identity feature payload))
@@ -119,7 +120,7 @@
                             (let* ((feature-failure (or (= status -2) (= status 400) (= status 404) (= status 422)))
                                    (bucket (if feature-failure local provider))
                                    (policy (failure-policy status retry (+ (get bucket :failures 0) 1) (Date/now))))
-                              (put policy :outputPolicy output-policy) (put policy :stage stage) (put policy :validationCode detail)
+                              (put policy :outputPolicy contract) (put policy :stage stage) (put policy :validationCode detail)
                               (if (= (get policy :scope) "feature") (put features feature policy) (put state :provider policy))
                               (put state :cache cache) (await (write-state "ai" state))
                               (js-object :state "fallback" :reason (get policy :reason) :code status
