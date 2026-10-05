@@ -2,13 +2,7 @@
 
 ## 从源码运行
 
-需要 Bun 1.3+。开发依赖是本地 Eliscript 工具链，默认目录布局如下：
-
-```text
-一个工作目录/
-├── eliscript/
-└── tibo/
-```
+需要 Bun 1.4+。构建工具链使用已发布的 `eliscript@0.0.1` npm 包，版本与校验信息由 `package.json` 和 `bun.lock` 固定。无需克隆 Eliscript 仓库、安排相邻目录或安装 Emacs。
 
 在 `tibo` 仓库中执行：
 
@@ -20,9 +14,11 @@ bun run start -- posts --limit 5
 bun run start -- forecast --no-ai
 ```
 
-`bun install` 安装构建依赖；业务编译输出到 `dist/`。运行入口是 `bin/tibo.mjs`，Lark 入口是 `adapters/lark/start.mjs`。修改 `.eli` 文件后先重新构建，再运行入口。
+`bun install` 从 registry 安装构建依赖；Eliscript 发布包自带编译器和运行支持。业务编译输出到 `dist/`。运行入口是 `bin/tibo.mjs`，Lark 入口是 `adapters/lark/start.mjs`。修改 `.eli` 文件后先重新构建，再运行入口。
 
-构建器默认使用 `node_modules/eliscript` 中的工具链。`ELISCRIPT_HOME` 可覆盖编译器目录，但不会改变 `package.json` 的 `file:../eliscript` 安装依赖；从其他目录使用工具链时需同时处理依赖安装。
+构建器默认使用 `node_modules/eliscript` 中的发布工具链。只有联调编译器源码时才需要可选覆盖，例如 `ELISCRIPT_HOME=/编译器目录 bun run build`；这不会改变应用的 npm 依赖或要求特定目录布局。
+
+从旧的本地 `file:` 依赖切换到发布包时，可执行 `bun install --force --frozen-lockfile` 重新安装，避免沿用同版本本地内容。自动化构建使用 `bun install --frozen-lockfile`，保持依赖与已提交锁文件一致。
 
 ## 第一次取数
 

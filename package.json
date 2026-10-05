@@ -17,9 +17,9 @@
     "lark": "bun adapters/lark/start.mjs"
   },
   "engines": {
-    "bun": ">=1.3.0"
+    "bun": ">=1.4.0"
   },
   "devDependencies": {
-    "eliscript": "file:../eliscript"
+    "eliscript": "0.0.1"
   }
 }

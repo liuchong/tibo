@@ -26,7 +26,7 @@ bun run test
 bun run compile
 ```
 
-工具链安装与路径见 [快速开始](getting-started.md)。`eliscript.json` 配置 CLI、MCP 和 Lark 三个入口，输出 dist；缓存由编译器管理。dist 与 `.tibo` 是生成物，不手工修改或提交。
+工具链使用锁定的 Eliscript npm 发布包，安装不依赖本机其他仓库；路径覆盖只用于可选的编译器联调，见 [快速开始](getting-started.md)。`eliscript.json` 配置 CLI、MCP 和 Lark 三个入口，输出 dist；缓存由编译器管理。dist 与 `.tibo` 是生成物，不手工修改或提交。
 
 测试覆盖纯算法、来源解析、经验、AI 校验/冷却、管理员权限、语言管道/修复、CLI/MCP、状态并发、上香、订阅、daemon 与 Lark 协议。改算法时跑模型/核心/经验相关用例；改文字流程时跑 presentation/input-repair/CLI；改接入时跑接口与实际协议进程测试，最后运行完整套件。
 

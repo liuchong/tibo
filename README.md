@@ -6,7 +6,7 @@ Tibo 根据 Tibo（[@thsottiaux](https://x.com/thsottiaux)）的公开发言和�
 
 ## 开始使用
 
-开发环境需要 Bun 1.3+，并将 [Eliscript](https://github.com/liuchong/eliscript) 仓库放在本仓库旁边的 `../eliscript`。
+开发环境需要 Bun 1.4+。`bun install` 会安装已发布的 [Eliscript npm 包](https://www.npmjs.com/package/eliscript)，不需要相邻源码仓库或 Emacs。
 
 ```bash
 bun install

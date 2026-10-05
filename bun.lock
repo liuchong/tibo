@@ -5,11 +5,11 @@
     "": {
       "name": "tibo",
       "devDependencies": {
-        "eliscript": "file:../eliscript",
+        "eliscript": "0.0.1",
       },
     },
   },
   "packages": {
-    "eliscript": ["eliscript@file:../eliscript", { "bin": { "eliscript": "bootstrap/host/eliscript-cli.mjs", "eliscript-build": "bootstrap/host/eliscript-cli.mjs", "eliscript-check": "bootstrap/host/eliscript-cli.mjs", "eliscript-eval": "bootstrap/host/eliscript-cli.mjs", "eliscript-format": "bootstrap/host/eliscript-cli.mjs", "eliscript-watch": "bootstrap/host/eliscript-cli.mjs" } }],
+    "eliscript": ["eliscript@0.0.1", "", { "bin": { "eliscript": "bootstrap/host/eliscript-cli.mjs", "eliscript-build": "bootstrap/host/eliscript-cli.mjs", "eliscript-check": "bootstrap/host/eliscript-cli.mjs", "eliscript-format": "bootstrap/host/eliscript-cli.mjs", "eliscript-eval": "bootstrap/host/eliscript-cli.mjs", "eliscript-watch": "bootstrap/host/eliscript-cli.mjs" } }, "sha512-ZsKx/djY4L4B/Z1JcVs9ctjgnIEPSeVBLDewhjaCWwan9x623BEiJs/RIaHfjvWGo6Oc1NZwb33HC3yRSaAJPw=="],
   }
 }
