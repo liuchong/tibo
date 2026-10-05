@@ -45,6 +45,10 @@ test('internal structured queries, MCP, private syntax, no-AI and disabled repai
  expect(r.sent).toHaveLength(0);expect(r.rows.slice(0,4).every(x=>x.command==='pipeline-error')).toBe(true);expect(r.rows[4].ok).toBe(false);expect(r.rows[5].partial).toBe(true);expect(r.rows[6].result.isError).toBe(true);
  const off=await run(`const result=await execute_query(await resolve_query('posts 1 |翻译',null,opts),opts);console.log(JSON.stringify({result,sent}));`,healthy,'translate');expect(off.sent).toHaveLength(0);expect(off.result.text).toContain(fixture.posts[0].text);
 });
+test('no-AI suppresses semantic routing as well as repair and presentation, while fixed queries still work',async()=>{
+ const r=await run(`const disabled={...opts,noAi:true};const natural=await resolve_query('Show me the latest posts',null,disabled);const explicit=await resolve_query('Show me the latest posts --no-ai',null,{...opts,repairBudget:null});const fixed=await execute_query(await resolve_query('posts 1',null,disabled),disabled);console.log(JSON.stringify({natural,explicit,fixed,sent}));`,healthy,'router,repair,translate,answer');
+ expect(r.sent).toHaveLength(0);expect(r.natural.command).toBe('semantic-disabled');expect(r.explicit.command).toBe('semantic-disabled');expect(r.fixed.ok).toBe(true);expect(r.fixed.text).toContain(fixture.posts[0].text);
+});
 test('runtime I/O and permission failures are not command parsing errors and cannot trigger repair or replay',async()=>{
  const r=await run(`await fs.writeFile(opts.snapshotPath,'bad');let thrown=false;try{await execute_query(await resolve_query('posts 1',null,opts),opts);}catch{thrown=true;}const denied=await execute_query(await resolve_query('pray |翻译',null,opts),{...opts,context:null});console.log(JSON.stringify({thrown,denied,sent}));`,healthy);
  expect(r.thrown).toBe(true);expect(r.denied.ok).toBe(false);expect(r.sent).toHaveLength(0);
