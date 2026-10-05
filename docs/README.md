@@ -19,8 +19,9 @@
 
 ## 原理与开发
 
-- [判断算法与证据约定](decision-contract.md)：global/banked、条件样本、三模型、自适应权重与局限。
+- [判断算法与证据约定](decision-contract.md)：global/banked、条件样本、四个候选模型、自适应权重与局限。
 - [AI 任务与预算](ai-research.md)：任务开关、引用校验、搜索、缓存、熔断和隐私。
+- [重置之神实现约定](oracle.md)：分身回应、品牌彩蛋、官方时事与待确认的吉祥话试验。
 - [开发指南](development.md)：源码地图、构建测试、命令扩展与交付检查。
 - [IM 接入契约](im-adapters.md)：可信上下文、人工输入修复、订阅与共享报告，适用于后续其他 IM。
 

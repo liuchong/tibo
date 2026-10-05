@@ -56,3 +56,5 @@ TIBO_CONFIG_FILE=/dev/null TIBO_STATE_DIR=.tibo/example-state TIBO_AI_FEATURES='
 文档按主题维护：命令变更更新 commands，配置变更更新 configuration，部署变更更新 operations；其他文档链接到对应规范，避免复制多份参数表。README 保持项目入口，docs/README 保持阅读导航。
 
 交付前检查差异与实际命令输出、跑适合变更的测试，不提交私有配置、状态、日志、密钥或无关修改。代码影响已安装程序时重新 compile 并按 [运维步骤](operations.md) 安装，核对新进程和真实产出；仅文档变更不重启服务。维护已有订阅、确认票据和投递账本，不能重装时覆盖它们。
+
+角色功能的触发、事实与娱乐边界、私有开关、缓存和验收见 [重置之神实现约定](oracle.md)。神谕不得增加管理能力或改动预测模型；祈祷吉祥话目前仅完成探针，不能在文档中描述为已上线。

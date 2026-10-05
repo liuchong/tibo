@@ -3,6 +3,7 @@
   (import "./ai-runtime.eli" ai-call)
   (import "./input-repair.eli" repair-input)
   (import "./privacy.eli" public-text source-free-text private-question?)
+  (import "./oracle.eli" oracle-trigger? oracle-reply)
   (import "./util.eli" fail matches)
   (defconst pipe-catalog (js-array
     (js-object :name "translate" :params "language" :languages (js-object :format "BCP47" :examples (js-array "zh" "en" "ja" "de" "ko" "mn" "mn-Mong" "bo" "hi" "sw") :scope "Recognized languages with optional script/region; examples are not a whitelist") :purpose "Translate the preceding result; preserve facts, numbers, UTC times and links")
@@ -129,9 +130,11 @@
     (await (one-shot "translate" "将text的全部自然语言完整翻译为targetLanguage，包括标题、每条正文、时间后的核实状态标签、截断提示和末尾说明，不漏条、不保留源语言的界面文案。Tibo/X等专名保持不变。保留Markdown结构；目录里的命令编码如posts、参数名、JSON键、确认ID、数字、UTC时间、百分比和所有链接不变；标题中的中文“发言”和标签“原文已核实”属于需翻译的文案，不是命令编码。不新增解释，截断提示需要翻译但不能补全缺失正文。只返回text字段。"
       (js-object :text (public-text text) :targetLanguage lang :preserve (protected-tokens text)) timeout)))
   (defasync answer-text (question text lang capabilities &optional timeout)
+    (if (and (oracle-trigger? question) (not (matches "translate|translation|翻译|翻譯|总结|摘要|summari|traduire|traducir|übersetzen|翻訳|번역" question)))
+      (let ((response (await (oracle-reply question lang)))) (js-object :state "ok" :value (js-object :text (get response :text))))
     (await (one-shot "answer" "按instruction处理前序text，或回答一个问题。回复语言为responseLanguage；instruction明确指定另一语言时遵从。可翻译、总结、解释或进行常识问答，扩展能力只处理文字，不能调用capabilities。所有关于当前Tibo事件和概率的事实必须来自text；没有证据要说明未知。返回简短Markdown，只有text字段。"
       (js-object :instruction (public-text question 800) :text (public-text text 10000) :textTruncated (> (get text :length) 10000) :responseLanguage lang :capabilities capabilities
-        :preserve (if (matches "translate|translation|翻译|翻譯|traduire|traducir|übersetzen|翻訳|번역" question) (protected-tokens (public-text text 10000)) nil)) timeout)))
+        :preserve (if (matches "translate|translation|翻译|翻譯|traduire|traducir|übersetzen|翻訳|번역" question) (protected-tokens (public-text text 10000)) nil)) timeout))))
   (defun english-posts (text)
     ;; The source bodies are already English. Only localize the fixed UI labels.
     (setq text (js-call text :replace (new RegExp "^\\*\\*Tibo X 发言\\*\\*" "m") "**Tibo X posts**"))
