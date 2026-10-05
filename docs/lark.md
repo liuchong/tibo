@@ -1,101 +1,113 @@
-# Lark / 飞书接入与维护
+# Lark / 飞书接入
 
-接入层是独立 Eliscript 程序，使用 Bun 原生 HTTP、WebSocket 和本地 protobuf 编解码。只支持**企业自建应用机器人**，通过长连接收事件；自定义 Webhook 群机器人没有本程序所需的收消息能力。不需要官方 SDK、公网回调地址或额外转发服务。
+Lark 是独立的 Eliscript 接入程序，复用核心命令与共享报告。它直接使用 Bun HTTP、WebSocket 和本地 protobuf 编解码，不使用官方 SDK、外部转发服务或公网回调地址。
 
-## 对接所需信息
+只支持企业自建应用机器人。自定义 Webhook 群机器人没有本程序需要的收消息能力。安装核心采集服务不会自动完成 Lark 配置或启动接入服务。
 
-- 国内飞书或国际 Lark：分别配置 `feishu` / `lark`。
-- 应用 App ID、App Secret。
-- 明确授权接收查询和早晚报的群 ID，`oc_...`，可多个。
-- 管理员在**本应用**下的用户 open_id，`ou_...`。留空时所有人只能查询，不能申请或确认写操作。不能拿其他应用的 open_id、昵称或文本自述代替。
+## 开放平台准备
 
-机器人的 open_id 通过 `GET /open-apis/bot/v3/info` 自动发现，无须手工提供；若填写 `TIBO_LARK_BOT_OPEN_ID`，启动会核对是否属于当前应用。
+在对应的飞书或国际 Lark 平台创建企业自建应用，开启机器人能力。事件配置选择长连接接收：
 
-## 开放平台设置
+| 事件 / 权限 | 用途 |
+| --- | --- |
+| `im.message.receive_v1` | 接收用户文本消息 |
+| `im.message.reaction.created_v1` | 接收消息表情反应 |
+| `im:message.group_at_msg:readonly` | 接收群内 @ 机器人消息 |
+| `im:message.p2p_msg:readonly` | 接收用户私聊消息 |
+| `im:message:send_as_bot` | 以机器人身份发送消息 |
+| `im:message.reactions:read` | 查看消息表情反应 |
 
-在对应平台创建企业自建应用，开启机器人能力。在事件配置选择**使用长连接接收事件**，订阅 `im.message.receive_v1` 和 `im.message.reaction.created_v1`（消息被reaction）；启用接收群聊中@机器人消息权限 `im:message.group_at_msg:readonly`、接收用户单聊消息权限 `im:message.p2p_msg:readonly`、以应用身份发送消息权限 `im:message:send_as_bot`、查看消息表情回复权限 `im:message.reactions:read`。根据租户要求完成审批、发布应用、设置可用范围，并把机器人加入授权群。私聊订阅者必须处于应用可用范围内，以官方发送API实际送达为准。
+按租户要求完成权限审批与应用发布，设置可用范围，把机器人加入授权群。私聊订阅者也必须在应用可用范围内。若保存长连接事件订阅时要求先有连接，先完成本地配置并前台运行，再保存、发布。
 
-首次保存长连接订阅配置如要求先建立连接，可先完成本地配置并前台启动，然后保存订阅并发布。订阅与权限是否实际生效以真实收发为准。来自user的机器人私聊文本无需@；非文本消息和卡片回调不作为命令入口。普通群查询要求@；已收到的文本含🙏则只执行pray，无需@。如果平台不投递未@文字，程序无法处理它；按实际群设置决定是否开通更广的群消息接收权限，不自动要求读取全群消息。
+准备 App ID、App Secret、授权群 `oc_...` 和本应用内管理员用户 `ou_...`。管理员可留空，此时只关闭危险管理操作。其他应用的 open_id、昵称或自称管理员不能替代真实事件身份。
 
-## 私有配置
+机器人自身 open_id 通过官方 `GET /open-apis/bot/v3/info` 自动发现；可选配置一个预期值，启动时作一致性校验。
 
-写入 `~/.config/tibo/config.env`，文件0600、目录0700；同一配置可同时供采集 daemon 和独立 Lark 程序读取：
+## 本地配置与检查
+
+写入私有配置文件，变量说明与优先级见 [配置参考](configuration.md)。下面使用占位值，请替换后再运行：
 
 ```dotenv
 TIBO_LARK_DOMAIN=feishu
-TIBO_LARK_APP_ID=<应用ID>
-TIBO_LARK_APP_SECRET=<应用密钥>
-TIBO_LARK_CHAT_IDS=oc_<授权群ID>
-TIBO_LARK_ADMIN_OPEN_IDS=ou_<管理员在本应用的ID>
+TIBO_LARK_APP_ID=应用ID
+TIBO_LARK_APP_SECRET=应用密钥
+TIBO_LARK_CHAT_IDS=oc_授权群ID
+TIBO_LARK_ADMIN_OPEN_IDS=ou_本应用管理员ID
 ```
 
-勿将真实配置提交到仓库。`TIBO_CONFIG_FILE` 可指定已有私有配置，环境变量优先；项目 `.env` 中的空值也会覆盖私有配置，避免重复配置。API固定使用对应平台官方地址；令牌与Secret不写入消息、连接日志或plist。tenant token只在内存缓存，提前一分钟刷新，多请求共享一次刷新。
+国际版将 domain 设为 lark。项目 `.env` 的空字段会覆盖私有配置，避免重复配置。凭据仅用于官方端点，tenant token 在内存共享缓存并提前刷新，不写入消息或 plist。
 
-## 检查、前台试用
-
-在仓库根目录执行：
-
-```sh
-bun run test
+```bash
 bun run compile
 .tibo/bin/tibo-lark help
 .tibo/bin/tibo-lark check
 .tibo/bin/tibo-lark run
 ```
 
-`check`只验证配置、tenant token和机器人身份，不建立事件连接、不发送消息、不证明群权限已经生效。前台启动成功会写本地运行状态并显示“已启动”；使用 Ctrl-C 正常关闭。配置群中来自user的普通查询需要准确@本机器人；🙏文字是例外。消息或表情事件超过五分钟或未来超过一分钟均忽略。
+`check` 只验证配置、tenant token 和机器人身份；不建立事件连接、不发消息，也不证明群权限已生效。前台运行用 Ctrl-C 正常关闭，实际收发应在此阶段验证。Lark 禁止带 `TIBO_SNAPSHOT` 进行实际投递。
 
-点击本机器人消息上的「双手合十」🙏，事件的`reaction_type.emoji_type`是`THANKS`。程序仅接受user操作者，凭本地成功发送消息索引确认目标属于本应用且所在群已授权，不额外请求全群消息内容。每人每条目标消息最多记一次；撤销重加、重投不重复，其他表情和别人消息上的回应忽略。程序尚未记录的旧机器人消息不计入。重装保留香客档案和消息索引；榜单按群分别统计，具体玩法见[命令列表](commands.md)。
+## 消息入口与展示
 
-群内试用 `@机器人 帮助`、`@机器人 预测`、`@机器人 发言 3 reset`；启用router后可以说 `@机器人 未来两天重置几率多大`。管理员和普通成员分别验证写操作是否显示/拒绝；可用“清空经验”在测试状态目录申请，确认前应保留数据，确认后应产生本地备份。同一确认ID重复执行无效；换人、换群或超过五分钟也无效。完整命令见[命令列表](commands.md)。群内回复只包含业务结果，任何AI/网络/文件错误均用通用提示，具体配置和模型信息不发群。
+- 来自 user 的私聊文本无需 @。
+- 授权群的普通查询必须准确 @ 本机器人；其他机器人、应用操作者和非文本消息不作为命令入口。
+- 已收到的群文本含 🙏 时只执行上香，无需 @；平台未交付的未 @ 消息无法处理。
+- “双手合十”反应的枚举是 `THANKS`；只接受本应用已成功发送并记录的授权群消息上的用户反应。
+- 超过 5 分钟或未来超过 1 分钟的消息、反应事件忽略。
 
-## 安装、重装、重启
+回复使用 post 富文本内的 Markdown `md` 元素，保留加粗标题、条目与原帖链接。客户端实际渲染需要真机验证，不根据本地 JSON 结构宣称效果已验收。普通查询、翻译、上香和订阅用法见 [命令参考](commands.md)、[语言与管道](language-pipelines.md)、[上香与订阅](pray-subscriptions.md)。
 
-拿到真实配置并完成前台试用后，使用编译好的程序安装：
+所有交互错误在聊天中给简短业务提示，不发送运行路径、用户、配置、密钥、模型名称、供应商原始错误或栈信息。详细排查只在本地进行。
 
-```sh
+## 安装与维护
+
+完成前台试用后安装独立服务：
+
+```bash
 .tibo/bin/tibo-lark service install
 ~/.local/lib/tibo/tibo-lark service status
 ~/.local/lib/tibo/tibo-lark status
 ```
 
-安装会复制独立可执行文件、写入 `~/Library/LaunchAgents/com.liuchong.tibo.lark.plist` 并启动用户级LaunchAgent，登录后自动运行、异常退出自动恢复。不会停止采集服务 `com.liuchong.tibo`；两个程序各自有实例锁，共享数据时遵循状态写锁。配置、历史、收件箱、确认票据和投递记录重装时保留。初次安装默认补全基础配置；仍以私有配置中的 `TIBO_STATE_DIR` 为实际数据目录。
+它使用 `com.liuchong.tibo.lark`，不停止核心 `com.liuchong.tibo`。两个服务各有实例锁，共享业务数据时使用状态写锁。更新代码后重新 compile 并 service install；只修改配置则 service restart。详细路径、保留行为和两服务升级顺序见 [安装与运维](operations.md)。
 
-代码更新后重装：
+`status` 是最近本地快照，须结合 `service status` 中运行状态、PID 以及连接状态判断。前台与后台不能同时启动同一状态目录下的 Lark 实例。
 
-```sh
-bun run test
-bun run compile
-.tibo/bin/tibo-lark service install
-~/.local/lib/tibo/tibo-lark service status
-~/.local/lib/tibo/tibo-lark status
-```
+## 投递与重复消息
 
-配置更新后重启；暂停/卸载保留数据：
+事件先过滤并持久化入队，再 ACK；不等待采集或 AI。交互收件箱最多 32 条，串行处理。满队列或写盘失败回 code=500，等待平台重投；按群与消息 ID 去重。重启恢复尚未执行任务，已执行或已有投递记录的任务不自动重跑。
 
-```sh
-~/.local/lib/tibo/tibo-lark service restart
-~/.local/lib/tibo/tibo-lark service uninstall
-```
+投递前落账，调用消息 API 使用稳定 UUID。只有返回 code=0 且带 message_id 才确认成功。账本保留：
 
-日志在 `~/.local/state/tibo/lark.stderr.log` / `lark.stdout.log`，即使自定义状态目录，launchd日志仍在此位置。`status`是最近一次本地状态快照，需结合 `service status` 的loaded、running、pid判断是否仍存活。前台与后台不能同时使用同一状态目录启动Lark实例。
+| 状态 | 含义 |
+| --- | --- |
+| `sent` | API 已确认成功及 message_id |
+| `rejected` | 平台明确拒绝，保留数字 code |
+| `sending` / `uncertain` | 发送结果可能不确定 |
+| `pending` / `failed-before-send` | 尚未确认发送 |
 
-## 可靠性与定时推送
+API 成功证据还需结合客户端消息核对实际可见性。不要删除账本强制重发；未知发送结果不自动重试。SIGTERM / SIGINT 停止新接收和调度，等待当前任务结束，其余任务留队。断线后重新获取官方连接地址并重连，心跳失效关闭旧连接；启动握手失败由服务管理器恢复。
 
-事件回调只做过滤和持久化入队，再返回ACK，不等待采集或AI。最多32条任务，串行处理；收件箱满或写盘失败时返回code=500，等待平台重投。平台重复消息按群ID和message_id去重。接收后关闭程序会保留尚未处理的任务，重启恢复；已开始执行或发送且留有投递记录的任务不会自动重复执行。
+定点只在北京时间 09:00 / 21:00，生成一次并共享群与订阅私聊正文，错过分钟不补发。分发使用独立持久化计划，不占交互收件箱，最多 10 个发送请求/秒，最多持续 15 分钟。失败收件人不影响其他人。共享报告、游标、收件人版本和投递账本都保留，生成失败或中断不自动重跑。完整订阅规则见 [上香与订阅](pray-subscriptions.md#定点生成与投递)。
 
-北京时间09:00 / 21:00各触发一次，有且只有这两个定点，不开放任何自定义时间。启动时已过定点分钟不额外补发。订阅者可在授权群中@机器人发`订阅`，或私聊发`订阅`；重复订阅不增加份数，`退订`取消，`订阅状态`查看下一定点，语义请求使用相同命令。
+## 实际接入验收
 
-定点报告按UTC定点唯一键生成并落盘，群和所有订阅者复用同一份Markdown文本；生成、AI和经验记录不按人数重复。私聊使用`receive_id_type=open_id`，普通查询回复仍使用chat_id。独立分发计划保存定点开始时的群与订阅者快照，逐个检查退订/订阅版本和投递账本，以最多10个收件请求/秒串行发送，不挤占32条查询收件箱。新订阅从下一定点开始；单个收件人失败继续发给其他人。已经启动的分发最多允许15分钟发送耗时，超过期限停止旧分发；这不是额外的触发或补发时间。只有API code=0且返回message_id才算送达。
+本仓库测试使用本地 HTTP/WebSocket 端点与独立进程，覆盖凭据、机器人身份、protobuf 事件、ACK、富文本、权限过滤、去重、管理员确认、隐私、重连、收件箱恢复与定点分发。这不等于真实平台验收；当前仍需提供真实机器人信息完成对接。
 
-`bulletin-<hash>.json`记录generating/ready/failed、生成ID及共享正文，`lark-broadcast-<hash>.json`保存该应用的收件人快照和处理游标。重启复用已有正文与游标；已失败或中断的生成不自动重跑该定点，下一定点独立生成。勿删除占位、游标或账本来强制重试；保留现场在本地诊断。共享定点报告统一保存为schedule渠道，实时手动查询仍按原查询渠道处理。
+真实配置后逐项核对：
 
-账本 `lark-<hash>.json` 的sent是已确认送达；rejected保存平台明确拒绝的数字code；sending/uncertain表示结果可能不确定；pending/failed-before-send表示尚未确认发送。程序不自动重试这些已有记录，应先核对群消息和本地状态；不要删除账本来强制重发。长连接断开后重新获取官方连接地址并重连，心跳无响应时关闭旧连接；握手失败会退出，服务管理器稍后重启。SIGTERM/SIGINT停止接收和定时器，等待当前任务结束，其他任务留在收件箱。
+1. `check` 识别当前应用机器人，前台长连接可接到实际事件。
+2. 授权群 @ 查询有可见 Markdown 回复；未 @ 的普通文本、未授权群不执行查询。
+3. 私聊查询、本人订阅/退订有效；🙏 文本和机器人消息上的 `THANKS` 分别测试，重复事件不计两次。
+4. 管理员申请不立刻修改，普通用户拒绝；确认需本人同群，数据变更前有备份。破坏性验收使用独立测试状态，不能清空日常数据。
+5. 在真实 09:00 或 21:00 核对群和订阅私聊正文一致、共享报告只一份、成功 message_id 可对应客户端消息。
+6. 重启后未重复执行旧消息、旧定点；无凭据或模型信息泄露。
 
-## 已验证范围
+## 官方协议参考
 
-`bun test tests/lark-runtime.test.mjs`启动实际Bun HTTP/WebSocket本地服务和独立程序子进程，模拟官方端点：token、自动识别bot、protobuf事件、心跳、ACK、富文本回复、去重、群权限、管理员确认与备份、AI错误隐私、重连、关闭、收件箱恢复，以及09:00/21:00推送和同一时段重启去重。包含未@的🙏文本、THANKS事件、同人同消息去重、其他人消息/表情/应用操作者忽略及两人匿名榜。测试通过测试专用传输映射和时钟控制连接本地服务；正式程序不提供任意API主机或测试时钟配置。
+- [发送消息](https://open.feishu.cn/document/server-docs/im-v1/message/create)
+- [接收消息事件](https://open.feishu.cn/document/server-docs/im-v1/message/events/receive)
+- [表情反应事件](https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/im-v1/message-reaction/events/created)
+- [表情枚举](https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/im-v1/message-reaction/emojis-introduce)
+- [长连接协议实现参考](https://github.com/larksuite/node-sdk/blob/main/ws-client/index.ts)：只核对协议，不安装或运行 SDK。
 
-本地协议试用不能证明真实平台权限、真实事件字段、客户端富文本渲染或真实送达。已验证群/私聊订阅去重、退订与重新订阅、两人open_id私聊和群消息共用同一正文、每个定点只有一份持久化报告、重启去重以及09:02不补发；35个订阅者加两个群的分发试用另外验证容量、发送前退订和单收件人拒绝不影响其他人。收到机器人资料后仍需完成真实验收，并用成功送达的message_id核对查询与早晚报。
-
-协议参考：[消息发送](https://open.feishu.cn/document/server-docs/im-v1/message/create)、[消息接收事件](https://open.feishu.cn/document/server-docs/im-v1/message/events/receive)、[表情回应事件及权限](https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/im-v1/message-reaction/events/created)、[表情枚举](https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/im-v1/message-reaction/emojis-introduce)、[官方长连接实现](https://github.com/larksuite/node-sdk/blob/main/ws-client/index.ts)。只核对协议，不安装或运行SDK。其他IM的分层边界见[接入层约定](im-adapters.md)。
+其他 IM 的扩展约定见 [IM 接入契约](im-adapters.md)。

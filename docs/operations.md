@@ -1,101 +1,103 @@
-# 安装与运行维护
+# 安装与运维
 
-本页是后续开发与维护的操作入口。程序安装为 macOS **用户级 LaunchAgent**，登录后自动运行，进程退出后由 launchd 重启。不要求 root；退出登录或机器休眠时不能保证采集。采集守护进程只生成本地报告；Lark使用独立程序与独立LaunchAgent，安装/重装/重启、配置及群内验收见[飞书接入](lark.md)。
+核心采集服务和 Lark 接入服务分别安装、重启与卸载。自动安装使用 macOS 当前登录用户的 LaunchAgent，不需要 root；注销、机器睡眠或断网会影响运行。其他系统自行用进程管理器运行 `tibo daemon` 和 `tibo-lark run`。
 
-## 首次安装
+## 安装核心服务
 
-在仓库根目录执行：
+在仓库中执行：
 
-```sh
+```bash
 bun install
 bun run service:install
-```
-
-命令会编译 Eliscript、生成自带 Bun 的可执行文件、安装可执行文件与 plist，并启动服务。需要本地构建工具链；安装后后台运行不需要仓库、Bun、编译器或 node_modules。
-
-文件位置：
-
-- 可执行文件：`~/.local/lib/tibo/tibo`
-- 配置：`~/.config/tibo/config.env`，权限0600，目录0700
-- 状态与报告：`~/.local/state/tibo/`
-- 服务定义：`~/Library/LaunchAgents/com.liuchong.tibo.plist`
-- 日志：`~/.local/state/tibo/daemon.stderr.log` / `daemon.stdout.log`
-
-首次安装在目标文件不存在时复制当前状态目录的 ledger 和预测经验；重装不覆盖已有历史。安装器保留原配置字段，在缺少时补充默认值。服务配置只写配置文件路径，不将密钥放进 plist。若使用自定义 TIBO_STATE_DIR，以配置中的目录为准；launchd 的日志目录仍使用上述固定位置。
-
-在配置文件中编辑实际 key，勿写进仓库或命令历史：
-
-```dotenv
-DEEPSEEK_API_KEY=<实际密钥>
-TIBO_AI_FEATURES=signals,search,research,forecast,review,brief,router,translate,answer,repair
-TIBO_AI_WEIGHT=0.2
-TIBO_DAEMON_INTERVAL=900
-TIBO_STATE_DIR=/absolute/path/to/state
-```
-
-`TIBO_AI_FEATURES` 可为空，或由signals、search、research、forecast、review、brief、router、translate、answer、repair逗号组合。router是语义命令解析，固定查询不需要它；translate用于显式翻译或按提问语言展示，answer用于一次性问答及ask文字管道，repair只修复人类交互的实际解析错误。指令见[业务命令](commands.md)，任务和预算见[AI调研](ai-research.md)。旧配置不会被重装覆盖，启用本次升级的保底需在原功能列表末尾添加repair，并执行 `tibo service restart`（已接入Lark时也重装/重启独立Lark程序）；不需要重置历史、AI用量或已有订阅。重新安装及重启步骤沿用本文件下文。模型固定deepseek-flash，官方端点固定https://api.deepseek.com/chat/completions。配置不是shell脚本，不支持变量展开。环境变量优先，Bun读取的项目.env也属于环境变量；新配置在进程下次启动时加载。
-
-## 实际验收
-
-```sh
 ~/.local/lib/tibo/tibo service status
 ~/.local/lib/tibo/tibo daemon-status
-~/.local/lib/tibo/tibo ai-status
-~/.local/lib/tibo/tibo diagnose
-tail -n 20 ~/.local/state/tibo/daemon.stderr.log
 ```
 
-service status 的loaded为true，launchd输出中state=running且有pid，才说明服务已启动。还须等daemon-status出现state=ready、finishedAt和概率，并查看daemon-latest.json中的report；单凭安装成功不能证明采集成功。首次网络采集可能需要一分钟。
+`service:install` 会构建并编译两个独立程序，再安装核心采集服务。不能用 `bun bin/tibo.mjs service install` 代替：安装要求当前入口已经是编译后的可执行文件。
 
-`daemon.json`表示当前/最近轮次，`daemon-latest.json`是最近成功报告；`ledger.json`是历史，`experience.json`是前瞻预测，`ai.json`是暂停与缓存状态。报告记录ok/cached/disabled/skipped/blocked/fallback；skipped表示无适用信息而主动跳过。ai-status可看任务请求数、服务返回的输入/输出token累计与最近延迟；缓存命中不增加请求，网络失败未返回usage时无法知道供应商是否计费。全部AI失败仍产出自有算法概率。采集不足时daemon标为degraded并保留上次成功报告，下轮继续，不编造概率。
+安装补齐缺失配置，并保留已有设置。AI 功能键已存在时不会追加新功能；有意关闭的空值也会保留。只有缺少本地管理员 UID 时才补当前 UID。历史初始化只在目标不存在时复制来源的 `ledger.json` 与 `experience.json`，不会覆盖已有历史。
 
-`diagnose`读取最近一次实际查询/后台周期的诊断快照，不调用网络。`diagnostics-cli.json`与`diagnostics-daemon.json`记录最新帖子、存档缓存时间、各源解析结果、原帖核实数量、采用的官方资料、AI输入帖子ID和各任务结果。HTTP成功但主页没有可解析原帖时，primary的fetched=true、ok=false；oembed独立报告核实结果。搜索unavailable表示验证/脚本壳/请求失败，empty仅表示可解析页面未提供可用官方链接。首次升级需要实际执行一次query与后台周期，之后才有对应快照；不要将旧快照时间当成当前状态。
+首次安装默认目录：
+
+| 路径 | 用途 |
+| --- | --- |
+| `~/.local/lib/tibo/tibo` | 核心可执行文件 |
+| `~/.local/lib/tibo/tibo-lark` | 单独安装 Lark 服务后使用的接入程序 |
+| `~/.config/tibo/config.env` | 两个服务共享的私有配置，0600 |
+| `~/.local/state/tibo/` | 默认应用状态目录，0700 |
+| `~/Library/LaunchAgents/com.liuchong.tibo.plist` | 核心 LaunchAgent |
+| `~/Library/LaunchAgents/com.liuchong.tibo.lark.plist` | Lark LaunchAgent |
+
+日志固定在 `~/.local/state/tibo/daemon.stdout.log`、`daemon.stderr.log`、`lark.stdout.log`、`lark.stderr.log`。即使配置了其他 `TIBO_STATE_DIR`，安装器仍将 launchd 工作目录和日志放在上述固定目录；业务 JSON 状态使用配置的目录。
+
+自定义配置路径需在安装时设置 `TIBO_CONFIG_FILE`，提前创建其父目录。安装会把该路径写入 plist，之后重启沿用；重新安装时也应指定同一个路径。
+
+## 确认服务实际工作
+
+```bash
+~/.local/lib/tibo/tibo service status
+~/.local/lib/tibo/tibo daemon-status
+~/.local/lib/tibo/tibo diagnose
+```
+
+分三步判断：
+
+1. `service status` 的 loaded 为 true，launchd 输出中有运行中的进程。
+2. `daemon-status` 进入 ready，`finishedAt` 更新，且最近成功周期数增加。
+3. 状态目录中的 `daemon-latest.json` 有最近成功报告，`diagnostics-daemon.json` 记录该次来源与 AI 使用情况。
+
+仅 installed / loaded 不能证明采集成功。刚启动时 collecting 正常；首次耗时取决于网络。degraded 表示本轮失败，旧报告会保留，不能当作本轮结果。没有可用初始数据时不会编造概率。
+
+daemon 启动立即采集，每轮结束后等待 `TIBO_DAEMON_INTERVAL`，默认 900 秒；这是完成后的间隔，实际启动时间不严格落在每个整刻钟。它不负责把每轮报告发送到群里。
 
 ## 更新与重装
 
-代码修改后先执行测试，再重新编译并安装：
+在更新后的源码目录中执行：
 
-```sh
+```bash
+bun install
 bun run test
 bun run service:install
 ~/.local/lib/tibo/tibo service status
 ~/.local/lib/tibo/tibo daemon-status
 ```
 
-每次重装会卸载旧服务、原子替换二进制、重新注册并启动。无需先卸载，也不要删除配置或状态。查看新进程PID与新finishedAt，确认新代码实际完成一个周期。
+安装器等待旧服务注销，再原子替换可执行文件、写入 plist 并重新注册。已有配置、历史、经验、档案和投递记录保留。验证新进程已经运行，以及 `finishedAt` 和成功报告更新时间继续推进。
 
-## 重启、暂停与卸载
+Lark 服务是另一份二进制，更新核心不等于更新它。已配置 Lark 时执行：
 
-```sh
+```bash
+.tibo/bin/tibo-lark service install
+~/.local/lib/tibo/tibo-lark service status
+~/.local/lib/tibo/tibo-lark status
+```
+
+Lark 完整的首次配置与验收见 [接入文档](lark.md)。只修改文档不需要重装运行程序。
+
+## 重启与卸载
+
+修改共享配置后分别重启两个已安装服务：
+
+```bash
 ~/.local/lib/tibo/tibo service restart
+~/.local/lib/tibo/tibo-lark service restart
+```
+
+Lark 未安装时不要执行第二条。重启后重新检查实际运行状态；`daemon-status` 与 `tibo-lark status` 是本地最后状态，不能单独证明进程仍活着。
+
+```bash
+~/.local/lib/tibo/tibo-lark service uninstall
 ~/.local/lib/tibo/tibo service uninstall
 ```
 
-restart适用于修改配置后重新加载，也可验证守护恢复；运行后等新的成功周期。uninstall移除服务注册与plist，停止后台运行，保留配置、可执行文件、历史和日志；重新执行service:install可恢复。不要直接kill当作暂停：KeepAlive会重新拉起进程。
+卸载只停止对应服务并移除 plist，保留二进制、私有配置、历史与日志。launchd 配置了 KeepAlive，单纯 kill 进程可能自动拉起，停止服务应使用 uninstall。不要在同一状态目录同时启动两份核心 daemon 或两份 Lark；前台调试前先停止对应后台服务。
 
-## 故障恢复
+## 备份与恢复
 
-```sh
-~/.local/lib/tibo/tibo ai-status
-~/.local/lib/tibo/tibo reset-ai
-# 上一步返回确认ID；检查动作后执行
-~/.local/lib/tibo/tibo confirm <确认ID>
-~/.local/lib/tibo/tibo forecast --no-ai
-~/.local/lib/tibo/tibo forecast --offline
-```
+操作前备份私有配置和整个实际状态目录；迁移或恢复前先停止会写它们的两个服务，避免复制出前后不一致的数据。备份包含凭据和用户状态，应保持私有权限，不提交到仓库。
 
-认证错误先修改配置中的key，重启后旧key的暂停自动失效；余额不足先充值。冷却到期后自动试探，成功复位。reset-ai（ai-reset别名）需管理员与二次确认，只清除AI暂停与缓存，不改历史。AI状态损坏时核心仍运行；若状态不可读而无法备份，写操作会拒绝，需在本地停止进程后保留故障文件再处理。网络全部不可用时仍可用本地ledger离线查看；首次无历史则无法生成概率。
+危险命令确认后会先保存 `backup-ID.json`，里面的 `kind` 指明目标，`value` 是原状态。失败或未知结果的票据不会自动重试。需要人工恢复时，先停服务、核对目标与当前状态，再把备份的 value 恢复到对应文件；保留原文件和票据作为证据，恢复后重新验收。不要把整个备份包装直接覆盖为 ledger 或 ai 状态。
 
-锁包含创建者PID，只在系统明确返回该PID不存在时自动回收。仍存活、无所有者或不可确认的锁不会自动删除；先通过service status/进程状态确认，停止服务后再处理。不得删除运行中的状态目录。
+不要用删除 `ai.json`、确认票据或投递账本解决不明故障。AI 冷却恢复使用管理员 `reset-ai` 申请、固定确认流程。锁只在能确认原 PID 已不存在时自动回收；无法确认所有者时应检查进程，不盲删锁。
 
-## 管理员配置与帮助
-
-安装器在本地配置缺少时写入安装账户的 `TIBO_LOCAL_ADMIN_UID`；只有该UID可申请/确认本地业务写操作。管理员可运行 `tibo help` 或 `tibo ask "有哪些命令可以用？"` 查看用法。清空历史、清空经验及重置AI均需二次确认，不能用旧版ai-reset绕过。
-
-接入Lark前，在本地配置填写 `TIBO_LARK_ADMIN_OPEN_IDS=<自己的open_id>` 与 `TIBO_LARK_CHAT_IDS=<授权群ID>`，与应用凭据分开保管；从真实官方事件确认open_id，不按昵称、文本自述或其他应用的ID猜测。没有管理员白名单时只允许查询。配置改动后重启独立Lark进程；采集daemon本身不收群消息。命令、身份绑定、五分钟确认与备份细节见[业务命令](commands.md)。确认票据持久化，重启不会重新计算过期时间；已执行、取消或不确定失败的ID不会重复执行。
-
-## 后续开发要求
-
-保持业务在.eli，维持无第三方运行库；新增AI能力也必须独立可关闭、失败保留核心结果、使用同一熔断入口并脱敏。交付前必须运行实际CLI/后台周期，更新运行说明，签名提交并推送。Lark接入后的真实群收发与早晚报送达须单独验收，不能用本地协议测试代替。
-
-HTTP格式与错误分类依据[DeepSeek Chat Completions](https://api-docs.deepseek.com/api/create-chat-completion/)、[JSON输出](https://api-docs.deepseek.com/guides/json_mode/)及[错误码](https://api-docs.deepseek.com/zh-cn/quick_start/error_codes/)。
+具体故障检查见 [故障排查](troubleshooting.md)，变量与优先级见 [配置参考](configuration.md)。
