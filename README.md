@@ -36,7 +36,23 @@ Bun 自动读取项目 `.env`。程序也读取 `~/.config/tibo/config.env`（�
 
 ## 可选 AI 与守护进程
 
-使用国际版 DeepSeek `deepseek-flash`，预测增强只发公开资料与统计。`TIBO_AI_FEATURES=signals,search,research,forecast,review,brief,router` 分别启用原帖解读、资料搜索、结构化资料分析、概率建议、建议复核、摘要与跟进、语义命令。任意组合可用，空值全部关闭；`forecast --no-ai` 关闭本次全部预测AI。离线与快照预测始终不调用AI，status/history/evaluate也无需AI。
+使用国际版 DeepSeek `deepseek-flash`，预测增强只发公开资料与统计。`TIBO_AI_FEATURES=signals,search,research,forecast,review,brief,router,translate,answer` 分别启用原帖解读、资料搜索、结构化资料分析、概率建议、建议复核、摘要与跟进、语义命令、输出翻译、一次性文字问答。任意组合可用，空值全部关闭；`forecast --no-ai` 关闭本次全部AI。离线与快照预测始终不调用预测AI，status/history/evaluate原有查询也无需AI；显式翻译和文字管道独立受translate/answer控制。
+
+固定 `posts` 返回原文；语义请求按提问文字识别语言，查看帖子时同时附原文，不读取系统语言推断用户语言。所有业务输出可接应用内文字管道（管理写操作除外）：
+
+```sh
+tibo posts --limit 5
+tibo query '原文 --postId 2106845241357824205'
+tibo ask '给我最近两条发言'
+tibo query 'posts 2 |translate zh'
+tibo query 'posts 2 |ask 翻译成中文'
+tibo query 'posts 2 |ask translate'
+tibo query 'posts 2 |translate zh |ask 用两句话解释与重置的关系'
+tibo query 'posts 2 |translate zh |original'
+tibo query 'ask "global和banked有什么区别？"'
+```
+
+管道在引号内传给Tibo，不是shell管道。最多3段；original恢复本次命令原始输出，无需AI。翻译/问答失败保留已有结果并给出通用提示，不泄露错误。来源正文截断会标注并链接原帖；AI不能补全文字。详细规则见[业务命令](docs/commands.md)。
 
 AI 概率建议默认占最终结果 20%，最多 35%，自有算法基线单独保留。改变概率必须引用近 48h、前次 global 之后的相关原文连续片段；引用校验不能证明模型推论正确。报告把 AI 推断单列，AI 不改写历史、完成状态或账户生效信息。所有功能失败时仍输出自有算法结果。
 
