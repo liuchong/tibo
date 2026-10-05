@@ -9,7 +9,7 @@ Tibo 的模型是按需调用的结构化助手，不是可操作主机的 agent
 - router：命令目录中的 command / args / language。未知命令、额外字段、越界参数和自行携带的身份上下文均拒绝。
 - repair：当前失败的命令或文字管道片段；不能追加系统步骤、修改管理命令或替人确认。
 - signals / research / forecast / review / brief：分类、逐字引用、有限字段和概率建议，不执行模型输出里的代码。
-- translate / answer / oracle：文字或带引用的文字。即使文字长得像命令或脚本，也只展示，不送进命令执行器。
+- translate / answer / oracle / wish：文字或带引用的文字。即使文字长得像命令或脚本，也只展示，不送进命令执行器。
 - search：两个受限查询，由程序访问固定搜索入口并获取白名单官方原页，不提供自由 fetch 或文件 URL。
 
 对话 API 请求不提供执行工具，程序没有 `tool_calls` 分派器；finish_reason=tool_calls 的响应按不可用输出处理。模型能选择的“业务命令”和操作系统命令是两个不同接口，业务 command 永不送入 shell 或子进程。
