@@ -21,8 +21,8 @@
         :inputSchema (js-object :type "object" :properties (js-object :command (js-object :type "string" :enum (js-call (visible-catalog) :map (lambda (c) (get c :name))))
           :args (js-object :type "object")) :required (js-array "command") :additionalProperties false)
         :annotations (js-object :readOnlyHint t :openWorldHint t))
-      (js-object :name "tibo_ask" :description "将固定指令或自然语言解析为Tibo业务查询；语义解析可选。"
-        :inputSchema (js-object :type "object" :properties (js-object :question (js-object :type "string" :maxLength 800)) :required (js-array "question") :additionalProperties false)
+      (js-object :name "tibo_ask" :description "固定查询或自然语言问答，按提问文字识别语言；可接最多3段 |translate zh、|ask 指令、|original 文字管道。AI可选，不能执行管理员写操作。"
+        :inputSchema (js-object :type "object" :properties (js-object :question (js-object :type "string" :maxLength 2400)) :required (js-array "question") :additionalProperties false)
         :annotations (js-object :readOnlyHint t :openWorldHint t))))
   (defasync handle-tool (request)
     (try

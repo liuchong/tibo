@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | forecast / 预测 / 概率 / 重置 | horizon：24、48、both（默认）；noAi：布尔值，默认false | 查询未来global概率。`预测 48`、`预测 --no-ai` |
 | status / 状态 | since：可选UTC ISO时间 | 查询最近global公告及是否晚于指定时间。`状态 2026-10-02T00:00:00Z` |
-| posts / 发言 / 推文 / x | limit：1–10，默认3；hours：1–168，默认48；keyword：原文子串，最多80字符 | 查看Tibo的X原文，最新在前。`发言 5 reset --hours 24` |
+| posts / 发言 / 推文 / x / 原文 | limit：1–10，默认3；hours：1–168，默认48；keyword：原文子串，最多80字符；postId：可选16–20位X帖子ID | 查看Tibo的X原文，最新在前。`发言 5 reset --hours 24`；`原文 --postId 2106845241357824205`。按ID查询已采集记录时不受hours限制，不会凭ID声称采集过完整帖子 |
 | history / 历史 / 公告历史 | limit：1–20，默认5；kind：global、banked、all（默认） | 查看公告历史。`历史 5 global` |
 | banked / 发卡 / 卡 | 无 | 最近一次banked发卡及核实程度，强调手动使用与global时钟的区别 |
 | signals / 信号 | 无 | 近48h已识别的时间承诺、暗示与发布，区分已消耗及未核实 |
@@ -16,8 +16,38 @@
 | subscribe / 订阅 | 无 | 开启本人的定点私聊报告；不能指定收件人或时间 |
 | unsubscribe / 退订 / 取消订阅 | 无 | 取消本人的定点私聊报告，不影响群推送或其他人 |
 | subscription / 订阅状态 | 无 | 查看本人订阅状态及下一定点 |
+| ask / 问答 | question：必填，最多800字符，含空格须加引号 | 一次性AI文字问答。`问答 "global和banked有什么区别？"`；不能调用工具或操作账户，未抓取的当前事件必须说明未知 |
 
-中文和英文指令都可用，参数也可写成 `--limit 5` 等同名形式。posts的位置参数是条数、关键词；history是条数、类型；forecast是窗口；status是since。带空格的关键词使用引号。不支持多个查询串联。
+中文和英文指令都可用，参数也可写成 `--limit 5` 等同名形式。posts的位置参数是条数、关键词；history是条数、类型；forecast是窗口；status是since。带空格的关键词使用引号。一条请求执行一个业务命令，其结果可串联文字处理管道。
+
+## 原文、语言和文字管道
+
+固定命令返回核心原始输出，帖子正文保留来源原文；语义提问根据消息文字和明确语言要求回复，查看帖子默认展示译文并附原文。英文提问且帖子本来就是英文时，只本地翻译固定界面标签，不重复调用翻译AI或复制相同正文。语言只从当前提问推断，不读取操作系统、环境变量、时区、用户身份或IM客户端语言。短句及混合语言可能有歧义，可显式指定translate目标。支持zh、zh-TW、en、ja、ko、fr、de、es、pt、ru、ar，中文字符没有明确要求时默认简体。
+
+| 管道名称 | 参数 | 用途 |
+| --- | --- | --- |
+| translate | language：必填，例如zh、en、ja | 将前序结果翻译为指定语言，校验原有数字、百分比、UTC时间与链接，保持Markdown、命令名和参数名 |
+| ask | instruction：必填，最多800字符 | 一次AI文字处理：翻译、总结、解释、针对结果问答或常识问答。依据指令文字选择语言；明确指定目标时优先遵从。`ask translate`通常推断英语，`ask 翻译成中文`推断中文 |
+| original | 无 | 恢复本次业务命令的原始输出，不调用AI；不是重新抓取，也不是补全来源缺失正文 |
+
+```sh
+tibo query 'posts 2 |translate zh'
+tibo posts --limit 2 '|translate zh'
+tibo ask 'Show me the latest two posts'
+tibo query 'posts 2 |ask translate'
+tibo query 'posts 2 |translate zh |ask 用两句话解释是否构成重置承诺'
+tibo query 'posts 2 |translate zh |original'
+tibo status '|translate en'
+tibo query 'help |translate en'
+```
+
+CLI将整个查询或单独的管道字符串加引号，避免shell解释 `|`；Lark直接发送 `@机器人 posts 2 |translate zh`。MCP使用tibo_ask的question传同一字符串。管道目录在 `src/presentation.eli` 统一定义，与业务命令列表一起提供给文字AI；增加能力需增加名字、参数校验、执行分支与帮助说明，不开放任意shell、代码或写工具。
+
+每次最多3段、整条查询最多2400字符；解析并校验所有管道后才执行主命令。每个AI请求最多15秒，文字处理总预算30秒；任一阶段失败即停止后续阶段，保留最后成功的结果并给出对应语言的通用提示。原始结果会保留在内部originalText，概率与证据结果不因文字处理改变。translate和answer可独立关闭；`--no-ai` 禁止本次输出处理。固定业务命令仍可用。
+
+管理员写操作申请、confirm及cancel禁止管道，确认ID不会送入文字AI。pray和本人订阅可对确认回复进行文字处理，主动作仅执行一次，不因处理重试重复操作。来源正文被截断时会明确标注并提供原帖链接；翻译不是新证据，AI解释也不表示承诺已兑现。ask的校验能保证格式与隐私，不能保证所有解释都正确，查询原文可直接对照。
+
+定点推送仍为所有订阅者共享的同一份原始Markdown报告，仅北京时间09:00和21:00；不按订阅者语言生成额外报告。语言与管道处理只适用于主动交互查询。
 
 ## 管理员写操作与二次确认
 
@@ -53,7 +83,7 @@ tibo help
 tibo ask "有哪些命令可以用，参数怎么写？"
 ```
 
-query和ask都先尝试固定指令，其余交给可选语义解析。CLI原有forecast/status/history诊断输出仍可在本地使用，远程业务查询使用公开输出格式。
+CLI query和ask都先尝试固定指令，其余交给可选语义解析。业务目录中的ask为单次问答命令，可通过query中的固定指令调用而跳过router。CLI原有forecast/status/history诊断输出仍可在本地使用；加管道后使用公开业务格式，远程查询也使用公开输出格式。
 
 MCP增加 `tibo_query`（command、args）与 `tibo_ask`（question）。例如：
 
@@ -87,9 +117,11 @@ MCP增加 `tibo_query`（command、args）与 `tibo_ask`（question）。例如�
 
 ## 语义解析
 
-在本地配置的 `TIBO_AI_FEATURES` 中加入 `router` 启用语义模式；可与signals、forecast、brief任意组合。关闭router或AI不可用时，固定命令仍直接运行。router复用AI暂停/恢复机制，与其他功能分开记录参数及输出错误；供应商级认证/余额/网络暂停会共同影响AI功能。
+在本地配置的 `TIBO_AI_FEATURES` 中加入 `router` 启用语义模式；加入translate启用语言展示，answer启用文字问答。可与其他功能任意组合。关闭router或AI不可用时，固定命令仍直接运行。各任务复用AI暂停/恢复机制，独立记录参数及输出错误；供应商级认证/余额/网络暂停会共同影响AI功能。
 
-发给AI的提示正文只包含命令目录、脱敏后的本次问题及用于相对日期的当前UTC。不上传群历史、发送者/群标识、配置、运行环境、文件、日志或报错。AI只返回一个 `{command,args}` JSON；程序重新检查命令白名单、类型、范围及多余字段，校验通过才调用对应的业务函数；写操作随后重新检查权限，只生成确认票据。无法映射时返回unsupported，不执行代码或shell。
+路由提示正文只包含命令目录、脱敏后的本次问题及用于相对日期的当前UTC。不上传群历史、发送者/群标识、配置、运行环境、文件、日志或报错。路由AI返回一个 `{command,args,language}` JSON；程序重新检查命令白名单、类型、范围、语言及多余字段，校验通过才调用业务函数；写操作随后重新检查权限，只生成确认票据。常识、概念或文字问题可选ask；自定义订阅时间、隐私或越权问题仍返回unsupported。
+
+文字助手复用同一AI网关，只接收脱敏的当前指令、前序公开文字、目标语言及能力目录；输出仅允许 `{text}` JSON，不允许返回可执行命令。未抓取的当前事实必须标为未知，无联网、多轮工具循环、文件读取或写操作能力。总共至多一次路由加三次文字处理，普通问答通常一次路由加一次answer，固定问答只需一次answer。有效结果缓存20分钟；固定原文查询和original无需AI。
 
 ## 公开输出与隐私
 
