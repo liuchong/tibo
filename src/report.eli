@@ -1,4 +1,5 @@
 (module tibo.report
+  (import "./privacy.eli" source-free-text)
   (import "./host.eli" Error Date Promise RegExp Map Set Number Intl fetch AbortSignal)
   (import "./availability.eli" usage-text)
   (import "./util.eli" utc beijing clean days decimal values ms hour-ms last-item)
@@ -101,7 +102,7 @@
               (js-call lines :push (bullet "辅助摘要" (get (get brief :value) :summary)))
               (js-call lines :push (bullet "辅助跟进" (values (get (get brief :value) :followups))))))))
       (js-call lines :join "\n")))
-  (defun render-report (result &optional previous title-time)
+  (defun render-source-report (result &optional previous title-time)
     (if (not (= (get (get result :forecast) :available) false)) (render-numeric-report result previous title-time)
       (let* ((snapshot (get result :snapshot)) (global (get (get result :signals) :lastGlobal)) (latest (last-item (get snapshot :posts))))
         (str "**Codex 重置判断｜北京时间 " (beijing (or title-time (get snapshot :now))) "**\n"
@@ -110,4 +111,6 @@
           "• 最近global：" (if global (utc (get global :at)) "未核实") "。\n"
           "• 最新原帖：" (if latest (str (utc (get latest :at)) "｜" (get latest :text) "\n" (get latest :url "")) "未核实") "\n"
           "• 已降级为证据展示；未拿到数据不代表没有重置。banked不移动global时钟，个人账户生效未知。"))))
+  (defun render-report (result &optional previous title-time)
+    (source-free-text (render-source-report result previous title-time)))
   (export render-report describe-incident))

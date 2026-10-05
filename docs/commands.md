@@ -53,7 +53,7 @@ CLI 还提供以下本地操作，它们不属于 IM 用户命令：
 
 | 入口 | 输出或作用 |
 | --- | --- |
-| `tibo` / `tibo forecast` | 完整判断报告；`--json` 输出内部结构 |
+| `tibo` / `tibo forecast` | 完整判断报告；`--json` 输出证据和算法结构，过滤内部发现源名称与地址 |
 | `tibo status` / `tibo history` | 本地 JSON；使用 `query` 得到适合聊天的 Markdown |
 | `tibo posts --limit 5` | 原文查询，也可用 hours/keyword/postId |
 | `tibo evaluate` | 离线模型回放与已有前瞻成绩 |

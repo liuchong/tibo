@@ -3,6 +3,7 @@
   (import "node:process" :default process)
   (import "./engine.eli" run-report judge observe load-snapshot reset-status)
   (import "./state.eli" with-lock)
+  (import "./privacy.eli" source-free-text)
   (import "./history.eli" summarize-history)
   (import "./util.eli" json fail ms)
   (import "./commands.eli" visible-catalog resolve-query execute-query)
@@ -81,7 +82,7 @@
     (let ((state (js-object :phase 0)) (queue (Promise/resolve nil)) (pending "")
           (cancelled (new Set)) (inflight (new Set)) (count 0))
       (new Promise (lambda (resolve reject)
-        (let ((send (lambda (response) (js-call (get process :stdout) :write (str (JSON/stringify response) "\n"))))
+        (let ((send (lambda (response) (js-call (get process :stdout) :write (str (source-free-text (JSON/stringify response)) "\n"))))
               (line-handler nil))
           (setq line-handler (lambda (line)
             (try
