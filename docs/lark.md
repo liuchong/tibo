@@ -17,6 +17,7 @@ Lark 是独立的 Eliscript 接入程序，复用核心命令与共享报告。�
 | `im:message.p2p_msg:readonly` | 接收用户私聊消息 |
 | `im:message:send_as_bot` | 以机器人身份发送消息 |
 | `im:message.reactions:read` | 查看消息表情反应 |
+| `im:chat:read` | 核实旧发送回执对应的单聊/群聊类型，使旧机器人消息也支持私聊表情上香 |
 
 上表权限按完整设计要求配置，`im:message.group_msg` 必需，不能只开通群 @ 权限。事件订阅与 API 权限是两项设置，以下 JSON 可在“权限管理 → 批量导入/导出权限”导入：
 
@@ -28,14 +29,15 @@ Lark 是独立的 Eliscript 接入程序，复用核心命令与共享报告。�
       "im:message.group_msg",
       "im:message.p2p_msg:readonly",
       "im:message:send_as_bot",
-      "im:message.reactions:read"
+      "im:message.reactions:read",
+      "im:chat:read"
     ],
     "user": []
   }
 }
 ```
 
-管理员身份初始化若要用 union_id 查询本应用 open_id，还需 `contact:user.base:readonly` 与通讯录可见范围；查询群 ID/成员辅助验收需 `im:chat:read`、`im:chat.members:read`。这些是相应接入步骤的权限，日常事件内的可信身份不依赖额外通讯录查询。授予平台权限不会扩大 Tibo 内部管理白名单；所有危险命令仍核对本人真实账号并要求二次确认。
+管理员身份初始化若要用 union_id 查询本应用 open_id，还需 `contact:user.base:readonly` 与通讯录可见范围；查询群成员辅助验收需 `im:chat.members:read`。这些是相应接入步骤的权限，日常事件内的可信身份不依赖额外通讯录查询。授予平台权限不会扩大 Tibo 内部管理白名单；所有危险命令仍核对本人真实账号并要求二次确认。
 
 按租户要求完成权限审批与应用发布，设置可用范围，把机器人加入授权群。私聊订阅者也必须在应用可用范围内。若保存长连接事件订阅时要求先有连接，先完成本地配置并前台运行，再保存、发布。
 
@@ -131,3 +133,11 @@ API 成功证据还需结合客户端消息核对实际可见性。不要删除�
 - [长连接协议实现参考](https://github.com/larksuite/node-sdk/blob/main/ws-client/index.ts)：只核对协议，不安装或运行 SDK。
 
 其他 IM 的扩展约定见 [IM 接入契约](im-adapters.md)。
+
+## 私聊消息表情与本地事件诊断
+
+在机器人自己已确认发送的消息上点击 Lark“双手合十”（THANKS），群聊与私聊都能上香。身份来自平台事件的真实 operator，私聊沿用同一个人的全局香客档案。新发送回执保存会话类型；老回执缺失时，程序最多用一次固定的获取会话 API 核实 p2p 并补齐元数据，调用预算 4 秒；其他未授权群不能被误判成私聊。正常点击不调用 AI。
+
+旧事件仍遵守五分钟接收窗口，重装不会自动重新执行过期事件。相同人对同一条消息的表情使用同一个去重键，平台重投或反复切换表情不能重复记账。只在明确核对平台原始反应和发送回执后，由本地维护处理已确认遗漏的旧事件，不能替换去重键强制重复发送。
+
+`tibo-lark status` 的 events 包含当前进程接收/接受的计数、最近接收时间，以及最近表情 accepted/reason；只记录诊断标签，不存消息正文或身份。reason 可区分 not-prayer、stale-or-invalid-time、not-own-message、chat-metadata-unavailable、chat-not-authorized、accepted。连接和队列快照按定时更新，事件字段则在处理事件后更新；无新表情事件时先核对长连接事件订阅，不能把“未收到”当“生成慢”。完整执行能力边界见 [执行边界](execution-boundary.md)。
