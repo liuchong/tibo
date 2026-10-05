@@ -7,6 +7,7 @@ async function trial(code){const dir=await mkdtemp(join(tmpdir(),'tibo-wish-'));
 const setup=`const {pray,identity_key}=await import(${JSON.stringify(root+'/pray.mjs')});const {read_state,write_state}=await import(${JSON.stringify(root+'/state.mjs')});const ctx={transport:'lark',actor:'private-owner',scope:'private-room',authenticated:true};`;
 test('wish requires token, a divine blessing and private-free text rather than a real quota operation',()=>{
  for(let i=0;i<4;i++)expect(validate_wish({wish:local_wish(i)}).wish).toContain('token');
+ const repaired=validate_wish({wish:'善信，本神愿汝上下文稳固，Agent童子靠谱，CI天灯长明。'});expect(repaired.wish).toContain('token');expect(validate_wish(repaired)).toEqual(repaired);
  for(const v of [null,{}, {wish:'愿你好运'}, {wish:'善信，本神赐汝满格token，现在已为你增加额度'}, {wish:'善信，本神愿汝token不枯，访问https://example.com领取额度'}, {wish:local_wish(0),shell:'run'}, {wish:'善信，本神愿汝token充沛，Claude跪拜，测试皆绿'}])expect(()=>validate_wish(v)).toThrow();
 });
 test('AI sees only a bounded scene, follows durable prayer accounting and replays without regeneration',async()=>{

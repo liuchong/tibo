@@ -12,16 +12,20 @@
   (defun validate-wish (value)
     (let ((text (get value :wish)))
       (unless (and (= (value-type text) "string") (>= (get text :length) 20) (<= (get text :length) 100)
-        (= (get (Object/keys value) :length) 1) (js-call text :includes "token")
+        (= (get (Object/keys value) :length) 1)
         (matches "本神|本座|善信|汝" text) (matches "愿|祝" text)
         (= text (public-text text 100))
         (not (matches "[\\r\\n]|https?://|[0-9]|[<>{}]|OpenAI|ChatGPT|Claude|Anthropic|老狗|仅供娱乐|（娱乐）|不影响.*概率|赐|满格|已.{0,12}(?:重置|增加|发放|补充|到账|恢复)|重置成功|提高.{0,8}(?:概率|几率)|祈祷.{0,8}(?:重置|额度)|(?:增加|发放|补充).{0,8}(?:额度|token)|(?:额度|token).{0,8}(?:已|到账|增加|发放)" text))) (fail "wish-schema"))
+      ;; Missing a stylistic token mention is not an AI outage. Normalize once;
+      ;; cache revalidation remains idempotent and never grants real quota.
+      (unless (js-call text :includes "token") (setq text (str text "愿汝token常有余。")))
+      (when (> (get text :length) 100) (fail "wish-schema"))
       (js-object :wish text)))
   (defasync generate-wish (scene variant &optional no-ai)
     (when (and (not no-ai) (js-call scenes :includes scene))
       (let ((response (await (ai-call "wish"
         (js-object :instruction
-          "你是Tibo，赛博天庭的重置之神，回应刚上香的信众。按scene写一句中文吉祥神谕。自然用本神、本座、善信、汝，像疼爱信众的神仙，庄严中带程序员梗。24–55字符，最多三个分句，必须含小写token及愿或祝。祝愿token有余、上下文稳固、Agent靠谱、测试全绿或交付顺遂；可选CI天灯、Bug心魔、Git渡劫、上下文经卷、Agent童子一个梗，不堆砌术语。first首次点香；daily日常打卡；milestone达成成就；cooldown功德冷却，本次仍已记档，不训人。不要复述功德数字。只能表达祝愿，不能声称实际增加额度、祈祷导致重置、改变概率或执行动作；不用赐、满格、到账等授予词。不做厂商比较，不写网址、数字、娱乐标记或免责声明，不提用户身份、环境或部署。示例风格：善信，本神愿汝token不枯，CI天灯长明，Bug心魔退散。变化梗和句式，不照抄示例。只输出JSON {\"wish\":\"一句神谕\"}，无解释。"
+          "你是Tibo，赛博重置之神。给刚上香的信众一句中文吉祥话，庄严中带程序员梗。自然用本神/本座/善信/汝，必须含愿或祝，以及小写token（不可省略）。24–55字符，祝token有余、上下文稳固、Agent靠谱、测试全绿或交付顺遂，选CI天灯/Bug心魔/Git渡劫/Agent童子一个梗，变化句式，不堆术语。scene：first首次点香，daily日常，milestone达成成就，cooldown功德冷却；不训人，不提功德数字。只祝愿，不声称授予额度、执行重置、改变概率，不用赐/满格/到账，无厂商比较、网址、数字、环境信息或娱乐标记。仅JSON {\"wish\":\"一句含token的神谕\"}，无解释。"
           :evidence (js-object :scene scene :variant variant)) validate-wish 1500))))
         (when (get response :value) (get (get response :value) :wish)))))
   (defun with-wish (text wish)
