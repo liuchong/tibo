@@ -144,3 +144,22 @@ test('unreadable delivery state pauses the worker and preserves accepted queries
   expect((await read_state('lark-inbox')).jobs).toHaveLength(1);await inbox.stop();
  }finally{await inbox?.stop();if(old===undefined)delete process.env.TIBO_STATE_DIR;else process.env.TIBO_STATE_DIR=old;await rm(dir,{recursive:true,force:true});}
 });
+
+test('fixed business commands bypass a blocked ordinary query without losing, duplicating or replaying either job',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'tibo-inbox-lanes-')),oldDir=process.env.TIBO_STATE_DIR,oldFeatures=process.env.TIBO_AI_FEATURES;
+ process.env.TIBO_STATE_DIR=dir;process.env.TIBO_AI_FEATURES='';let inbox,release;const sent=[];
+ const blocked=new Promise(resolve=>{release=resolve;});
+ try{
+  const {fast_job_QMARK_}=await import('../dist/adapters/lark/inbox.mjs');
+  // Unknown semantic queries must enter the normal lane rather than remain unprocessable.
+  expect(fast_job_QMARK_({command:'什么时候重置'})).toBe(false);
+  inbox=await create_inbox({send:async body=>{sent.push(body);if(sent.length===1)await blocked;return {code:0,data:{message_id:'om_lanes'+sent.length}};}},['oc_fixture']);
+  await inbox.accept({group:'oc_fixture',key:'slow',command:'ask slow question'});await until(()=>sent.length===1);
+  await inbox.accept({group:'oc_fixture',key:'fast',command:'help'});await until(()=>sent.length===2);
+  await until(async()=> (await read_state('lark-inbox')).jobs.length===1);
+  expect((await read_state('lark-inbox')).jobs[0].key).toBe('slow');
+  expect(JSON.parse(sent[1].content).zh_cn.content[0][0].text).toContain('命令');
+  release();await until(()=>inbox.status().pending===0);await inbox.accept({group:'oc_fixture',key:'fast',command:'help'});
+  await delay(30);expect(sent).toHaveLength(2);
+ }finally{release?.();await inbox?.stop();if(oldDir===undefined)delete process.env.TIBO_STATE_DIR;else process.env.TIBO_STATE_DIR=oldDir;if(oldFeatures===undefined)delete process.env.TIBO_AI_FEATURES;else process.env.TIBO_AI_FEATURES=oldFeatures;await rm(dir,{recursive:true,force:true});}
+});

@@ -85,6 +85,6 @@ tibo query 'confirm 返回的确认ID'
 
 申请本身不清除数据。确认 ID 有效期 5 分钟，绑定接入方式、操作者、会话与操作；执行前保存 `backup-ID.json`，同一 ID 不能重复执行。权限在确认时重新检查。语义模式可以申请管理员操作，但不能替用户确认；这些操作禁止管道和 AI 输入修复。
 
-CLI 管理员由 `TIBO_LOCAL_ADMIN_UID` 与进程真实 UID 比较，不能传一个用户名冒充。Lark 管理员必须来自真实事件，且位于授权群；私聊不能执行这些管理操作。MCP 没有可信人工身份，不开放危险命令。配置与备份恢复见 [配置参考](configuration.md) 和 [安装与运维](operations.md)。
+CLI 管理员由 `TIBO_LOCAL_ADMIN_UID` 与进程真实 UID 比较，不能传一个用户名冒充。Lark 管理员必须来自当前应用的已认证用户事件，且位于管理员 open_id 白名单；仅接受本人与机器人私聊或明确授权的群会话。其他应用身份、非管理员及未授权群不能执行这些管理操作。MCP 没有可信人工身份，不开放危险命令。配置与备份恢复见 [配置参考](configuration.md) 和 [安装与运维](operations.md)。
 
 上香和订阅的身份、行为规则见 [上香与订阅](pray-subscriptions.md)。原文、翻译、多步操作见 [语言与管道](language-pipelines.md)。

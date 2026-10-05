@@ -8,6 +8,12 @@ test('group allowlist and exact bot mention admit only bounded user query text',
  expect(command_of(event(),['oc_other'],'ou_bot')).toBeNull();
  expect(command_of(event(),['oc_test'],'ou_other')).toBeNull();
  expect(command_of(event({mentions:[]}),['oc_test'],'ou_bot')).toBeNull();
+ expect(command_of(event({mentions:[],content:JSON.stringify({text:'TIBO help'})}),['oc_test'],'ou_bot')).toBe('help');
+ expect(command_of(event({mentions:[],content:JSON.stringify({text:'想问 Tibo 什么时候重置'})}),['oc_test'],'ou_bot')).toBe('想问 Tibo 什么时候重置');
+ expect(command_of(event({mentions:[],content:JSON.stringify({text:'什么时候重置'})}),['oc_test'],'ou_bot')).toBeNull();
+ expect(command_of(event({mentions:[],content:JSON.stringify({text:'[双手合十]'})}),['oc_test'],'ou_bot')).toBe('pray');
+ expect(command_of(event({mentions:[],content:JSON.stringify({text:'🙏'})}),['oc_test'],'ou_bot')).toBe('pray');
+ expect(command_of(event({mentions:[],content:JSON.stringify({text:'[双手合十]'})}),['oc_other'],'ou_bot')).toBeNull();
  expect(command_of(event({content:JSON.stringify({text:'@_user_1 最近发言是什么'})}),['oc_test'],'ou_bot')).toBe('最近发言是什么');
  expect(command_of(event({content:JSON.stringify({text:'@_user_1 '+'x'.repeat(801)})}),['oc_test'],'ou_bot')).toBeNull();
 });

@@ -8,7 +8,7 @@ import {at,event,post,snapshot} from './fixture.mjs';
 const day=86400000;
 test('even a timed either-improvement-or-reset statement stays a conditional hint, without changing the clock or base probability',()=>{
  const baseline=judge(snapshot());
- const result=judge(snapshot({posts:[post(25,'Tomorrow 10am PT we will either ship an improvement or a global reset for all paid accounts.')]}));
+ const result=judge(snapshot({posts:[...snapshot().posts,post(25,'Tomorrow 10am PT we will either ship an improvement or a global reset for all paid accounts.')]}));
  expect(result.signals.promise).toBeNull();expect(result.signals.hints[0].conditional).toBe(true);
  expect(result.forecast.signal).toBe('条件性重置计划');expect(result.signals.lastGlobal.at).toBe(baseline.signals.lastGlobal.at);
  expect(result.forecast.p24).toBe(baseline.forecast.p24);expect(result.forecast.p48).toBe(baseline.forecast.p48);
@@ -44,7 +44,7 @@ test('unparseable time, missing object and negation cannot become a timed promis
  }
 });
 test('fresh explicit primary promise is a strong signal separate from historical probability',()=>{
- const s=snapshot({now:'2026-09-25T01:00:00Z',posts:[post(25,'Global reset landing tomorrow 10am PST for all paid accounts.')]});
+ const s=snapshot({now:'2026-09-25T01:00:00Z',posts:[...snapshot().posts,post(25,'Global reset landing tomorrow 10am PST for all paid accounts.')]});
  const r=judge(s);expect(r.forecast.signalStrength).toBe('强');expect(r.forecast.p24).toBe(judge(snapshot({now:s.now})).forecast.p24);expect(r.forecast.confidence).toBe('低');
 });
 test('fulfilled banked promise has zero ongoing promise weight',()=>{

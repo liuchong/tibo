@@ -78,7 +78,7 @@ TIBO_AI_FEATURES=
 | `diagnostics-cli.json` / `diagnostics-daemon.json` | 最近成功生成报告的采集、AI 输入与结果诊断 |
 | `ai.json` | AI 用量、缓存、最近失败阶段和冷却 |
 | `daemon.json` / `daemon-latest.json` | 采集进程状态 / 最近成功完整报告 |
-| `pray-*.json` / `subscriptions-*.json` | 会话上香档案 / 应用账户订阅 |
+| `pray-identities.json` / `pray-<摘要>.json` / `subscriptions-*.json` | 统一个人及会话上香档案 / 迁移保留旧档案 / 应用账户订阅 |
 | `confirm-*.json` / `backup-*.json` | 危险操作确认票据 / 操作前数据 |
 | `bulletin-*.json` / `lark-*.json` | 共享定点报告、收件人任务、交互入队、投递与运行状态 |
 

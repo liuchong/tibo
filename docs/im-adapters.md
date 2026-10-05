@@ -15,7 +15,7 @@ requestId      稳定的事件/投递键
 authenticated  已认证的平台事件，实际值为 true
 ```
 
-字段由适配器建立，不能来自消息参数、AI 输出或用户自报。订阅 owner 要求 transport/account/actor；上香按 transport/scope 隔离会话，以 actor 派生本地匿名编号。Lark 的 account 由平台域名与 App ID 派生，用户 ID 必须来自当前应用。
+字段由适配器建立，不能来自消息参数、AI 输出或用户自报。订阅 owner 要求 transport/account/actor；上香以 transport + 平台应用内唯一 actor 合并跨会话个人档案，以 transport/scope 隔离会话愿力池与榜单。actor 必须在应用账户下唯一，不允许用昵称作为身份；不同 IM 与 CLI 不自动关联。Lark 的 account 由平台域名与 App ID 派生，用户 ID 必须来自当前应用。
 
 context 只用于权限、档案与投递，不加入模型提示词或公开结果。新增接入层也不得允许 MCP 客户端传一个 context 冒充可信用户。
 
@@ -31,7 +31,7 @@ context 只用于权限、档案与投递，不加入模型提示词或公开结
 
 解析和执行必须使用**同一个 options 对象**，保留共享修复预算与 noAi 决定。人工输入修复只在语法/参数错误时使用，接续已完成步骤，不重新执行整个请求。
 
-内部查询、定时任务和已经生成的定点正文不设置 humanInput；不能把模型结果再次作为人工消息执行。不要把上传到 MCP 的自然语言默认等同于认证平台用户。新的接入方式默认没有危险管理权限；管理员身份判定需明确实现，不能仅靠 authenticated 放行。
+内部查询、定时任务和已经生成的定点正文不设置 humanInput；不能把模型结果再次作为人工消息执行。不要把上传到 MCP 的自然语言默认等同于认证平台用户。新的接入方式默认没有危险管理权限；管理员身份判定需明确实现，不能仅靠 authenticated 放行。Lark 同时核对当前应用 account、authenticated、用户白名单和私聊/授权群会话类型。
 
 ## 事件、权限与投递
 

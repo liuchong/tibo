@@ -4,6 +4,7 @@
   (import "./transport.eli" request request-json)
   (import "./state.eli" read-state write-state with-lock)
   (import "./signals.eli" completed?)
+  (import "./reference.eli" reference-data feed-posts reference-url)
   (import "./util.eli" fail clean canonical-text ms iso matches match sorted recent unknown utc last-item)
   (defconst archive-url "https://aiidelist.com/codex-reset")
   (defun text-of (node class) (html-text (get (by-class node class) 0)))
@@ -90,7 +91,7 @@
         (let* ((text (get p :text)) (global (completed? text))
                (banked (and (matches "banked|reset card" text) (matches "added|granted|available|issued" text)
                             (not (matches "will|tomorrow|not |no " text)))))
-          (when (or global banked)
+          (when (and (or global banked) (or (not (get p :discoverySourceUrl)) (= (get p :provenance) "primary")))
             (js-call result :push (js-object :id (get p :id) :at (get p :at) :global global :banked banked
               :observed false :url (get p :url) :scope "以原文对象为准" :provenance (get p :provenance)))))))
       result))
@@ -101,7 +102,11 @@
                           (js-array "status" "https://status.openai.com/api/v2/incidents.json")
                           (js-array "news" "https://openai.com/news/rss.xml")
                           (js-array "primary" "https://x.com/thsottiaux")))
-           (sources (await (Promise/all (js-call urls :map (lambda (pair) (collect-one (get pair 0) (get pair 1) now offline))))))
+           (sources (await (Promise/all (js-call (js-call urls :map (lambda (pair) (collect-one (get pair 0) (get pair 1) now offline))) :concat
+             (js-array (js-call (reference-data "feed" offline) :then (lambda (response)
+               (js-object :name "reference-feed" :url (str reference-url "/api/feed") :ok (get response :ok)
+                 :fetched (and (get response :ok) (not (get response :cached))) :at (get response :at now)
+                 :body (if (get response :data) (JSON/stringify (get response :data)) "") :error (get response :reason)))))))))
            (archive nil) (fresh-original false) (posts (get ledger :posts (js-array))) (events (get ledger :events (js-array))))
       (try
         (unless (get (get sources 0) :ok) (fail (get (get sources 0) :error)))
@@ -123,6 +128,10 @@
               (unless (Array/isArray (get (JSON/parse (get source :body)) :incidents)) (fail "状态数据结构失配"))
               (unless (matches "<rss\\b[\\s\\S]*<channel\\b" (get source :body)) (fail "新闻数据结构失配")))
             (catch error (put source :ok false) (put source :error "官方资料结构无法解析"))))))
+      (let ((feed (get sources 4)))
+        (when (get feed :ok)
+          (try (setq posts (merge-posts posts (feed-posts (JSON/parse (get feed :body)) now)))
+            (catch error (put feed :ok false) (put feed :error "参考发现源结构失配")))))
       (unless offline
         (let* ((candidates (js-call (js-call posts :filter (lambda (p) (recent (get p :at) now 48))) :slice -8))
                (checks (await (Promise/all (js-call candidates :map
@@ -149,5 +158,5 @@
                 :events (merge-events (get latest :events (js-array)) events)
                 :posts (merge-posts (get latest :posts (js-array)) posts))))))))))
       (js-object :schemaVersion 1 :now now :events events :posts posts :cachedAt (if archive (get archive :cachedAt) nil)
-        :crossChecks (js-array) :sources sources :unknowns unknowns)))
+        :localLedgerAt (get ledger :now) :crossChecks (js-array) :sources sources :unknowns unknowns)))
   (export parse-archive parse-primary parse-embed snowflake-time collect-sources merge-posts merge-events events-from-posts))
