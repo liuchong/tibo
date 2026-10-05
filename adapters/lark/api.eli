@@ -1,5 +1,5 @@
 (module tibo.lark.api
-  (import "../../src/host.eli" Date Promise)
+  (import "../../src/host.eli" Date Promise RegExp)
   (import "../../src/transport.eli" request-json)
   (import "../../src/util.eli" fail)
   (defun create-client (app-id secret domain)
@@ -32,6 +32,12 @@
             (await (request-json (str base "/open-apis/im/v1/messages?receive_id_type=" recipient-type)
               (js-object :method "POST" :redirect "error" :headers (js-object :content-type "application/json" :authorization (str "Bearer " (await (funcall access))))
                 :body (JSON/stringify body)))))
+          ;; Fixed read-only API for verified legacy message metadata, never an AI URL.
+          :chatInfo (async (id)
+            (unless (js-call (new RegExp "^oc_[A-Za-z0-9]+$") :test id) (fail "Invalid chat ID"))
+            (let ((result (await (request-json (str base "/open-apis/im/v1/chats/" id)
+              (js-object :redirect "error" :headers (js-object :authorization (str "Bearer " (await (funcall access))))) 4000))))
+              (unless (and (= (get result :code) 0) (get result :data)) (fail "Chat metadata unavailable")) (get result :data)))
           :connectConfig (async ()
             (await (request-json (str base "/callback/ws/endpoint")
               (js-object :method "POST" :redirect "error" :headers (js-object :content-type "application/json" :locale "zh")

@@ -37,7 +37,8 @@
       (await (with-lock "lark-instance" (async ()
         (let ((controller (new AbortController)) (ws nil) (inbox nil) (broadcaster nil) (timer nil) (stopping false) (resolve-stop nil)
               (client (create-client (get config :appId) (get config :secret) (get config :domain)))
-              (stopped nil) (stop nil))
+              (stopped nil) (stop nil)
+              (events (js-object :received 0 :accepted 0 :reactions 0 :acceptedReactions 0)))
           (setq stopped (new Promise (lambda (resolve) (setq resolve-stop resolve))))
           (setq stop (lambda ()
             (setq stopping t) (clearTimeout timer) (js-call controller :abort)
@@ -51,15 +52,30 @@
                 (setq inbox (await (create-inbox client groups)))
                 (setq broadcaster (create-broadcaster client groups))
                 (setq ws (await (open-socket client (async (event header)
-                  (if (= (get header :event_type) "im.message.reaction.created_v1")
-                    (let ((job (await (reaction-job event groups))))
-                      (when (and (not stopping) job) (await (js-call inbox :accept job))))
-                  (let* ((command (command-of event groups bot-id)) (message (get event :message (js-object)))
-                         (id (get message :message_id)) (created (Number (get message :create_time 0))))
-                    (when (and (not stopping) command (= (value-type id) "string") (> (get id :length) 0)
-                               (> created (- (Date/now) 300000)) (<= created (+ (Date/now) 60000)))
-                      (await (js-call inbox :accept (js-object :group (get message :chat_id) :key id :command command
-                        :context (sender-context event) :createdAt (iso created) :acceptedAt (iso (Date/now)))))) nil))) (get controller :signal))))
+                  (let ((reaction (= (get header :event_type) "im.message.reaction.created_v1"))
+                        (audit (js-object :reason "filtered")) (accepted false))
+                    (put events :received (+ (get events :received) 1))
+                    (put events :lastReceivedAt (iso (Date/now)))
+                    (try
+                      (if reaction
+                        (let ((job (await (reaction-job event groups client audit))))
+                          (when (and (not stopping) job) (await (js-call inbox :accept job)) (setq accepted t)))
+                        (let* ((command (command-of event groups bot-id)) (message (get event :message (js-object)))
+                               (id (get message :message_id)) (created (Number (get message :create_time 0))))
+                          (when (and (not stopping) command (= (value-type id) "string") (> (get id :length) 0)
+                                     (> created (- (Date/now) 300000)) (<= created (+ (Date/now) 60000)))
+                            (await (js-call inbox :accept (js-object :group (get message :chat_id) :key id :command command
+                              :context (sender-context event) :createdAt (iso created) :acceptedAt (iso (Date/now)))))
+                            (setq accepted t))))
+                      (finally
+                        (when accepted (put events :accepted (+ (get events :accepted) 1)))
+                        (when reaction
+                          (put events :reactions (+ (get events :reactions) 1))
+                          (when accepted (put events :acceptedReactions (+ (get events :acceptedReactions) 1)))
+                          (put events :lastReaction (js-object :at (iso (Date/now)) :accepted accepted :reason (get audit :reason))))
+                        ;; Optional diagnostics never turn an accepted business event into a failed ACK.
+                        (try (await (write-state "lark-events" events)) (catch error (console/error "tibo-lark: 事件诊断记录失败")))))))
+                  (get controller :signal))))
                 (let ((tick nil))
                   (setq tick (async ()
                   (unless stopping

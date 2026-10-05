@@ -82,14 +82,16 @@ test('native HTTP/WebSocket bot receives, persists before ACK, replies, enforces
   send('订阅','om_subscribe_other',{},'ou_other');await until(()=>posts.length===14);
   send('退订','om_unsubscribe_other',{},'ou_other');await until(()=>posts.length===15);expect(text(14)).toContain('已退订');
   send('订阅','om_resubscribe_other',{},'ou_other');await until(()=>posts.length===16);
+  react('om_reply13','ou_admin');await until(()=>posts.length===17);expect(text(16)).toContain('累计🙏 3');expect(posts[16].receive_id).toBe('oc_private');
+  const eventStats=JSON.parse(await readFile(join(dir,'lark-events.json'),'utf8'));expect(eventStats.lastReaction.accepted).toBe(true);
   for(const post of posts)expect(post.content).not.toMatch(/fixture-secret|fixture-router-key|local-tenant|\/Users\/|deepseek|oc_fixture|ou_admin|ou_other/i);
   child.kill('SIGTERM');expect(await closed).toBe(0);expect(JSON.parse(await readFile(join(dir,'lark-runtime.json'),'utf8')).state).toBe('stopped');
   expect((await readdir(dir)).some(x=>x.endsWith('.lock'))).toBe(false);
-  console.log('Local Lark trial: 16 HTTP replies; group + DM self-subscription, unsubscribe/resubscribe, pray text/reaction, admin confirmation and reconnect.');
+  console.log('Local Lark trial: 17 HTTP replies; group + DM self-subscription, unsubscribe/resubscribe, pray text/reaction, admin confirmation and reconnect.');
   // One generation fans out to a group and two private recipients at each slot.
   await writeFile(join(dir,'ledger.json'),JSON.stringify(snapshot()));
   let morningBulletin;
-  for(const [time,count,title] of [['2026-10-04T01:00:02Z',19,'09:00'],['2026-10-04T01:00:02Z',19,null],['2026-10-04T01:02:00Z',19,null],['2026-10-04T13:00:02Z',22,'21:00']]){
+  for(const [time,count,title] of [['2026-10-04T01:00:02Z',20,'09:00'],['2026-10-04T01:00:02Z',20,null],['2026-10-04T01:02:00Z',20,null],['2026-10-04T13:00:02Z',23,'21:00']]){
    stderr='';child=spawn(process.execPath,[resolve('tests/helpers/lark-client.mjs')],{env:{...env,TIBO_TEST_NOW:time,TIBO_AI_FEATURES:''},stdio:['ignore','pipe','pipe']});
    child.stderr.on('data',x=>stderr+=x);closed=new Promise(r=>child.once('close',r));await until(()=>stderr.includes('已启动'));
    if(title){await until(()=>posts.length===count);expect(text(count-1)).toContain('北京时间 10-04 '+title);expect(text(count-1)).toContain('24h');expect(text(count-1)).toContain('48h');

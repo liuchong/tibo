@@ -11,7 +11,8 @@
       (cond
         ((or (= command "run") (= command "start")) (await (start-lark)))
         ((= command "check") (console/log (json (await (check-lark)))))
-        ((= command "status") (console/log (json (or (await (read-state "lark-runtime")) (js-object :state "not-started")))))
+        ((= command "status") (console/log (json (Object/assign (js-object) (or (await (read-state "lark-runtime")) (js-object :state "not-started"))
+          (js-object :events (await (read-state "lark-events")))))))
         ((= command "service")
           (when (= (get args 1) "install") (await (lark-config)))
           (console/log (json (await (service (get args 1) "lark")))))
