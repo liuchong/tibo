@@ -18,6 +18,7 @@ test('oracle quotes must match supplied sources and successful reset claims are 
  for(const citation of [{id:'unknown',quote:'new Codex features'},{id:'a',quote:'invented evaluation score'}])expect(()=>validate_oracle({...good,citation},'brand',docs)).toThrow();
  expect(()=>validate_oracle({text:'本座乃分身，真神已为你重置成功',citation:null},'invoke-reset',[])).toThrow();
  expect(()=>validate_oracle({...good,text:'ChatGPT beats Claude 100%'},'brand',docs)).toThrow();
+ expect(()=>validate_oracle({...good,text:'Claude投百亿补课，ChatGPT坐头席'},'brand',docs)).toThrow();
  expect(()=>validate_oracle({...good,text:'GPT-99坐头席，Claude去偏殿'},'brand',docs)).toThrow();
  expect(validate_oracle({text:'ChatGPT捧GPT-6经书，Claude去偏殿',citation:null},'brand',[{id:'m',text:'A model guide for the GPT-6 family'}]).text).toContain('GPT-6');
 });
