@@ -1,11 +1,12 @@
 ;; Entertainment state is separate from reset evidence and prediction experience.
 (module tibo.pray
   (import "node:process" :default process)
-  (import "node:crypto" createHash randomUUID)
+  (import "node:crypto" createHash randomUUID randomInt)
   (import "./host.eli" Date Number RegExp Set)
   (import "./state.eli" read-state write-state with-lock state-root)
   (import "node:fs/promises" readdir)
   (import "./util.eli" iso ms fail)
+  (import "./wish.eli" local-wish generate-wish with-wish)
   (defconst milestones (js-array 1 3 10 30 50 100 233 500 1000))
   (defconst titles (js-array "初来香客" "在线上香员" "额度守望者" "异步祈祷工程师" "天庭 SRE" "重置玄学研究员" "首席愿力官" "赛博方丈" "功德编译器"))
   (defconst events (js-array
@@ -143,7 +144,7 @@
         "\n• 今日🙏：" (js-call active :reduce (lambda (sum m) (+ sum (get m :daily))) 0)
         "\n• 集体彩蛋：" (if (> (get (get state :festivals) :length) 0) (js-call (get state :festivals) :join "、") "等待开张")
         "\n个人档案跨会话共享；此处只统计本会话。CLI与其他接入方式独立。")))
-  (defasync pray (args context)
+  (defasync record-pray (args context)
     (if (not (valid-context? context)) (js-object :ok false :text "祈祷档案需要本人身份，请在本地CLI或授权群使用；MCP不记录祈祷。")
       (await (with-lock identity-key (async ()
         (let* ((key (scope-key context)) (root (await (identity-state)))
@@ -205,7 +206,29 @@
                               (if (> (get notices :length) 0) (str "\n" (js-call notices :join "\n")) "")
                               "\n• 本会话愿力池：" (get state :merit) (if next (str "/" next "，到达后触发集体彩蛋") "，已解锁全部集体彩蛋")
                               "\n查看：pray me / pray board / pray stats。")))
-                          (put state :receipts (js-call (js-call (get state :receipts) :concat (js-array (js-object :id request :text text))) :slice -512))
-                          (await (write-state identity-key root))
-                          (js-object :ok t :text text)))))))))))))
+                          (let* ((scene (cond ((not credited) "cooldown") ((= (get member :offers) 1) "first") ((> (get notices :length) 0) "milestone") (t "daily")))
+                                 (variant (randomInt 4)) (base text))
+                            (setq text (with-wish base (local-wish variant)))
+                            (put state :receipts (js-call (js-call (get state :receipts) :concat (js-array (js-object :id request :text text))) :slice -512))
+                            (await (write-state identity-key root))
+                            (js-object :ok t :text text :wishRequest request :wishScope key :wishScene scene :wishVariant variant :wishBase base))))))))))))))
+  (defasync pray (args context &optional options)
+    (let ((response (await (record-pray args context))))
+      ;; Durable local reply and counters precede optional AI; never hold the
+      ;; identity lock during network I/O, and never regenerate on a replay.
+      (when (get response :wishRequest)
+        (try
+          (let ((wish (await (generate-wish (get response :wishScene) (get response :wishVariant) (get (or options (js-object)) :noAi)))))
+            (when wish
+              (await (with-lock identity-key (async ()
+                (let* ((root (await (identity-state)))
+                       (scope (js-call (get root :scopes) :find (lambda (row) (= (get row :key) (get response :wishScope)))))
+                       (receipt (when scope (js-call (get (get scope :state) :receipts) :find (lambda (r) (= (get r :id) (get response :wishRequest)))))))
+                  (when receipt
+                    (let ((text (with-wish (get response :wishBase) wish)))
+                      (put receipt :text text)
+                      (await (write-state identity-key root))
+                      (put response :text text)))))))))
+          (catch error nil)))
+      (js-object :ok (get response :ok) :text (get response :text))))
   (export pray has-pray? only-pray? scope-key identity-key))

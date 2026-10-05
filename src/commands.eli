@@ -244,7 +244,7 @@
                   (let ((response (await (subscription-command name (get options :context)))))
                     (put response :text (public-text (get response :text))) response)
                 (if (= name "pray")
-                  (let ((response (await (pray args (get options :context)))))
+                  (let ((response (await (pray args (get options :context) options))))
                     (put response :text (public-text (get response :text))) response)
                 (if (= name "forecast")
                   (let ((result (await (run-report (Object/assign (js-object) options (js-object :noAi (or (get options :noAi) (get args :noAi))))))))
