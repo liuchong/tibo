@@ -1,6 +1,6 @@
 (module tibo.admin
   (import "node:process" :default process)
-  (import "node:crypto" randomUUID)
+  (import "node:crypto" randomUUID createHash)
   (import "./host.eli" Date Number RegExp)
   (import "./state.eli" read-state write-state with-lock)
   (import "./ai-runtime.eli" reset-ai)
@@ -15,9 +15,15 @@
                      (= (get context :scope) "local")
                      (= (get env :TIBO_LOCAL_ADMIN_UID) (str (js-call process :getuid)))))
               ((= (get context :transport) "lark")
-                (and (js-call (new RegExp "^ou_[A-Za-z0-9]+$") :test (get context :actor ""))
+                (and (= (get context :authenticated) t)
+                     (= (get context :account) (js-call (js-call (js-call (createHash "sha256") :update
+                       (str (get env :TIBO_LARK_DOMAIN "feishu") ":" (get env :TIBO_LARK_APP_ID ""))) :digest "hex") :slice 0 40))
+                     (js-call (new RegExp "^ou_[A-Za-z0-9]+$") :test (get context :actor ""))
                      (js-call (js-call (get env :TIBO_LARK_ADMIN_OPEN_IDS "") :split ",") :includes (get context :actor))
-                     (js-call (js-call (js-call (get env :TIBO_LARK_CHAT_IDS "") :split ",") :map (lambda (id) (js-call id :trim))) :includes (get context :scope))))
+                     (js-call (new RegExp "^oc_[A-Za-z0-9]+$") :test (get context :scope ""))
+                     (or (= (get context :conversationType) "p2p")
+                       (and (= (get context :conversationType) "group")
+                         (js-call (js-call (js-call (get env :TIBO_LARK_CHAT_IDS "") :split ",") :map (lambda (id) (js-call id :trim))) :includes (get context :scope))))))
               (t false)))))
   (defconst actions (js-object :clear-history "清空本地历史缓存（下一次联网采集会重建）"
                               :clear-experience "清空本地预测经验与成绩"

@@ -59,7 +59,7 @@
                     (when (and (not stopping) command (= (value-type id) "string") (> (get id :length) 0)
                                (> created (- (Date/now) 300000)) (<= created (+ (Date/now) 60000)))
                       (await (js-call inbox :accept (js-object :group (get message :chat_id) :key id :command command
-                        :context (sender-context event) :acceptedAt (iso (Date/now)))))) nil))) (get controller :signal))))
+                        :context (sender-context event) :createdAt (iso created) :acceptedAt (iso (Date/now)))))) nil))) (get controller :signal))))
                 (let ((tick nil))
                   (setq tick (async ()
                   (unless stopping

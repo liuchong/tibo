@@ -15,7 +15,7 @@ test('observed-only endpoints are excluded without inventing a bridging interval
  expect(ensemble(rows,0,rows.at(-1).end).excludedIntervals).toBe(1);
 });
 test('walk-forward replay matches an independent prior-only reference',()=>{
- const rows=intervals([2,3,4,5,3,4,5,6,7,8,2,3,4,7,4,5]);const actual=replay(rows);let n=0;const score=[0,0,0];
+ const rows=intervals([2,3,4,5,3,4,5,6,7,8,2,3,4,7,4,5]);const actual=replay(rows);let n=0;const score=[0,0,0,0];
  for(let i=8;i<rows.length;i++)for(let elapsed=0;elapsed<rows[i].duration;elapsed+=day){const at=Date.parse(rows[i].start)+elapsed;if(at+2*day>Date.parse(rows.at(-1).end))continue;
   const predictions=candidates(rows.slice(0,i),elapsed,new Date(at).toISOString());n++;
   predictions.forEach((p,j)=>score[j]+=(p.p24/100-Number(rows[i].duration<=elapsed+day))**2);
@@ -26,12 +26,12 @@ test('walk-forward replay matches an independent prior-only reference',()=>{
  expect(result.candidates[actual.scores.findIndex(s=>s.brier24===Math.min(...actual.scores.map(x=>x.brier24)))].weight).toBeGreaterThan(0);
 });
 test('small replay uses equal weights and too little history refuses numeric invention',()=>{
- const rows=intervals([3,4,5]);const r=ensemble(rows,day,rows.at(-1).end);expect(r.adaptive).toBe(false);r.candidates.forEach(p=>expect(p.weight).toBeCloseTo(1/3));
+ const rows=intervals([3,4,5]);const r=ensemble(rows,day,rows.at(-1).end);expect(r.adaptive).toBe(false);r.candidates.forEach(p=>expect(p.weight).toBeCloseTo(1/4));
  expect(()=>ensemble(rows.slice(0,2),0,rows.at(-1).end)).toThrow('至少');
 });
 test('prospective model experience changes weights only after 30 resolved windows',()=>{
  const rows=intervals([3,4,5]);const stats=n=>({resolved:n,models:[{name:'recent-rate',n,brier24:0.01,brier48:0.01},{name:'decayed-rate',n,brier24:0.4,brier48:0.4},{name:'conditional',n,brier24:0.2,brier48:0.2}]});
- const insufficient=ensemble(rows,0,rows.at(-1).end,stats(29));expect(insufficient.adaptive).toBe(false);insufficient.candidates.forEach(p=>expect(p.weight).toBeCloseTo(1/3));
+ const insufficient=ensemble(rows,0,rows.at(-1).end,stats(29));expect(insufficient.adaptive).toBe(false);insufficient.candidates.forEach(p=>expect(p.weight).toBeCloseTo(1/4));
  const learned=ensemble(rows,0,rows.at(-1).end,stats(30));expect(learned.adaptive).toBe(true);expect(learned.candidates[0].weight).toBeGreaterThan(learned.candidates[1].weight);expect(learned.prospectiveSamples).toBe(30);
 });
 test('prospective outcomes wait for strict windows plus ingestion grace, never backfill',()=>{
