@@ -4,6 +4,7 @@
   (import "node:crypto" createHash)
   (import "./state.eli" read-state write-state with-lock)
   (import "./util.eli" iso)
+  (import "./privacy.eli" source-free-text)
   (defconst feature-names (js-array "signals" "research" "search" "forecast" "review" "brief" "router" "translate" "answer" "repair"))
   (defconst token-limits (js-object :signals 1100 :research 1400 :search 220 :forecast 500 :review 320 :brief 650 :router 280 :translate 2800 :answer 1200 :repair 400))
   (defconst output-policy "2")
@@ -45,7 +46,7 @@
     (let ((input (get payload :evidence)))
       ;; Cache stable evidence, not the ever-changing collection clock. Every hit
       ;; is still revalidated against the current post/window eligibility.
-      (digest (JSON/stringify (js-object :policy (feature-policy feature) :feature feature :instruction (get payload :instruction)
+      (digest (JSON/stringify (js-object :publicPolicy "1" :policy (feature-policy feature) :feature feature :instruction (get payload :instruction)
         :evidence (if (js-call (js-array "router" "repair") :includes feature) input (Object/fromEntries (js-call (Object/entries input) :filter (lambda (row) (not (= (get row 0) "now")))))))))))
   (defun account-usage (state feature usage elapsed)
     (let* ((all (get state :usage (js-object))) (row (get all feature (js-object :calls 0 :promptTokens 0 :completionTokens 0))))
@@ -88,8 +89,9 @@
                                     :signal (AbortSignal/timeout (or timeout 15000))
                                     :body (JSON/stringify (js-object :model (get cfg :model) :stream false
                                     :thinking (js-object :type "disabled") :temperature 0 :response_format (js-object :type "json_object") :max_tokens (get token-limits feature 500)
-                                      :messages (js-array (js-object :role "system" :content (get payload :instruction))
-                                                         (js-object :role "user" :content (JSON/stringify (get payload :evidence))))))))))
+                                      :messages (js-array (js-object :role "system" :content
+                                        (str (source-free-text (get payload :instruction)) " 不提及第三方重置概率预测网站的名字或链接；只解释本程序算法与给定原帖证据。"))
+                                                         (js-object :role "user" :content (source-free-text (JSON/stringify (get payload :evidence)))))))))))
                                    (body nil))
                               (setq status (get response :status) retry (retry-delay (js-call (get response :headers) :get "retry-after") now))
                               (when (get response :ok)

@@ -1,13 +1,12 @@
-;; Optional public reference endpoints. Their probabilities never enter our model.
+;; Internal discovery only; no prediction comparison or public source attribution.
 (module tibo.reference
   (import "./host.eli" Date Number fetch AbortSignal RegExp)
   (import "./state.eli" read-state write-state with-lock)
   (import "./privacy.eli" public-text)
-  (import "./html.eli" parse-html html-text by-tag)
   (import "./util.eli" fail iso ms)
   (defconst reference-url "https://codex-reset.com")
   (defasync reference-data (endpoint &optional offline)
-    (unless (js-call (js-array "feed" "forecast" "method") :includes endpoint) (fail "未知参考接口"))
+    (unless (js-call (js-array "feed") :includes endpoint) (fail "未知参考接口"))
     (let* ((key (str "reference-" endpoint)) (now (Date/now)))
       (if offline (js-object :ok false :reason "离线模式")
         (try
@@ -18,15 +17,13 @@
                   (if (and latest (> (get latest :until 0) (Date/now))) (get latest :result)
                     (progn
                       (try
-                        (let* ((url (if (= endpoint "method") (str reference-url "/forecast-method") (str reference-url "/api/" endpoint)))
+                        (let* ((url (str reference-url "/api/" endpoint))
                           (response (await (fetch url
                           (js-object :redirect "error" :signal (AbortSignal/timeout 6000)
                             :headers (js-object :user-agent "tibo/0.1 (+https://github.com/liuchong/tibo)")))))
                           (text (await (js-call response :text))))
                           (unless (and (get response :ok) (<= (get text :length) 2000000)) (fail "参考接口不可用"))
-                          (setq result (js-object :ok t :at (iso (Date/now)) :url url :data (if (= endpoint "method")
-                            (let ((root (parse-html text)))
-                              (js-object :text (public-text (html-text (or (get (by-tag root "main") 0) root)) 4500))) (JSON/parse text)))))
+                          (setq result (js-object :ok t :at (iso (Date/now)) :url url :data (JSON/parse text))))
                         (catch error (setq result (js-object :ok false :at (iso (Date/now)) :reason "参考接口暂不可用"))))
                       ;; Success and failures both obey the publisher's one-minute polling limit.
                       (await (write-state key (js-object :until (+ (Date/now) 60000) :result result))) result))))))))
@@ -44,21 +41,4 @@
                   :provenance "archive" :cachedAt (get data :fetched_at) :discoverySourceUrl reference-url
                   :isReply (= (get row :is_reply) t))))
               (catch error nil)))))) posts))
-  (defun comparison? (question)
-    (js-call (new RegExp "(?:https?://)?codex-reset\\.com(?![a-z0-9.-])" "i") :test question))
-  (defun reference-facts (response)
-    (if (not (get response :ok)) "参考站当前数据未核实。"
-      (let* ((data (get response :data)) (prob (get data :probabilities (js-object))) (model (get data :model (js-object))))
-        (if (not (and (Number/isFinite (get prob :rounded_24h)) (Number/isFinite (get prob :rounded_48h))
-                 (>= (get prob :rounded_24h) 0) (<= (get prob :rounded_48h) 100))) "参考站概率结构未核实。"
-          (JSON/stringify (js-object :source (str reference-url "/api/forecast") :fetchedAt (get response :at)
-            :display24 (get prob :rounded_24h) :display48 (get prob :rounded_48h)
-            :probabilityText (str "显示24h " (get prob :rounded_24h) "% / 48h " (get prob :rounded_48h) "%；模型24h "
-              (if (Number/isFinite (get prob :model_24h)) (str (get prob :model_24h) "%") "未核实") " / 48h "
-              (if (Number/isFinite (get prob :model_48h)) (str (get prob :model_48h) "%") "未核实"))
-            :model24 (get prob :model_24h) :model48 (get prob :model_48h) :teaseTier (get prob :tease_tier)
-            :teaseFloor24 (get prob :tease_floor_24h) :teaseFloor48 (get prob :tease_floor_48h)
-            :commitment (get prob :commitment) :lastResetAt (get data :last_reset_at) :ageDays (get data :age_days)
-            :modelVersion (get model :version) :windowIntervals (get model :window_intervals)
-            :note "这些是参考站自报值，不是本程序概率。display和model分开；若显示数值符合tease floor，说明存在信号展示下限，不能解释成纯历史计算。API字段缺失留未知，不推测公式；不把参考站分类作为Tibo原文事实。"))))))
-  (export reference-data feed-posts comparison? reference-facts reference-url))
+  (export reference-data feed-posts reference-url))
