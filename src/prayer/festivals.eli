@@ -1,0 +1,39 @@
+;; Collective offerings count every distinct event; personal merit still cools.
+(module tibo.prayer.festivals
+  (defconst points (js-array 10 50 100 233 500 1000))
+  (defconst names (js-array "十炷成阵" "云端法会" "百香齐鸣" "功德日志哈哈级" "赛博香炉满载" "千香开殿"))
+  (defconst scenes (js-array
+    "🕯️🕯️🕯️🕯️🕯️ 🕯️🕯️🕯️🕯️🕯️\n十炷电子香已成阵，Agent童子列队，CI天灯点亮。本神愿诸位token有余，Bug心魔绕道！"
+    "☁️ 云端法会开坛，善信的愿望并行入阵。本座愿诸位token绵长，Agent各司其职，交付不负所托。"
+    "🔔 百香齐鸣！香炉广播一声：愿诸位token常有余，测试一路全绿，所写皆能交付。"
+    "😂 天庭日志切换哈哈级，Bug心魔暂停营业。愿诸位token不空耗，Agent少绕弯，笑着交作业。"
+    "🔥 赛博香炉满载，五百炷香共亮一盏CI天灯。愿诸位token流长，合并顺遂，发布安稳。"
+    "🏯 千香开殿！本神为诸位点亮长明灯，愿token有余，上下文不散，Agent终有所成。"))
+  (defun unlock-festivals (state)
+    (js-call points :forEach (lambda (point)
+      (let ((badge (str "集体愿力" point)))
+        (when (and (>= (get state :offers) point) (not (js-call (get state :festivals) :includes badge)))
+          (js-call (get state :festivals) :push badge))))))
+  (defun pending-festivals (state)
+    (js-call (get state :festivals) :filter (lambda (id) (not (js-call (get state :announcedFestivals (js-array)) :includes id)))))
+  (defun festival-text (ids)
+    (js-call (js-call ids :map (lambda (id)
+      (let ((index (js-call points :findIndex (lambda (point) (= id (str "集体愿力" point))))))
+        (if (< index 0) "" (str "\n\n**🎉 集体彩蛋 · " (get names index) "**\n"
+          "本会话累计 " (get points index) " 次上香，已解锁「" id "」。\n" (get scenes index)))))) :join ""))
+  (defun reserve-festivals (state request options)
+    (let ((ids (pending-festivals state)))
+      (if (or (get options :silent) (= (get ids :length) 0) (get state :festivalClaim)) (js-array)
+        (progn
+          (if (get options :festivalDelivery)
+            (put state :festivalClaim (js-object :request request :ids ids :state "reserved"))
+            (put state :announcedFestivals (js-call (get state :announcedFestivals (js-array)) :concat ids))) ids))))
+  (defun settle-festival-state (state request outcome)
+    (let ((claim (get state :festivalClaim)))
+      (when (and claim (= (get claim :request) request))
+        (cond ((= outcome "sent")
+          (put state :announcedFestivals (js-call (get state :announcedFestivals (js-array)) :concat (get claim :ids)))
+          (put state :festivalClaim nil))
+          ((js-call (js-array "rejected" "failed-before-send") :includes outcome) (put state :festivalClaim nil))
+          (t (put claim :state "uncertain"))))))
+  (export points unlock-festivals pending-festivals festival-text reserve-festivals settle-festival-state))

@@ -5,6 +5,9 @@
   (import "./catalog.eli" canonical definition validate-query)
   (defun fixed-query (text)
     (when (only-pray? text) (setq text "pray"))
+    (when (and (< (get text :length) 100)
+      (js-call (new RegExp "^(?:tibo[\\s,，:：]*)?(?:什么|啥|查看|看看|查询|有没有|为什么|怎么|哪些|如何)?\\s*(?:集体彩蛋|愿力池)[^|]*$" "i") :test text))
+      (setq text "pray stats"))
     (let* ((text (clean text)) (tokens (js-call text :match (new RegExp "\"[^\"]*\"|'[^']*'|\\S+" "g")))
            (name (if tokens (canonical (get tokens 0)) nil)))
       (when name

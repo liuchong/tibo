@@ -89,6 +89,8 @@ launchd 会自动恢复被 kill 的服务；需要停机调试用 service uninst
 
 直接发送 🙏 文本与点击消息上的双手合十是不同平台事件。文本走 im.message.receive_v1，消息表情走 im.message.reaction.created_v1，两项都要订阅。表情可指向平台可读取的本机器人或成员消息；旧回执或陌生消息需固定 API 核实正文与会话，查验失败看本地事件原因与平台权限。
 
-先看 tibo-lark status 的 events：reactions 未增加说明没有观察到新表情事件；增加但 lastReaction.accepted=false 则看 reason；accepted=true 后再查投递账本，不能笼统归因于 AI。固定祈祷走快捷队列，基础记账无需模型，祝词最多等待 1.5 秒模型生成；采集和文字任务走普通队列。
+先看 tibo-lark status 的 events：reactions 未增加说明没有观察到新表情事件；增加但 lastReaction.accepted=false 则看 reason；queued-for-resolution 表示已落盘等待核实，不等于发送成功。查看 inbox 的 pending/cached/workers/paused 和磁盘队列；单个临时失败会退避重试，原事件不消失。反应回执的 receiptKey 指向实际会话投递记录。固定祈祷走快捷队列，基础记账无需模型，祝词最多等待 1.5 秒模型生成；采集和文字任务走普通队列。
+
+快速🙏可能只回一条，这是群回复限频，不代表漏计。用 pray me 查询个人次数，pray stats 查询当前会话次数、功德和彩蛋；state=suppressed 且 prayerRecorded=true 表示已记档但静默。集体彩蛋现在按实际上香次数解锁，个人功德仍有15秒冷却。达到门槛但被限频时，彩蛋留到下一次允许回复的上香展示；统计命令也能查看。发送未知结果需核对聊天，不删除账本强制重发。
 
 投递账本的 latency 区分 platformMs（平台产生到程序收到）、queueMs（已接受到开始执行）、routeMs、executeMs、sendMs；预测还细分 collectionMs、analysisMs。totalMs 是开始执行到发送完成，不能误当成包含前面两项的端到端耗时。不同查询及缓存命中会有差异，不应保证所有请求同一时间完成。源码修改后按运维步骤同时重装核心和 Lark，不能只重启旧二进制。

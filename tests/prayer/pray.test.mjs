@@ -29,7 +29,7 @@ test('pray shares genuine personal identity across conversations, cooldown, dedu
   expect(board.text).toContain('你的名次：2');expect(board.text).toContain('香客002');
   expect(board.text).not.toMatch(/private-user|room-one|future-im/);
   expect((await pray({action:'stats'},ctx)).text).toContain('香客：2人');
-  let collective='';for(let i=0;i<4;i++){now+=16000;collective=(await offer('pool-'+i)).text;}
+  let collective='';for(let i=0;i<4;i++){now+=16000;collective+=(await offer('pool-'+i)).text;}
   expect(collective).toContain('集体愿力10');
   expect((await pray({action:'me'},{...ctx,scope:'room-two'})).text).toBe((await pray({action:'me'},ctx)).text);
   expect((await pray({action:'stats'},{...ctx,scope:'room-two'})).text).toContain('累计🙏：0');

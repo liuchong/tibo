@@ -10,7 +10,7 @@
   (import "../../src/platform/state.eli" with-lock write-state)
   (import "../../src/im/context.eli" remember-message group-context?)
   (import "../../src/platform/util.eli" iso fail)
-  (import "./service.eli" group-config message-text message-candidate sender-context slot-at reaction-job)
+  (import "./service.eli" group-config message-text message-candidate sender-context slot-at pending-reaction)
   (defasync lark-config ()
     (await (load-config))
     (let* ((env (get process :env)) (groups (group-config)) (domain (get env :TIBO_LARK_DOMAIN "feishu"))
@@ -59,7 +59,8 @@
                     (put events :lastReceivedAt (iso (Date/now)))
                     (try
                       (if reaction
-                        (let ((job (await (reaction-job event groups client audit))))
+                        (let ((job (pending-reaction event (get header :event_id))))
+                          (put audit :reason (if job "queued-for-resolution" "not-prayer-or-stale"))
                           (when (and (not stopping) job) (await (js-call inbox :accept job)) (setq accepted t)))
                         (let* ((candidate (message-candidate event groups bot-id)) (message (get event :message (js-object)))
                                (context (sender-context event)) (id (get message :message_id)) (created (Number (get message :create_time 0))))

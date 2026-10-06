@@ -81,6 +81,7 @@ TIBO_AI_FEATURES=
 | `pray-identities.json` / `pray-<摘要>.json` / `subscriptions-*.json` | 统一个人及会话上香档案 / 迁移保留旧档案 / 应用账户订阅 |
 | `confirm-*.json` / `backup-*.json` | 危险操作确认票据 / 操作前数据 |
 | `bulletin-*.json` / `lark-*.json` | 共享定点报告、收件人任务、交互入队、投递与运行状态 |
+| `lark-inbox-pending/` | 每事件一个持久化任务，原子落盘后才 ACK；重装保留，已完成后删除 |
 
 这些文件属于本地运维数据，不直接发送到 IM 或模型。变更状态目录相当于切换一套应用数据；部署和 CLI 若读不同目录，会看见不同档案与历史。安装固定日志路径见 [安装与运维](operations.md)。
 

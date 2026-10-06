@@ -45,6 +45,8 @@ context 只用于权限、档案与投递，不加入模型提示词或公开结
 
 复用 [核心触发与回复规则](im-triggers.md)，不要各自实现一套关键词阈值或次数限制。一级强触发跳过相关度判断，二级候选调用 decide-secondary；两者都经过独立 reply-permit 的群回复预算。适配器先预检、再相关度判断、最后原子预留名额，发送结果用 settle-reply 确认；未知结果保留占用，明确未发才释放。超限事件安静消费，不积压补发。群内上香超限时仍以原投递 requestId 调用 pray 并设置 noAi，不发送回执；平台去重防止重复计数。私聊正常响应。
 
+祈祷入队后先以相同 requestId 调用 record-pray(silent)，原子提交个人与会话记账；失败保留事件重试。允许回复才设置 completePrayer，补全原回执的可选祝词，不重记账。静默路径设置 silent/noAi，不预留彩蛋展示。发送接入层设置 festivalDelivery，并在平台确认后调用 settle-festivals；sent 标记已展示，rejected/failed-before-send 释放预留，未知结果保留待核对。这些是程序内部选项，不能来自 AI 或人类命令参数。
+
 授权群的近期人类消息可交给 remember-message，经 conversation-context 截断、脱敏后作为 options.recentMessages；只有最终问答文字参考它，不能用于路由、权限、命令参数或预测证据。观察普通消息不意味着调用 AI 或业务，也不向平台补读历史。当前消息或反应对应消息正文可作为 options.prayerMaterial，仅作为 wish 参考，不传 context 身份字段。
 
 ## 订阅和共享报告

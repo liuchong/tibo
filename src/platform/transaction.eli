@@ -1,0 +1,24 @@
+(module tibo.platform.transaction
+  (import "./host.eli" Map Promise)
+  (import "node:timers" setTimeout)
+  (import "./state.eli" with-lock)
+  (defconst pending (new Map))
+  (defasync locked (key operation)
+    (let ((attempts 0) (finished false) (value nil))
+      (while (not finished)
+        (try
+          (setq value (await (with-lock key operation)) finished t)
+          (catch error
+            ;; Only acquisition contention is retried, never a failed mutation.
+            (unless (and (js-call (get error :message "") :startsWith "已有实例运行或无法确认锁的所有者：")
+              (< attempts 400)) (throw error))
+            (setq attempts (+ attempts 1))
+            (await (new Promise (lambda (resolve) (setTimeout resolve 25))))))) value))
+  (defasync state-transaction (key operation)
+    (let* ((previous (or (js-call pending :get key) (Promise/resolve nil)))
+      (result (js-call previous :then (lambda () (locked key operation))))
+      (tail (js-call result :catch (lambda (error) nil))))
+      (js-call pending :set key tail)
+      (try (await result)
+        (finally (when (= (js-call pending :get key) tail) (js-call pending :delete key))))))
+  (export state-transaction))
