@@ -1,0 +1,22 @@
+(module tibo.prayer.oracle-memory
+  (import "node:crypto" createHash)
+  (import "../platform/host.eli" Date)
+  (import "../platform/state.eli" read-state write-state with-lock)
+  (import "../platform/privacy.eli" public-text)
+  (defun history-key (context)
+    (str "oracle-replies-" (js-call (js-call (js-call (createHash "sha256") :update
+      (str (get context :transport "local") ":" (get context :account "") ":" (get context :scope "local"))) :digest "hex") :slice 0 32)))
+  (defasync recent-replies (context)
+    (try
+      (let ((state (await (read-state (history-key context)))))
+        (if (and state (Array/isArray (get state :items)) (> (get state :until 0) (Date/now)))
+          (js-call (get state :items) :filter (lambda (text) (= (value-type text) "string"))) (js-array)))
+      (catch error (js-array))))
+  (defasync remember-reply (context text)
+    (try
+      (await (with-lock (history-key context) (async ()
+        (let ((items (await (recent-replies context))))
+          (await (write-state (history-key context) (js-object :until (+ (Date/now) 86400000)
+            :items (js-call (js-call items :concat (js-array (public-text text 360))) :slice -6))))))))
+      (catch error nil)))
+  (export recent-replies remember-reply))

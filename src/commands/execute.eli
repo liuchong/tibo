@@ -26,7 +26,7 @@
               (if (get (definition name) :admin) (await (manage name args (get options :context)))
                 (if (= name "help") (js-object :text (help-text (get options :context)) :ok t)
                 (if (= name "ask")
-                  (if (oracle-trigger? (get args :question)) (await (oracle-reply (get args :question) (or (get options :language) (detect-language (get args :question))) (get options :noAi)))
+                  (if (oracle-trigger? (get args :question)) (await (oracle-reply (get args :question) (or (get options :language) (detect-language (get args :question))) (get options :noAi) (get options :context)))
                   (let* ((q (get args :question)) (lang (or (language (get options :language)) (detect-language q)))
                     (enabled (and (not (get options :noAi)) (not (private-question? q)) (js-call (get (config) :features) :includes "answer")))
                     (response (if (not enabled) nil (await (answer-text q "" lang
