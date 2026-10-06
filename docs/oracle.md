@@ -38,7 +38,7 @@
 
 `TIBO_AI_FEATURES` 的 `oracle` 单独开关，输出上限 380 token、模型调用预算 3.5 秒。它复用 AI 网关的认证熔断、任务独立冷却、JSON 校验；输出失败仅阻断 oracle，其他任务仍可使用，认证或服务级失败遵从供应商级冷却。
 
-oracle 使用 temperature=1，wish 使用 temperature=1.2，分析与文字任务保留 temperature=0。神谕成句不使用 AI 网关缓存：每次已接受的真人提问最多生成一次，失败或重复不再调用第二次。时事原页和搜索仍共享缓存，不因每个提问重复采集；祈祷祝词的缓存规则独立保留。
+oracle 使用 temperature=1，wish / festival 使用 temperature=1.2，分析与文字任务保留 temperature=0。神谕成句不使用 AI 网关缓存：每次已接受的真人提问最多生成一次，失败或重复不再调用第二次。时事原页和搜索仍共享缓存，不因每个提问重复采集；祈祷祝词的缓存规则独立保留。
 
 程序按会话保存最近六条本机器人回复，一天后过期，文件键是传输、应用和会话的摘要。模型接收其中最近两条公开回复用于避重；授权群还可附最近五分钟的最多六条匿名人类消息，总计最多 1000 字。当前问题最重要，历史只允许补充一处相关背景，不逐条补答，不追认旧要求，不作为时事或概率证据。输入不上传身份摘要、账户身份、群名、目录、凭据或部署模型名称。普通业务 token 额度仍是合法主题；具体窗口、独立防刷屏预算和静默消费见 [IM 策略](im-triggers.md)。
 
@@ -69,3 +69,5 @@ oracle 使用 temperature=1，wish 使用 temperature=1.2，分析与文字任�
 业务实现：`src/prayer/oracle.eli`、`src/prayer/wish.eli`、`src/prayer/pray.eli`；时事采集：`src/prayer/oracle-news.eli`；话题与资料排序：`src/prayer/oracle-context.eli`；会话避重：`src/prayer/oracle-memory.eli`；入口：commands / presentation。测试覆盖请求与查询区分、关闭和熔断时零网络、引用校验、日期与域名范围、官方消息兜底和共享缓存、任务级熔断及业务状态不变；祝词还覆盖先记账后生成、身份隔离、超时、本地兜底及重复事件不重复调用。
 
 实际验收需运行 CLI，并在已授权的 IM 会话中检查真人问题、机器人回复和引用链接；模拟网络成功不能代替平台收发。安装、重装、重启遵守 [运维步骤](operations.md)，同时更新核心与 Lark 二进制，不覆盖已有状态与订阅。
+
+集体彩蛋另有独立 festival 任务，只生成庆典祝词；18 套图案与战报保底无需模型。等级、消息数、输入边界与投递恢复见 [集体彩蛋庆典](collective-celebrations.md)。

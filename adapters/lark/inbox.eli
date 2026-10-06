@@ -4,7 +4,7 @@
   (import "../../src/platform/host.eli" Promise Date Map Set)
   (import "../../src/platform/state.eli" read-state write-state)
   (import "../../src/platform/util.eli" fail iso ms)
-  (import "../../src/prayer/pray.eli" settle-festivals)
+  (import "./celebration-delivery.eli" finish-celebration)
   (import "./interaction.eli" process-interaction)
   (import "./service.eli" delivery-key allowed-job? reaction-job)
   (import "./inbox-store.eli" pending-files file-key file-lane fast-job? read-pending write-pending remove-pending)
@@ -12,15 +12,15 @@
     (and job (= (value-type (get job :group)) "string") (= (value-type (get job :key)) "string")
       (= (value-type (get job :command)) "string") (> (get (get job :command) :length) 0)
       (<= (get (get job :command) :length) 800)))
-  (defasync reconcile-festival (job key)
+  (defasync reconcile-festival (client job key)
     (let ((receipt (await (read-state key))) (context (get job :context)))
       (when (get (or receipt (js-object)) :receiptKey)
-        (setq receipt (await (read-state (get receipt :receiptKey)))))
+        (setq key (get receipt :receiptKey)) (setq receipt (await (read-state key))))
       (when (and receipt (= (get receipt :state) "sent") (get receipt :festivalRequest))
         (when (= (get job :kind) "reaction")
           (setq context (js-object :transport "lark" :authenticated t :account (get job :account)
             :actor (get (get (get job :reaction) :user_id) :open_id) :scope (get receipt :group))))
-        (await (settle-festivals context (get receipt :festivalRequest) "sent")))))
+        (await (finish-celebration client key context)))))
   (defasync create-inbox (client groups)
     (let* ((saved (or (await (read-state "lark-inbox")) (js-object)))
       (files (new Map)) (cache (new Map)) (active (new Set)) (workers (new Set))
@@ -88,10 +88,10 @@
                                 (await (write-state key (js-object :state "handled" :receiptKey receipt-key :at (iso (Date/now)))))))
                             (catch error (setq removable false paused t)))))
                         :then (async ()
-                          ;; Confirmed sends may have crashed before acknowledging
-                          ;; the festival. Repair only bookkeeping, never resend.
+                          ;; Resume unsent ceremony parts after a crash; confirmed
+                          ;; and unknown outcomes are never automatically resent.
                           (when removable
-                            (try (await (reconcile-festival job receipt-key))
+                            (try (await (reconcile-festival client job receipt-key))
                               (catch error (setq removable false))))
                           (try
                             (await (funcall mutate (async ()

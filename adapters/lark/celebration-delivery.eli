@@ -1,0 +1,49 @@
+;; Each additional post has its own fixed UUID and durable send receipt.
+(module tibo.lark.celebration-delivery
+  (import "node:crypto" createHash)
+  (import "../../src/platform/host.eli" Date Error Number)
+  (import "../../src/platform/state.eli" read-state write-state with-lock)
+  (import "../../src/platform/util.eli" iso)
+  (import "../../src/prayer/pray.eli" settle-festivals)
+  (import "./messages.eli" send-report)
+  (defun celebration-key (key index)
+    (str "lark-festival-" (js-call (js-call (js-call (createHash "sha256") :update (str key ":" index)) :digest "hex") :slice 0 40)))
+  (defasync finish-celebration (client key context)
+    (await (with-lock (str key "-festival") (async ()
+      (let* ((ledger (await (read-state key))) (request (get (or ledger (js-object)) :festivalRequest))
+        (messages (get (or ledger (js-object)) :festivalMessages (js-array))) (outcome "sent") (index 0))
+        (when (and request (= (get ledger :state) "sent"))
+          (if (get ledger :festivalFinal)
+            (setq outcome (get ledger :festivalFinal))
+            (progn
+              (while (and (< index (get messages :length)) (= outcome "sent"))
+                (let* ((part-key (celebration-key key index)) (part (await (read-state part-key))))
+                  (cond
+                    ((= (get (or part (js-object)) :state) "sent") nil)
+                    ((js-call (js-array "sending" "uncertain") :includes (get (or part (js-object)) :state)) (setq outcome "uncertain"))
+                    ((>= (get (or part (js-object)) :attempts 0) 3) (setq outcome "incomplete"))
+                    (t
+                      (when (> (get (or part (js-object)) :retryAt 0) (Date/now)) (throw (new Error "庆典部分尚待重试")))
+                      (let ((attempts (+ 1 (get (or part (js-object)) :attempts 0))))
+                        (await (write-state part-key (js-object :state "sending" :attempts attempts :at (iso (Date/now)) :parent key :index index)))
+                        (try
+                          (let ((id (await (send-report client (get ledger :group) part-key (get messages index)))))
+                            (await (write-state part-key (js-object :state "sent" :attempts attempts :messageId id :at (iso (Date/now)) :parent key :index index))))
+                          (catch error
+                            ;; A confirmed rejection is safe to retry with the same
+                            ;; UUID. A transport or receipt-write failure is unknown.
+                            (if (Number/isInteger (get error :larkCode))
+                              (progn
+                                (await (write-state part-key (js-object :state "rejected" :attempts attempts :larkCode (get error :larkCode)
+                                  :retryAt (+ (Date/now) 2000) :at (iso (Date/now)) :parent key :index index)))
+                                (throw (new Error "庆典部分暂未送达")))
+                              (progn
+                                (await (write-state part-key (js-object :state "uncertain" :attempts attempts :at (iso (Date/now)) :parent key :index index)))
+                                (setq outcome "uncertain")))))))))
+                (setq index (+ index 1)))
+              (put ledger :festivalFinal outcome) (put ledger :festivalFinishedAt (iso (Date/now)))
+              (when (get ledger :latency)
+                (put (get ledger :latency) :totalMs (- (Date/now) (Date/parse (get (get ledger :latency) :startedAt)))))
+              (await (write-state key ledger))))
+          (await (settle-festivals context request outcome))))))))
+  (export celebration-key finish-celebration))

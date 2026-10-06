@@ -36,4 +36,4 @@
           (put state :festivalClaim nil))
           ((js-call (js-array "rejected" "failed-before-send") :includes outcome) (put state :festivalClaim nil))
           (t (put claim :state "uncertain"))))))
-  (export points unlock-festivals pending-festivals festival-text reserve-festivals settle-festival-state))
+  (export points names unlock-festivals pending-festivals festival-text reserve-festivals settle-festival-state))
