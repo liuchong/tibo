@@ -1,0 +1,34 @@
+(module tibo.forecast.forecast
+  (import "./models.eli" ensemble)
+  (import "./availability.eli" information)
+  (import "./signal-model.eli" signal-experience)
+  (import "../platform/util.eli" ms hour-ms clamp)
+  (defun forecast (snapshot history signals)
+    (let* ((info (information snapshot signals history))
+           (model (ensemble (get history :intervals) (get history :elapsedMs) (get snapshot :now) (get snapshot :experience) (not (get info :clockReliable))))
+           (promise (get signals :promise))
+           (active (and promise (not (get promise :fulfilled)) (= (get promise :kind) "global")
+             (>= (- (ms (get promise :targetAt)) (ms (get snapshot :now))) (* -6 hour-ms))))
+           (reason (if (get model :adaptive)
+             (if (get info :clockReliable) "四模型按历史逐步回测误差加权" "等待时钟未核实，两个事件率模型按历史误差加权")
+             "回测不足 30 个时点，可用模型等权"))
+           (signal (cond (active "明确承诺待兑现")
+                         ((get signals :compensation) "事故补偿暗示")
+                         ((js-call (get signals :hints) :some (lambda (hint) (get hint :conditional))) "条件性重置计划")
+                         ((> (get (get signals :hints) :length) 0) "重置暗示") (t "未识别新承诺"))))
+      ;; Wording and numeric history estimates are separate. Unvalidated hint boosts
+      ;; or banked penalties must not masquerade as learned likelihood ratios.
+      (let* ((banked (get signals :lastBanked))
+        (bucket (str signal "|" (if (get info :clockReliable) "clock-known" "clock-unknown") "|"
+          (if (and active (get promise :primary)) "primary-promise" "other") "|"
+          (if (and banked (<= (- (ms (get snapshot :now)) (ms (get banked :at))) (* 96 hour-ms))) "recent-banked" "no-recent-banked") "|"
+          (if (get info :activeIncident) "active-incident" "no-known-active-incident") "|"
+          (if (get info :recentRelease) "recent-release" "no-known-release")))
+        (learned (signal-experience (get snapshot :predictionExperience (js-array)) signal (get model :p24) (get model :p48) (get snapshot :now) bucket)))
+      (js-object :policyVersion "3" :information info :p24 (clamp (get learned :p24))
+        :p48 (Math/max (clamp (get learned :p24)) (clamp (get learned :p48)))
+        :base24 (get model :p24) :base48 (get model :p48) :confidence "低"
+        :signal signal :signalStrength (if active (if (get promise :primary) "强" "中") "弱")
+        :reasons (js-array reason (if (get learned :applied) "同类信号实际经验通过留出检验，20%保守融合；仍未证明校准" "同类信号经验不足或未优于基线，不作固定加减；banked 不移动时钟"))
+        :signalExperience learned :signalBucket bucket :mode (if (get learned :applied) "learned-signal" (if (get info :clockReliable) "adaptive-history" "history-rate-fallback")) :model model))))
+  (export forecast))

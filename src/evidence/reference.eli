@@ -1,0 +1,44 @@
+;; Internal discovery only; no prediction comparison or public source attribution.
+(module tibo.reference
+  (import "../platform/host.eli" Date fetch AbortSignal RegExp)
+  (import "../platform/state.eli" read-state write-state with-lock)
+  (import "../platform/privacy.eli" public-text)
+  (import "../platform/util.eli" fail iso ms)
+  (defconst reference-url "https://codex-reset.com")
+  (defasync reference-data (endpoint &optional offline)
+    (unless (js-call (js-array "feed") :includes endpoint) (fail "未知参考接口"))
+    (let* ((key (str "reference-" endpoint)) (now (Date/now)))
+      (if offline (js-object :ok false :reason "离线模式")
+        (try
+          (let ((cached (await (read-state key))))
+            (if (and cached (> (get cached :until 0) now)) (Object/assign (js-object) (get cached :result) (js-object :cached t))
+              (await (with-lock key (async ()
+                (let* ((latest (await (read-state key))) (result nil))
+                  (if (and latest (> (get latest :until 0) (Date/now))) (get latest :result)
+                    (progn
+                      (try
+                        (let* ((url (str reference-url "/api/" endpoint))
+                          (response (await (fetch url
+                          (js-object :redirect "error" :signal (AbortSignal/timeout 6000)
+                            :headers (js-object :user-agent "tibo/0.1 (+https://github.com/liuchong/tibo)")))))
+                          (text (await (js-call response :text))))
+                          (unless (and (get response :ok) (<= (get text :length) 2000000)) (fail "参考接口不可用"))
+                          (setq result (js-object :ok t :at (iso (Date/now)) :url url :data (JSON/parse text))))
+                        (catch error (setq result (js-object :ok false :at (iso (Date/now)) :reason "参考接口暂不可用"))))
+                      ;; Success and failures both obey the publisher's one-minute polling limit.
+                      (await (write-state key (js-object :until (+ (Date/now) 60000) :result result))) result))))))))
+          (catch error (js-object :ok false :reason "参考接口暂不可用"))))))
+  (defun feed-posts (data now)
+    (unless (and (= (get (get data :profile (js-object)) :handle) "thsottiaux") (Array/isArray (get data :tweets))) (fail "参考发现源结构失配"))
+    (let ((posts (js-array)))
+      (js-call (js-call (get data :tweets) :slice 0 40) :forEach (lambda (row)
+        (let ((id (get row :id "")) (url (get row :url "")) (text (get row :text "")))
+          (when (and (= (value-type id) "string") (js-call (new RegExp "^[0-9]{16,20}$") :test id)
+            (= url (str "https://x.com/thsottiaux/status/" id)) (= (value-type text) "string") (> (get text :length) 0))
+            (try
+              (when (<= (ms (get row :at)) (ms now))
+                (js-call posts :push (js-object :id id :url url :at (get row :at) :text (public-text text 8000) :author "thsottiaux"
+                  :provenance "archive" :cachedAt (get data :fetched_at) :discoverySourceUrl reference-url
+                  :isReply (= (get row :is_reply) t))))
+              (catch error nil)))))) posts))
+  (export reference-data feed-posts reference-url))

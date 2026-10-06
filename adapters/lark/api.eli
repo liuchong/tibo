@@ -1,7 +1,7 @@
 (module tibo.lark.api
-  (import "../../src/host.eli" Date Promise RegExp)
-  (import "../../src/transport.eli" request-json)
-  (import "../../src/util.eli" fail)
+  (import "../../src/platform/host.eli" Date RegExp)
+  (import "../../src/evidence/transport.eli" request-json)
+  (import "../../src/platform/util.eli" fail)
   (defun create-client (app-id secret domain)
     (unless (or (= domain "feishu") (= domain "lark") (not domain)) (fail "Lark domain 必须是 feishu 或 lark"))
     (let ((base (if (= domain "lark") "https://open.larksuite.com" "https://open.feishu.cn"))

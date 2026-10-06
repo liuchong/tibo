@@ -62,4 +62,4 @@ Lark 使用固定只读 messageInfo 方法，最长等待 1.8 秒；本机器人
 
 次级忽略在投递账本记录 state=filtered、reason、method；不记录正文，按已消费事件去重。events.accepted 表示接收任务已入队，不等于机器人发了消息。若没有回复，先看对应账本；conversation-cooling、keyword-cooling、below-threshold、unrelated、filter-unavailable 含义分别是同群冷却、同词冷却、低于门槛、无关和过滤状态不可用。
 
-实现：src/im-trigger.eli、src/prayer-material.eli；Lark 边界：service / inbox / api。后续 IM 复用 trigger-candidate、decide-secondary 与 prayer-material；凭据、会话认证和平台消息读取仍由各自适配器完成。
+实现：src/im/triggers.eli、src/prayer/material.eli；Lark 边界：service / inbox / api。后续 IM 复用 trigger-candidate、decide-secondary 与 prayer-material；凭据、会话认证和平台消息读取仍由各自适配器完成。

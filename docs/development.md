@@ -1,39 +1,46 @@
 # 开发指南
 
-## 分层与源码地图
+## 模块与目录
 
-业务代码在 `.eli` 文件中。Bun 提供文件、HTTP、WebSocket、加密和标准宿主能力；JavaScript 文件用于构建启动、打包和测试。没有模型或 IM SDK 运行依赖。
+业务使用 Eliscript 的 `module`、`import` 和 `export`。每个 `.eli` 文件是一个模块，通过相对路径明确导入需要的符号；模块只导出调用方需要的接口。构建器保持相对目录结构生成 ESM，例如 `src/forecast/history.eli` 编译到 `dist/src/forecast/history.mjs`。目录层级不是命名空间访问语法，模块声明和实际导入路径各有用途。
 
-| 层 | 主要文件 | 职责 |
-| --- | --- | --- |
-| 命令与入口 | `src/commands.eli`、`cli.eli`、`mcp.eli` | 共用目录、解析、执行与不同传输输出 |
-| 公开展示 | `presentation.eli`、`input-repair.eli`、`privacy.eli` | 语言、管道、人工修复、公开文本 |
-| 采集与证据 | `sources.eli`、`transport.eli`、`html.eli`、`signals.eli` | 来源抓取、原文核实、历史类型与信号 |
-| 预测与经验 | `engine.eli`、`history.eli`、`models.eli`、`forecast.eli`、`experience.eli`、`report.eli` | 统计、权重、预测窗口和报告 |
-| 可选 AI | `ai-runtime.eli`、`ai.eli`、`research.eli`、`search.eli` | 任务网关、引用校验、资料与受限搜索 |
-| 身份与状态 | `admin.eli`、`pray.eli`、`subscriptions.eli`、`state.eli` | 确认票据、本人业务、锁与原子写入 |
-| 生命周期 | `daemon.eli`、`service.eli`、`schedule.eli`、`bulletin.eli` | 采集服务、安装、定点共享报告 |
-| Lark 适配 | `adapters/lark/*.eli` | API、长连接协议、过滤、收件箱、广播与投递 |
+| 目录 | 职责与主要入口 |
+| --- | --- |
+| `src/app/` | CLI、MCP、后台采集入口；engine 编排采集、算法和可选 AI |
+| `src/commands/` | index 公共查询接口；catalog、parser、router、execute、help、admin 分别负责命令定义、固定解析、语义解析、执行、帮助和管理票据 |
+| `src/forecast/` | 事件与信号、历史统计、模型、信息完整度、预测经验；不调用 AI 或 IM |
+| `src/evidence/` | 采集、原文判定、HTML、受限搜索和资料校验；不依赖预测模型或 AI 网关 |
+| `src/ai/` | runtime 任务网关、enhance 预测辅助、repair 人工输入修复 |
+| `src/presentation/` | language 语言与提示、syntax 管道定义/解析、text 一次性文字处理、pipeline 顺序执行、business 业务展示、report 完整报告；index 提供共用文字接口 |
+| `src/prayer/` | 祈祷档案、wish 吉祥话、oracle 神谕、时事素材和 material 祈祷素材 |
+| `src/subscriptions/` | registry 本人订阅、schedule 固定定点、bulletin 共享报告 |
+| `src/im/` | 与平台无关的多级消息触发 |
+| `src/platform/` | 宿主、工具函数、配置、状态、公开文本保护与本地安装管理 |
+| `adapters/lark/` | Lark API、WebSocket、收件箱、广播与投递 |
+| `tests/` | 按职责组织的测试；共用 fixture 与协议入口在 helpers |
 
-基本流程是：入口解析 → 共用命令校验 → 核心采集/业务执行 → 可选文字处理 → 公开结果。预测内部是采集 → 标准化事件/信号 → 历史模型 → 可选 AI → 经验记录与报告。后台采集、手动查询和定点生成共用核心，但使用各自报告通道。
+依赖方向、查询执行流程及新增代码的归属见 [架构与模块](architecture.md)。Bun 提供文件、HTTP、WebSocket、加密和宿主能力；JavaScript 只用于构建、架构检查、启动、打包和测试。没有模型或 IM SDK 运行依赖。
 
 ## 构建与测试
 
 ```bash
 bun install
+bun run check:architecture
 bun run build
 bun run test
 bun run compile
 ```
 
-工具链使用锁定的 Eliscript npm 发布包，安装不依赖本机其他仓库；路径覆盖只用于可选的编译器联调，见 [快速开始](getting-started.md)。`eliscript.json` 配置 CLI、MCP 和 Lark 三个入口，输出 dist；缓存由编译器管理。dist 与 `.tibo` 是生成物，不手工修改或提交。
+工具链使用锁定的 Eliscript npm 发布包，安装不依赖本机其他仓库；路径覆盖只用于可选的编译器联调，见 [快速开始](getting-started.md)。`eliscript.json` 配置 CLI、MCP 和 Lark 三个入口，输出 dist；缓存由编译器管理。dist 是编译输出，不手工修改或提交。`.tibo` 是被 Git 忽略的本地目录，可能同时包含编译程序、试用状态、日志与验收证据；不能把整个目录当作可删除缓存。
 
-测试覆盖纯算法、来源解析、经验、AI 校验/冷却、管理员权限、语言管道/修复、CLI/MCP、状态并发、上香、订阅、daemon 与 Lark 协议。改算法时跑模型/核心/经验相关用例；改文字流程时跑 presentation/input-repair/CLI；改接入时跑接口与实际协议进程测试，最后运行完整套件。
+`bun run test` 先检查模块依赖，再构建并运行测试。`check:architecture` 检查本地导入、模块名唯一、依赖无环、基础层方向与公开业务路径没有进程/安装能力；它是结构约束，不替代实际运行测试。
 
-测试快照在 `tests/fixture.mjs`，都是人工数据，不是当前历史。可生成一份用于 CLI 的演示快照：
+测试覆盖纯算法、来源解析、经验、AI 校验/冷却、管理员权限、语言管道/修复、CLI/MCP、状态并发、上香、订阅、daemon 与 Lark 协议。改算法时跑 `tests/forecast` 与 `tests/app/core.test.mjs`；改文字流程时跑 `tests/presentation` 与 `tests/commands/input-repair.test.mjs`；改接入时跑 `tests/im` 与 `tests/app/interfaces.test.mjs`，最后运行完整套件。
+
+测试快照在 `tests/helpers/fixture.mjs`，都是人工数据，不是当前历史。可生成一份用于 CLI 的演示快照：
 
 ```bash
-bun --eval 'import {snapshot} from "./tests/fixture.mjs"; await Bun.write(".tibo/example-snapshot.json", JSON.stringify(snapshot()));'
+bun --eval 'import {snapshot} from "./tests/helpers/fixture.mjs"; await Bun.write(".tibo/example-snapshot.json", JSON.stringify(snapshot()));'
 TIBO_CONFIG_FILE=/dev/null TIBO_STATE_DIR=.tibo/example-state TIBO_AI_FEATURES='' bun bin/tibo.mjs forecast --snapshot .tibo/example-snapshot.json
 ```
 

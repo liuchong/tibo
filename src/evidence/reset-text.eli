@@ -1,0 +1,9 @@
+(module tibo.evidence.reset-text
+  (import "../platform/util.eli" matches)
+  (defun completed? (text)
+    (and (not (matches "not.*reset|can't.*reset|can’t.*reset|cannot.*reset|won't.*reset|won’t.*reset" text))
+      (matches "reset all propagated|reset.*(?:complete|propagated)|(?:we(?:'ve| have)?|I(?:'ve| have)?) reset|(?:usage|limits|accounts).*(?:have been|has been|were|are now) reset" text)
+      (not (matches "banked|reset card" text))))
+  (defun conditional-reset? (text)
+    (and (matches "reset" text) (matches "\\beither\\b[\\s\\S]*\\bor\\b|\\bif\\b[\\s\\S]*reset|reset[\\s\\S]*\\binstead\\b" text)))
+  (export completed? conditional-reset?))

@@ -56,6 +56,6 @@ oracle 使用 temperature=1，wish 使用 temperature=1.2，分析与文字任�
 
 ## 维护与验证
 
-业务实现：`src/oracle.eli`、`src/wish.eli`、`src/pray.eli`；时事采集：`src/oracle-news.eli`；入口：commands / presentation。测试覆盖请求与查询区分、关闭和熔断时零网络、引用校验、日期与域名范围、官方消息兜底和共享缓存、任务级熔断及业务状态不变；祝词还覆盖先记账后生成、身份隔离、超时、本地兜底及重复事件不重复调用。
+业务实现：`src/prayer/oracle.eli`、`src/prayer/wish.eli`、`src/prayer/pray.eli`；时事采集：`src/prayer/oracle-news.eli`；入口：commands / presentation。测试覆盖请求与查询区分、关闭和熔断时零网络、引用校验、日期与域名范围、官方消息兜底和共享缓存、任务级熔断及业务状态不变；祝词还覆盖先记账后生成、身份隔离、超时、本地兜底及重复事件不重复调用。
 
 实际验收需运行 CLI，并在已授权的 IM 会话中检查真人问题、机器人回复和引用链接；模拟网络成功不能代替平台收发。安装、重装、重启遵守 [运维步骤](operations.md)，同时更新核心与 Lark 二进制，不覆盖已有状态与订阅。

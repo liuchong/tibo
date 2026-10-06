@@ -1,0 +1,13 @@
+(module tibo.evidence.transport
+  (import "../platform/host.eli" fetch AbortSignal)
+  (import "../platform/util.eli" fail)
+  (defasync request (url &optional options timeout)
+    (let* ((settings (Object/assign (js-object :headers (js-object :user-agent "tibo/0.1 public-evidence-reader")) options
+                       (js-object :signal (AbortSignal/timeout (or timeout 25000)))))
+           (response (await (fetch url settings))))
+      (unless (get response :ok) (fail (str "HTTP " (get response :status))))
+      (let ((text (await (js-call response :text))))
+        (when (> (get text :length) 2000000) (fail "Source exceeds 2 MB limit"))
+        text)))
+  (defasync request-json (url &optional options timeout) (JSON/parse (await (request url options timeout))))
+  (export request request-json))

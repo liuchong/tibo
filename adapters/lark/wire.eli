@@ -1,7 +1,7 @@
 ;; The narrow protobuf schema used by the Lark event socket, encoded locally.
 (module tibo.lark.wire
-  (import "../../src/host.eli" BigInt Number Uint8Array TextEncoder TextDecoder Map Date)
-  (import "../../src/util.eli" fail)
+  (import "../../src/platform/host.eli" BigInt Number Uint8Array TextEncoder TextDecoder)
+  (import "../../src/platform/util.eli" fail)
   (defconst encoder (new TextEncoder))
   (defconst decoder (new TextDecoder "utf-8" (js-object :fatal t)))
   (defun append-bytes (out bytes) (js-call bytes :forEach (lambda (b) (js-call out :push b))))
