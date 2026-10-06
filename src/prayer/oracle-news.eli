@@ -36,6 +36,14 @@
       (js-object :engine (if (= vendor "openai") "google" "baidu") :query (if (= vendor "openai") "OpenAI ChatGPT model announcement" "Anthropic Claude model announcement"))))
       2500 (if (= vendor "openai") "openai.com" "anthropic.com")))
       (catch error (js-object :documents (js-array) :engines (js-array)))))
+  (defasync cached-news ()
+    (try
+      (let* ((cached (await (read-state "oracle-news"))) (now (Date/now)))
+        (js-object :documents (js-call (get cached :documents (js-array)) :filter (lambda (d)
+          (and (= (value-type (get d :text)) "string")
+            (or (official-url? (get d :url)) (official-url? (get d :url) "anthropic.com"))
+            (if (get d :at) (recent-date? (get d :at) now) (> (get cached :until 0) now)))))))
+      (catch error (js-object :documents (js-array)))))
   (defasync oracle-news (search-enabled)
     (try
       (await (with-lock "oracle-news" (async ()
@@ -54,4 +62,4 @@
                 :until (+ now (if (> (get documents :length) 0) 1800000 300000)))))
                 (await (write-state "oracle-news" result)) result)))))))
       (catch error (js-object :documents (js-array) :engines (js-array)))))
-  (export news-from oracle-news))
+  (export news-from oracle-news cached-news))

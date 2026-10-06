@@ -12,7 +12,7 @@
 | `src/evidence/` | 采集、原文判定、HTML、受限搜索和资料校验；不依赖预测模型或 AI 网关 |
 | `src/ai/` | runtime 任务网关、enhance 预测辅助、repair 人工输入修复 |
 | `src/presentation/` | language 语言与提示、syntax 管道定义/解析、text 一次性文字处理、pipeline 顺序执行、business 业务展示、report 完整报告；index 提供共用文字接口 |
-| `src/prayer/` | 祈祷档案、wish 吉祥话、oracle 神谕、时事素材和 material 祈祷素材 |
+| `src/prayer/` | 祈祷档案、wish 吉祥话、oracle 神谕、时事素材、oracle-context 话题/资料匹配、oracle-memory 会话避重与 material 祈祷素材 |
 | `src/subscriptions/` | registry 本人订阅、schedule 固定定点、bulletin 共享报告 |
 | `src/im/` | 与平台无关的多级消息触发 |
 | `src/platform/` | 宿主、工具函数、配置、状态、公开文本保护与本地安装管理 |
