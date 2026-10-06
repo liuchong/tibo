@@ -28,7 +28,7 @@
 | 变量 | 默认与范围 | 用途 |
 | --- | --- | --- |
 | `DEEPSEEK_API_KEY` | 空 | 官方 HTTP API 凭据 |
-| `TIBO_AI_FEATURES` | 未设置时无功能；安装时只在该键不存在时补全十三项 | 逗号分隔的独立功能开关 |
+| `TIBO_AI_FEATURES` | 未设置时无功能；安装时只在该键不存在时补全十四项 | 逗号分隔的独立功能开关 |
 | `TIBO_AI_WEIGHT` | 0.2；有效数值限于 0..0.35 | AI 概率建议的融合权重，不控制其他文字功能 |
 
 当前模型为 `deepseek-flash`，端点为 `https://api.deepseek.com/chat/completions`。这是应用当前实现配置，不能在普通 IM 查询中索取或泄露。程序不依赖模型 SDK。
@@ -37,7 +37,7 @@
 
 ```dotenv
 DEEPSEEK_API_KEY=在此填入自己的密钥
-TIBO_AI_FEATURES=signals,search,research,forecast,review,brief,router,translate,answer,repair,oracle,wish,trigger
+TIBO_AI_FEATURES=signals,search,research,forecast,review,brief,router,translate,answer,repair,oracle,wish,trigger,festival
 TIBO_AI_WEIGHT=0.2
 ```
 
@@ -86,3 +86,5 @@ TIBO_AI_FEATURES=
 这些文件属于本地运维数据，不直接发送到 IM 或模型。变更状态目录相当于切换一套应用数据；部署和 CLI 若读不同目录，会看见不同档案与历史。安装固定日志路径见 [安装与运维](operations.md)。
 
 `oracle` 控制角色神谕生成；关闭后仍可使用随机本地角色台词。祈祷吉祥话由 wish 独立控制，关闭后仍有随机本地祝词；模型调用最多等待 1.5 秒，输出最多 160 token。trigger 控制群聊次级候选的短模型相关度判断，关闭后使用本地分数；不影响强触发。新安装补全功能不覆盖已存在的 `TIBO_AI_FEATURES`；更新旧安装需自行在现有列表中加入需要的功能，不应清空原列表。
+
+`festival` 独立控制集体彩蛋短祝词，最多等待 1.5 秒、输出上限 240 token；图案、等级和消息数量始终由本地程序决定。关闭后保留全部随机庆典保底。已有安装的功能列表需显式加入 festival；安装器不覆盖已有列表。完整规则见 [集体彩蛋庆典](collective-celebrations.md)。

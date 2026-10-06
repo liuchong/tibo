@@ -12,7 +12,7 @@
                    (if (Object/hasOwn p "default") (str " 默认=" (get p :default)) "")
                    (if (get p :required) " 必填" "") ")")))) :join "、"))))) :join "\n")
       "\n示例：预测 24；发言 5 reset；原文 --postId 2106845241357824205；历史 5 global；状态 2026-10-02T00:00:00Z；pray；🙏；pray me；pray board 10；pray stats。可用 --hours 等同名参数。开启语义查询后也可直接提问，如“有哪些命令能用”“查看我的祈祷档案”。\n业务输出可接最多3段管道（管理员写操作除外）：|translate zh（目标语言）；|ask 用三句话总结（一次AI文字处理）；|original（恢复原文）。CLI请把整条查询放进引号。语义查询按提问语言回复，帖子同时保留原文；管道按显式要求处理。"
-      "\n祈祷、功德和神谕是娱乐功能，不影响真实的重置概率，也不会实际重置账户。"
+      "\n集体彩蛋有六级大型庆典，达到10/50/100/233/500/1000次上香解锁，随机图案配token祝词；一次最多额外两条庆典消息。祈祷、功德和神谕是娱乐功能，不影响真实的重置概率，也不会实际重置账户。"
       "\n语言别名cn、zh-cn、zh-CN、汉语可直接使用。开启repair后仅修复人工输入中实际出错的命令或管道段，不重新执行前序步骤；内部调用不启用。"
       (if (is-admin context) "\n管理员写操作：clear-history / clear-experience / reset-ai 仅申请；收到确认ID后，使用 confirm ID（确认 ID）或 cancel ID（取消 ID）。五分钟有效，绑定申请人与当前会话。" "")))
   (export help-text))

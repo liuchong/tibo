@@ -12,7 +12,7 @@
 | `src/evidence/` | 采集、原文判定、HTML、受限搜索和资料校验；不依赖预测模型或 AI 网关 |
 | `src/ai/` | runtime 任务网关、enhance 预测辅助、repair 人工输入修复 |
 | `src/presentation/` | language 语言与提示、syntax 管道定义/解析、text 一次性文字处理、pipeline 顺序执行、business 业务展示、report 完整报告；index 提供共用文字接口 |
-| `src/prayer/` | 祈祷档案、festivals 会话次数彩蛋与展示确认、wish 吉祥话、oracle 神谕、时事素材、oracle-context 话题/资料匹配、oracle-memory 会话避重与 material 祈祷素材 |
+| `src/prayer/` | 祈祷档案、festivals 会话次数彩蛋与展示确认、celebration 六级随机大场面、wish 吉祥话、oracle 神谕、时事素材、oracle-context 话题/资料匹配、oracle-memory 会话避重与 material 祈祷素材 |
 | `src/subscriptions/` | registry 本人订阅、schedule 固定定点、bulletin 共享报告 |
 | `src/im/` | 多级触发与相关度、独立回复预算、匿名近期上下文和同会话事务 |
 | `src/platform/` | 宿主、工具函数、配置、原子状态、transaction 同进程排队与跨进程锁等待、公开文本保护与本地安装管理 |
@@ -67,3 +67,5 @@ TIBO_CONFIG_FILE=/dev/null TIBO_STATE_DIR=.tibo/example-state TIBO_AI_FEATURES='
 角色功能的触发、事实与娱乐边界、私有开关、缓存和验收见 [重置之神实现约定](oracle.md)。神谕不得增加管理能力或改动预测模型；祈祷吉祥话由 wish 独立控制，先记账、短预算生成、失败本地兜底，验证时要检查重复事件与实际回复。
 
 公开业务面的模型执行能力以 [执行边界](execution-boundary.md) 为准：只选择固定方法与校验后的数据，不增加通用 shell、动态求值或任意路径工具。
+
+集体庆典的设计与分条发送恢复见 [集体彩蛋庆典](collective-celebrations.md)。扩展图案时保留每行格数一致和两条额外消息上限；验证 AI 失败保底、部分发送失败、重启接续、未知结果不重发和完整管道输入。

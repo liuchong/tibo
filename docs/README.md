@@ -8,6 +8,7 @@
 2. [命令参考](commands.md)：固定命令、语义提问、CLI 参数、管理员操作。
 3. [语言与管道](language-pipelines.md)：原文、语言识别、翻译、一次性问答、错误输入修复。
 4. [上香与订阅](pray-subscriptions.md)：可信身份、功德档案、榜单、固定时间私聊报告。
+5. [集体彩蛋庆典](collective-celebrations.md)：六级大场面、18 套随机保底、可选祝词和分条投递。
 
 ## 配置、部署与接入
 
