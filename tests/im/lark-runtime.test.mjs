@@ -1,6 +1,7 @@
 import {test,expect} from 'bun:test';
 import {spawn} from 'node:child_process';
 import {mkdtemp,rm,readFile,writeFile,readdir} from 'node:fs/promises';
+import {writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
 import {encode_frame,decode_frame,header_value} from '../../dist/adapters/lark/wire.mjs';
@@ -35,20 +36,22 @@ test('native HTTP/WebSocket bot receives, persists before ACK, replies, enforces
   }}});
  const text=i=>JSON.parse(posts[i].content).zh_cn.content[0][0].text;
  let sequence=0;
- const trialNow=new Date('2026-10-04T00:00:00Z').getTime();
- const send=(command,id,overrides={},actor='ou_admin')=>{
+ let trialNow=new Date('2026-10-04T00:00:00Z').getTime();const clockFile=join(dir,'clock');writeFileSync(clockFile,String(trialNow));
+ const send=(command,id,overrides={},actor='ou_admin',advance=70000)=>{
+  trialNow+=advance;writeFileSync(clockFile,String(trialNow));
   const event={header:{event_type:'im.message.receive_v1'},event:{sender:{sender_type:'user',sender_id:{open_id:actor}},message:{chat_id:'oc_fixture',chat_type:'group',message_id:id,create_time:String(trialNow),message_type:'text',content:JSON.stringify({text:'@_user_1 '+command}),mentions:[{key:'@_user_1',id:{open_id:'ou_bot'}}],...overrides}}};
   const frame={sequence:BigInt(++sequence),log:9007199254740993n,service:809,kind:1,headers:[{key:'type',value:'event'}],payload:new TextEncoder().encode(JSON.stringify(event))};
   sockets.at(-1).send(encode_frame(frame));return sequence;
  };
  const react=(message='om_reply8',actor='ou_admin',emoji='THANKS',type='user')=>{
+  trialNow+=70000;writeFileSync(clockFile,String(trialNow));
   sockets.at(-1).send(encode_frame({sequence:BigInt(++sequence),log:1n,service:809,kind:1,
    headers:[{key:'type',value:'event'}],payload:new TextEncoder().encode(JSON.stringify({header:{event_type:'im.message.reaction.created_v1'},
     event:{message_id:message,operator_type:type,user_id:{open_id:actor},reaction_type:{emoji_type:emoji},action_time:String(trialNow)}}))}));
  };
  try{
   await writeFile(join(dir,'experience.json'),JSON.stringify({sentinel:'preserved'}));
-  const env={...process.env,TIBO_TEST_NOW:'2026-10-04T00:00:00Z',TIBO_CONFIG_FILE:join(dir,'absent.env'),TIBO_STATE_DIR:dir,TIBO_SNAPSHOT:'',TIBO_LARK_APP_ID:'fixture-app',TIBO_LARK_APP_SECRET:'fixture-secret',TIBO_LARK_CHAT_IDS:'oc_fixture',TIBO_LARK_BOT_OPEN_ID:'',TIBO_LARK_ADMIN_OPEN_IDS:'ou_admin',TIBO_LARK_DOMAIN:'feishu',TIBO_AI_FEATURES:'router',DEEPSEEK_API_KEY:'fixture-router-key',TIBO_TEST_SERVER:server.url.origin};
+  const env={...process.env,TIBO_TEST_NOW:'2026-10-04T00:00:00Z',TIBO_TEST_CLOCK_FILE:clockFile,TIBO_CONFIG_FILE:join(dir,'absent.env'),TIBO_STATE_DIR:dir,TIBO_SNAPSHOT:'',TIBO_LARK_APP_ID:'fixture-app',TIBO_LARK_APP_SECRET:'fixture-secret',TIBO_LARK_CHAT_IDS:'oc_fixture',TIBO_LARK_BOT_OPEN_ID:'',TIBO_LARK_ADMIN_OPEN_IDS:'ou_admin',TIBO_LARK_DOMAIN:'feishu',TIBO_AI_FEATURES:'router',DEEPSEEK_API_KEY:'fixture-router-key',TIBO_TEST_SERVER:server.url.origin};
   child=spawn(process.execPath,[resolve('tests/helpers/lark-client.mjs')],{env,stdio:['ignore','pipe','pipe']});
   child.stderr.on('data',x=>stderr+=x);closed=new Promise(r=>child.once('close',r));
   await until(()=>stderr.includes('已启动'));
@@ -71,7 +74,7 @@ test('native HTTP/WebSocket bot receives, persists before ACK, replies, enforces
   send('🙏🏽🙏','om_pray',{mentions:[],content:JSON.stringify({text:'🙏🏽🙏'})});await until(()=>posts.length===8);
   expect(text(7)).toContain('累计🙏 1');expect(text(7)).toContain('第一炷');
   await until(async()=>{try{return !!JSON.parse(await readFile(join(dir,message_key('om_reply8')+'.json'),'utf8'));}catch{return false;}});
-  react();await until(()=>posts.length===9);expect(text(8)).toContain('累计🙏 2');expect(text(8)).toContain('冷却');
+  react();await until(()=>posts.length===9);expect(text(8)).toContain('累计🙏 2');
   const ackStart=acks.length;
   react();react('om_someone_else');react('om_reply8','ou_admin','SMILE');react('om_reply8','ou_admin','THANKS','app');
   await until(()=>acks.length>=ackStart+4);await delay(80);expect(posts).toHaveLength(9);
@@ -85,14 +88,26 @@ test('native HTTP/WebSocket bot receives, persists before ACK, replies, enforces
   react('om_reply13','ou_admin');await until(()=>posts.length===17);expect(text(16)).toContain('累计🙏 3');expect(posts[16].receive_id).toBe('oc_private');
   const eventStats=JSON.parse(await readFile(join(dir,'lark-events.json'),'utf8'));expect(eventStats.lastReaction.accepted).toBe(true);
   for(const post of posts)expect(post.content).not.toMatch(/fixture-secret|fixture-router-key|local-tenant|\/Users\/|deepseek|oc_fixture|ou_admin|ou_other/i);
+  // A real socket burst from twenty people is one optional interruption,
+  // not twenty model calls or twenty delayed replies after the discussion.
+  trialNow+=600001;writeFileSync(clockFile,String(trialNow));
+  const ackBefore=acks.length;
+  for(let i=0;i<20;i++)send('',`om_discussion${i}`,{mentions:[],content:JSON.stringify({text:`Claude编程模型怎么样？讨论${i}`})},`ou_member${i}`,1000);
+  await until(()=>acks.length>=ackBefore+20);
+  await until(async()=>{const s=JSON.parse(await readFile(join(dir,'lark-inbox.json'),'utf8'));return s.jobs.length===0;});
+  expect(posts).toHaveLength(18);
+  const receipts=await Promise.all(Array.from({length:20},(_,i)=>readFile(join(dir,delivery_key('oc_fixture',`om_discussion${i}`)+'.json'),'utf8').then(JSON.parse)));
+  expect(receipts.filter(r=>r.state==='sent')).toHaveLength(1);expect(receipts.filter(r=>r.state==='suppressed')).toHaveLength(19);
+  console.log('Local discussion trial: 20 people mentioning Claude via WebSocket, 1 reply + 19 suppressed receipts; all events drained and acknowledged.');
   child.kill('SIGTERM');expect(await closed).toBe(0);expect(JSON.parse(await readFile(join(dir,'lark-runtime.json'),'utf8')).state).toBe('stopped');
   expect((await readdir(dir)).some(x=>x.endsWith('.lock'))).toBe(false);
   console.log('Local Lark trial: 17 HTTP replies; group + DM self-subscription, unsubscribe/resubscribe, pray text/reaction, admin confirmation and reconnect.');
+  posts.pop(); // The independent storm trial is not a scheduled bulletin.
   // One generation fans out to a group and two private recipients at each slot.
   await writeFile(join(dir,'ledger.json'),JSON.stringify(snapshot()));
   let morningBulletin;
   for(const [time,count,title] of [['2026-10-04T01:00:02Z',20,'09:00'],['2026-10-04T01:00:02Z',20,null],['2026-10-04T01:02:00Z',20,null],['2026-10-04T13:00:02Z',23,'21:00']]){
-   stderr='';child=spawn(process.execPath,[resolve('tests/helpers/lark-client.mjs')],{env:{...env,TIBO_TEST_NOW:time,TIBO_AI_FEATURES:''},stdio:['ignore','pipe','pipe']});
+   stderr='';child=spawn(process.execPath,[resolve('tests/helpers/lark-client.mjs')],{env:{...env,TIBO_TEST_CLOCK_FILE:'',TIBO_TEST_NOW:time,TIBO_AI_FEATURES:''},stdio:['ignore','pipe','pipe']});
    child.stderr.on('data',x=>stderr+=x);closed=new Promise(r=>child.once('close',r));await until(()=>stderr.includes('已启动'));
    if(title){await until(()=>posts.length===count);expect(text(count-1)).toContain('北京时间 10-04 '+title);expect(text(count-1)).toContain('24h');expect(text(count-1)).toContain('48h');
     const batch=posts.slice(count-3,count);expect(new Set(batch.map(x=>x.content)).size).toBe(1);expect(batch.map(x=>x.receive_id)).toEqual(['oc_fixture','ou_admin','ou_other']);

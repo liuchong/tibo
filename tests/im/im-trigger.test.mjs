@@ -30,6 +30,10 @@ test('ambiguous relevance asks only a compact classifier and cooling avoids more
  for(const b of r.bodies){expect(b.max_tokens).toBe(120);expect(b.tools).toBeUndefined();expect(Object.keys(JSON.parse(b.messages[1].content)).sort()).toEqual(['keywords','text']);expect(JSON.stringify(b)).not.toMatch(/private-user|private-app|private-room|fixture-key/);}
  expect(()=>validate_relevance({scores:{claude:2}},['claude'])).toThrow();expect(()=>validate_relevance({scores:{claude:0.9,extra:1}},['claude'])).toThrow();
 });
+test('clearly related repeated discussion can remain relevant; output pacing is not a relevance verdict',async()=>{
+ const r=await trial(`${setup}const decisions=[];for(let i=0;i<8;i++)decisions.push(await decide_secondary('Claude编程模型怎么样？'+i,ctx,'clear'+i,true));console.log(JSON.stringify(decisions));`);
+ expect(r.every(x=>x.accepted&&x.reason==='relevant')).toBe(true);
+});
 test('filtered inbox candidates are durably consumed without replies while strong help still runs',async()=>{
  const r=await trial(`const{create_inbox}=await import(${JSON.stringify(root+'/adapters/lark/inbox.mjs')});const{delivery_key}=await import(${JSON.stringify(root+'/adapters/lark/service.mjs')});const{read_state}=await import(${JSON.stringify(root+'/src/platform/state.mjs')});let sends=0;const inbox=await create_inbox({send:async()=>({code:0,data:{message_id:'om_reply'+(++sends)}})},['oc_allowed']);const ctx={transport:'lark',actor:'ou_user',scope:'oc_allowed',authenticated:true};await inbox.accept({group:'oc_allowed',key:'skip',command:'重置路由器',triggerLevel:2,context:ctx});await inbox.accept({group:'oc_allowed',key:'help',command:'help',triggerLevel:1,context:ctx});for(let i=0;i<200&&inbox.status().pending;i++)await new Promise(r=>setTimeout(r,5));await inbox.stop();console.log(JSON.stringify({sends,status:inbox.status(),ledger:await read_state(delivery_key('oc_allowed','skip'))}));`);
  expect(r.sends).toBe(1);expect(r.status.pending).toBe(0);expect(r.ledger.state).toBe('filtered');expect(r.ledger.reason).toBe('unrelated');

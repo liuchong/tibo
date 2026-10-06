@@ -1,0 +1,55 @@
+;; Transport-owned delivery receipts surround shared relevance and pacing.
+(module tibo.lark.interaction
+  (import "../../src/platform/host.eli" Date)
+  (import "../../src/platform/state.eli" read-state write-state)
+  (import "../../src/platform/util.eli" iso)
+  (import "../../src/commands/index.eli" fixed-query)
+  (import "../../src/presentation/syntax.eli" parse-pipeline)
+  (import "../../src/prayer/pray.eli" pray)
+  (import "../../src/im/triggers.eli" decide-secondary)
+  (import "../../src/im/context.eli" conversation-context group-context?)
+  (import "../../src/im/reply-policy.eli" reply-permit settle-reply)
+  (import "./service.eli" delivery-key deliver)
+  (defun reply-kind (job)
+    (cond ((= (get job :triggerLevel) 2) "ambient")
+      ((= (get job :triggerKind) "prayer") "prayer")
+      (t (let* ((base (try (get (parse-pipeline (get job :command) t) :base) (catch error (get job :command))))
+        (query (fixed-query base)))
+        (if (and query (= (get query :command) "pray") (= (get (get query :args) :action "offer") "offer")) "prayer" "direct")))))
+  (defasync suppress (job decision)
+    (let* ((key (delivery-key (get job :group) (get job :key))) (context (get job :context)) (recorded false))
+      ;; Silence is an output decision, never permission to lose an offering.
+      ;; The prayer receipt uses the same key as a normal delivery/replay.
+      (when (= (reply-kind job) "prayer")
+        (let ((response (await (pray (js-object :action "offer")
+          (Object/assign (js-object) context (js-object :requestId key)) (js-object :noAi t)))))
+          (setq recorded (get response :ok))))
+      (await (write-state key (js-object :state "suppressed" :at (iso (Date/now)) :reason (get decision :reason)
+        :replyPolicy decision :prayerRecorded recorded))) nil))
+  (defasync process-interaction (client job)
+    (let* ((context (get job :context)) (kind (reply-kind job)) (command (get job :command)) (id (get job :key))
+      (history (await (conversation-context context command id (or (get job :createdAt) (iso (Date/now))))))
+      (first (await (reply-permit context id kind command (get history :activity)))) (decision nil))
+      (cond
+        ((and (= kind "ambient") (group-context? context) (get job :createdAt)
+          (< (Date/parse (get job :createdAt)) (- (Date/now) 90000)))
+          (await (suppress job (js-object :accepted false :kind kind :reason "ambient-expired"))))
+        ((not (get first :accepted))
+          ;; Keep sensitivity statistics even when speech is suppressed;
+          ;; classify locally only, never spend AI on an exhausted budget.
+          (when (= kind "ambient") (await (decide-secondary command context id t)))
+          (await (suppress job first)))
+        (t
+          (setq decision (when (= kind "ambient") (await (decide-secondary command context id))))
+          (if (and decision (not (get decision :accepted)))
+            (await (write-state (delivery-key (get job :group) id) (js-object :state "filtered" :at (iso (Date/now))
+              :reason (get decision :reason) :method (get decision :method))))
+            (let ((permit (await (reply-permit context id kind command (get history :activity) t))))
+              (if (not (get permit :accepted)) (await (suppress job permit))
+                (progn
+                  (put job :recentMessages (get history :messages)) (put job :replyPolicy permit)
+                  (try (await (deliver client (get job :group) id command (get job :titleTime) context nil job))
+                    (finally
+                      (let ((receipt (await (read-state (delivery-key (get job :group) id)))))
+                        (await (settle-reply context id (get receipt :state))))))))))))))
+  (export reply-kind process-interaction))

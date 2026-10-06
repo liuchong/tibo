@@ -1,0 +1,13 @@
+(module tibo.im.serial
+  (import "../platform/host.eli" Map Promise)
+  (import "../platform/state.eli" with-lock)
+  (defconst pending (new Map))
+  (defasync room-transaction (key operation)
+    (let* ((previous (or (js-call pending :get key) (Promise/resolve nil)))
+      (result (js-call previous :then (lambda () (with-lock key operation))))
+      (tail (js-call result :catch (lambda (error) nil))))
+      (js-call pending :set key tail)
+      (try (await result)
+        (finally
+          (when (= (js-call pending :get key) tail) (js-call pending :delete key))))))
+  (export room-transaction))

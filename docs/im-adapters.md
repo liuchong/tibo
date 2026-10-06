@@ -43,7 +43,9 @@ context 只用于权限、档案与投递，不加入模型提示词或公开结
 
 ## 触发策略与消息素材
 
-复用 [核心触发规则](im-triggers.md)，不要各自实现一套关键词阈值。群内一级强触发直接走业务，二级候选在普通工作队列调用 decide-secondary；私聊正常响应。过滤结果需要持久去重但保持安静，不能当成一次失败回复。已认证的当前消息或反应对应消息正文可作为 options.prayerMaterial，核心截断、脱敏后仅作为 wish 参考，不传 context 身份字段。
+复用 [核心触发与回复规则](im-triggers.md)，不要各自实现一套关键词阈值或次数限制。一级强触发跳过相关度判断，二级候选调用 decide-secondary；两者都经过独立 reply-permit 的群回复预算。适配器先预检、再相关度判断、最后原子预留名额，发送结果用 settle-reply 确认；未知结果保留占用，明确未发才释放。超限事件安静消费，不积压补发。群内上香超限时仍以原投递 requestId 调用 pray 并设置 noAi，不发送回执；平台去重防止重复计数。私聊正常响应。
+
+授权群的近期人类消息可交给 remember-message，经 conversation-context 截断、脱敏后作为 options.recentMessages；只有最终问答文字参考它，不能用于路由、权限、命令参数或预测证据。观察普通消息不意味着调用 AI 或业务，也不向平台补读历史。当前消息或反应对应消息正文可作为 options.prayerMaterial，仅作为 wish 参考，不传 context 身份字段。
 
 ## 订阅和共享报告
 
