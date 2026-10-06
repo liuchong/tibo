@@ -29,7 +29,7 @@ bun run start -- forecast --no-ai
 
 ## 阅读入口
 
-完整目录见 [文档导航](docs/README.md)。
+完整目录见 [文档导航](docs/README.md)。代码组织与依赖方向见 [架构与模块](docs/architecture.md)。
 
 | 你想做什么 | 阅读 |
 | --- | --- |

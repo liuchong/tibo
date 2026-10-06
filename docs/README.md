@@ -22,6 +22,7 @@
 - [判断算法与证据约定](decision-contract.md)：global/banked、条件样本、四个候选模型、自适应权重与局限。
 - [AI 任务与预算](ai-research.md)：任务开关、引用校验、搜索、缓存、熔断和隐私。
 - [重置之神实现约定](oracle.md)：分身回应、品牌彩蛋、官方时事与祈祷吉祥话。
+- [架构与模块](architecture.md)：目录职责、依赖方向、公共接口与执行流程。
 - [开发指南](development.md)：源码地图、构建测试、命令扩展与交付检查。
 - [AI 与执行边界](execution-boundary.md)：固定业务方法、本地维护、管理确认与无任意执行接口。
 - [IM 触发过滤](im-triggers.md)：强触发、关键词相关度、连续降敏与祈祷消息素材。

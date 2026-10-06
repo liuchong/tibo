@@ -1,1 +1,1 @@
-{"schemaVersion":2,"sourceRoot":".","entries":["src/cli.eli","src/mcp.eli","adapters/lark/main.eli"],"outDir":"dist","cache":true}
+{"schemaVersion":2,"sourceRoot":".","entries":["src/app/cli.eli","src/app/mcp.eli","adapters/lark/main.eli"],"outDir":"dist","cache":true}

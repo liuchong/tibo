@@ -1,2 +1,2 @@
 #!/usr/bin/env bun
-await import('../dist/src/cli.mjs');
+await import('../dist/src/app/cli.mjs');

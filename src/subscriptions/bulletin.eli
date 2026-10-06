@@ -1,0 +1,37 @@
+;; A schedule slot owns generation. Recipients and adapters only reuse its text.
+(module tibo.bulletin
+  (import "node:crypto" createHash randomUUID)
+  (import "../platform/host.eli" Date)
+  (import "../platform/state.eli" read-state write-state with-lock)
+  (import "./schedule.eli" slot-at)
+  (import "../app/engine.eli" run-report)
+  (import "../commands/index.eli" public-forecast)
+  (import "../platform/privacy.eli" public-text)
+  (import "../platform/util.eli" iso fail)
+  (defun bulletin-key (slot)
+    (let ((canonical (slot-at (get slot :at))))
+      (unless (and canonical (= (get canonical :key) (get slot :key)) (= (get canonical :at) (get slot :at))) (fail "定点时间无效")))
+    (str "bulletin-" (js-call (js-call (js-call (createHash "sha256") :update (get slot :at)) :digest "hex") :slice 0 40)))
+  (defasync ensure-bulletin (slot &optional generate)
+    (let ((key (bulletin-key slot)))
+      (await (with-lock key (async ()
+        (let ((saved (await (read-state key))))
+          (if saved
+            (progn
+              (unless (and (= (get saved :schemaVersion) 1) (= (get saved :slotAt) (get slot :at))
+                (js-call (js-array "generating" "ready" "failed") :includes (get saved :state))
+                (or (not (= (get saved :state) "ready")) (and (= (value-type (get saved :text)) "string") (> (get (get saved :text) :length) 0))))
+                (fail "定点报告不可读")) saved)
+            (let ((record (js-object :schemaVersion 1 :slotAt (get slot :at) :state "generating" :generationId (randomUUID) :startedAt (iso (Date/now)))))
+              ;; Reserve before generation: crash/failure must not silently run it twice.
+              (await (write-state key record))
+              (try
+                (let ((text (if generate (await (funcall generate slot))
+                  (public-forecast (await (run-report (js-object :channel "schedule" :titleTime (get slot :at)))) "both" (get slot :at)))))
+                  (unless (and (= (value-type text) "string") (> (get text :length) 0)) (fail "定点报告为空"))
+                  (put record :text (public-text text)) (put record :state "ready") (put record :finishedAt (iso (Date/now)))
+                  (await (write-state key record)) record)
+                (catch error
+                  (put record :state "failed") (put record :finishedAt (iso (Date/now)))
+                  (await (write-state key record)) record))))))))))
+  (export bulletin-key ensure-bulletin))

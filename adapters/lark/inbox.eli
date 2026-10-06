@@ -1,11 +1,11 @@
 ;; One instance owns this bounded inbox. Durable acceptance precedes ACK.
 (module tibo.lark.inbox
   (import "node:timers" setTimeout clearTimeout)
-  (import "../../src/host.eli" Promise Date Number)
-  (import "../../src/state.eli" read-state write-state)
-  (import "../../src/commands.eli" fixed-query)
-  (import "../../src/util.eli" fail iso ms)
-  (import "../../src/im-trigger.eli" decide-secondary)
+  (import "../../src/platform/host.eli" Promise Date)
+  (import "../../src/platform/state.eli" read-state write-state)
+  (import "../../src/commands/index.eli" fixed-query)
+  (import "../../src/platform/util.eli" fail iso ms)
+  (import "../../src/im/triggers.eli" decide-secondary)
   (import "./service.eli" delivery-key deliver allowed-job?)
   (defun fast-job? (job)
     ;; Classify locally, without AI. Pipes and management stay in the normal lane.

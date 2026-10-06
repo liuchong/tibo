@@ -72,7 +72,7 @@ bun run start -- evaluate
 用测试快照可以复现固定时间下的结果。下面生成的是人工测试数据，不是当前真实历史：
 
 ```bash
-bun --eval 'import {snapshot} from "./tests/fixture.mjs"; await Bun.write(".tibo/example-snapshot.json", JSON.stringify(snapshot()));'
+bun --eval 'import {snapshot} from "./tests/helpers/fixture.mjs"; await Bun.write(".tibo/example-snapshot.json", JSON.stringify(snapshot()));'
 TIBO_CONFIG_FILE=/dev/null TIBO_STATE_DIR=.tibo/example-state TIBO_AI_FEATURES='' bun bin/tibo.mjs forecast --snapshot .tibo/example-snapshot.json
 TIBO_CONFIG_FILE=/dev/null TIBO_STATE_DIR=.tibo/example-state TIBO_AI_FEATURES='' bun bin/tibo.mjs posts --snapshot .tibo/example-snapshot.json --limit 2
 ```

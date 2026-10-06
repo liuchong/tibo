@@ -1,8 +1,8 @@
 (module tibo.lark.socket
   (import "node:timers" setTimeout clearTimeout)
   (import "node:zlib" gunzipSync)
-  (import "../../src/host.eli" Error Date Promise Map Number WebSocket URL Uint8Array TextEncoder TextDecoder)
-  (import "../../src/util.eli" fail matches)
+  (import "../../src/platform/host.eli" Error Date Promise Map Number WebSocket URL Uint8Array TextEncoder TextDecoder)
+  (import "../../src/platform/util.eli" fail matches)
   (import "./wire.eli" encode-frame decode-frame header-value merge-fragment)
   (defun seconds (value fallback low high)
     (let ((n (Number value)))

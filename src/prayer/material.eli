@@ -1,0 +1,13 @@
+(module tibo.prayer.material
+  (import "../platform/host.eli" RegExp)
+  (import "../platform/privacy.eli" public-text private-question?)
+  (import "../platform/util.eli" clean matches)
+  (defun prayer-material (input)
+    (let ((text (if (= (value-type input) "string") input "")))
+      ;; Context is optional reference, never a source of instructions/identity.
+      (if (or (private-question? text) (matches "^\\s*(?:pray|🙏|\\[双手合十\\]|上香|祈祷)[\\s🙏]*$" text)) ""
+        (progn
+          (setq text (public-text text 16000))
+          (setq text (js-call text :replace (new RegExp "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}|\\b1[3-9][0-9]{9}\\b|香客[0-9]+|@_user_[0-9]+" "g") "[已隐藏]"))
+          (js-call (clean text) :slice 0 500)))))
+  (export prayer-material))
