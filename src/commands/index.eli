@@ -44,7 +44,7 @@
             (response (await (execute-core base (Object/assign (js-object) options (js-object :language lang))))))
             (when (and (get response :ok) (not (= name "ask")) (not (and spec (get spec :admin)))
                        (oracle-trigger? (get query :question (get options :inputText ""))))
-              (let ((extra (await (oracle-reply (get query :question (get options :inputText "")) lang (get options :noAi) (get options :context)))))
+              (let ((extra (await (oracle-reply (get query :question (get options :inputText "")) lang (get options :noAi) (get options :context) (get options :recentMessages)))))
                 (put response :text (str (get response :text) "\n\n" (get extra :text)))))
             (when (and (not (= lang "zh")) (js-call (js-array "semantic-error" "semantic-disabled" "unsupported") :includes name))
               (put response :text (notice lang (if (= name "unsupported") "unsupported" "semantic"))))

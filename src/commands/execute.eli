@@ -26,12 +26,12 @@
               (if (get (definition name) :admin) (await (manage name args (get options :context)))
                 (if (= name "help") (js-object :text (help-text (get options :context)) :ok t)
                 (if (= name "ask")
-                  (if (oracle-trigger? (get args :question)) (await (oracle-reply (get args :question) (or (get options :language) (detect-language (get args :question))) (get options :noAi) (get options :context)))
+                  (if (oracle-trigger? (get args :question)) (await (oracle-reply (get args :question) (or (get options :language) (detect-language (get args :question))) (get options :noAi) (get options :context) (get options :recentMessages)))
                   (let* ((q (get args :question)) (lang (or (language (get options :language)) (detect-language q)))
                     (enabled (and (not (get options :noAi)) (not (private-question? q)) (js-call (get (config) :features) :includes "answer")))
                     (response (if (not enabled) nil (await (answer-text q "" lang
                       (js-object :commands (visible-catalog (get options :context) t) :pipes pipe-catalog
-                        :rules "Global is a provider-triggered shared reset requiring no manual action, not a fixed recurring personal quota cycle. Banked cards require manual use and never move the global clock, but may fulfill a promise or consume a catalyst and therefore change signal weights. Current events or probabilities are unknown without fetched evidence. Subscriptions only at Beijing 09:00 and 21:00."))))))
+                        :rules "Global is a provider-triggered shared reset requiring no manual action, not a fixed recurring personal quota cycle. Banked cards require manual use and never move the global clock, but may fulfill a promise or consume a catalyst and therefore change signal weights. Current events or probabilities are unknown without fetched evidence. Subscriptions only at Beijing 09:00 and 21:00.") nil (get options :context) (get options :recentMessages))))))
                     (js-object :text (if (and response (get response :value))
                       (str "**" (if (= lang "zh") "AI回答" "AI answer") "**\n" (get (get response :value) :text)) (notice lang "answer"))
                       :ok (not (not (and response (get response :value)))))))

@@ -1,5 +1,5 @@
 ;; IM policy, independent of a particular transport. Strong triggers never
-;; consult the secondary relevance gate or its conversation cooldown.
+;; consult the secondary relevance gate. Reply pacing is a separate policy.
 (module tibo.im-trigger
   (import "node:crypto" createHash)
   (import "../platform/host.eli" Date Number RegExp)
@@ -48,24 +48,20 @@
            (key (str "im-trigger-" (js-call (fingerprint (str (get context :transport) ":" (get context :account "") ":" (get context :scope))) :slice 0 40)))
            (id (fingerprint request-id)) (content (fingerprint (js-call (clean text) :toLowerCase))))
       (await (with-lock key (async ()
-        (let* ((state (or (await (read-state key)) (js-object :hits (js-array) :decisions (js-array) :lastAccepted 0)))
+        (let* ((state (or (await (read-state key)) (js-object :hits (js-array) :decisions (js-array))))
                (old (js-call (get state :decisions) :find (lambda (d) (= (get d :id) id))))
                (hits (js-call (get state :hits) :filter (lambda (h) (> (get h :at) (- now 300000)))))
                (decisions (js-call (get state :decisions) :filter (lambda (d) (> (get d :at) (- now 300000)))))
                (rows (js-call candidates :map (lambda (p)
-                 (let* ((name (get p :name)) (previous (js-call hits :filter (lambda (h) (js-call (get h :keywords) :includes name))))
-                        (accepted (js-call previous :some (lambda (h) (and (get h :accepted) (> (get h :at) (- now 60000)))))))
+                 (let* ((name (get p :name)) (previous (js-call hits :filter (lambda (h) (js-call (get h :keywords) :includes name)))))
                    (js-object :name name :score (local-score text p)
-                     :threshold (Math/min 0.97 (+ (get p :threshold) (Math/min 0.30 (* 0.10 (get previous :length))))) :cooling accepted)))))
+                     :threshold (Math/min 0.97 (+ (get p :threshold) (Math/min 0.30 (* 0.10 (get previous :length))))))))))
                (reason "unrelated") (accepted false) (method "local"))
           (if old (js-object :accepted (get old :accepted) :reason (get old :reason) :method (get old :method))
             (progn
-              (cond ((or (js-call decisions :some (lambda (d) (= (get d :content) content)))
-                         (> (get state :lastAccepted 0) (- now 20000))) (setq reason "conversation-cooling"))
-                ((not (js-call rows :some (lambda (r) (and (> (get r :score) 0) (not (get r :cooling))))))
-                  (setq reason (if (js-call rows :some (lambda (r) (get r :cooling))) "keyword-cooling" "unrelated")))
+              (cond ((not (js-call rows :some (lambda (r) (> (get r :score) 0)))) (setq reason "unrelated"))
                 (t
-                  (let* ((eligible (js-call rows :filter (lambda (r) (and (> (get r :score) 0) (not (get r :cooling))))))
+                  (let* ((eligible (js-call rows :filter (lambda (r) (> (get r :score) 0))))
                          (clear (js-call eligible :some (lambda (r) (>= (get r :score) (+ (get r :threshold) 0.15)))))
                          (ambiguous (and (not clear) (js-call eligible :some (lambda (r) (>= (get r :score) (- (get r :threshold) 0.15))))))
                          (names (js-call eligible :map (lambda (r) (get r :name))))
@@ -78,7 +74,6 @@
                       (js-call eligible :forEach (lambda (r) (put r :score (get (get (get response :value) :scores) (get r :name))))))
                     (setq accepted (js-call eligible :some (lambda (r) (>= (get r :score) (get r :threshold)))))
                     (setq reason (if accepted "relevant" "below-threshold")))))
-              (when accepted (put state :lastAccepted now))
               (put state :hits (js-call (js-call hits :concat (js-array (js-object :at now :keywords (js-call candidates :map (lambda (p) (get p :name))) :accepted accepted))) :slice -128))
               (put state :decisions (js-call (js-call decisions :concat (js-array (js-object :id id :content content :at now :accepted accepted :reason reason :method method))) :slice -128))
               (await (write-state key state))

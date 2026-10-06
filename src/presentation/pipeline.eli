@@ -49,7 +49,7 @@
               (let* ((target (if (= name "translate") (language (get stage :language)) (detect-language (get stage :instruction))))
                 (out (if (or no-ai (< remaining 500)) nil
                   (if (= name "translate") (await (translate-text text target (Math/min 15000 remaining)))
-                    (await (answer-text (get stage :instruction) text target capabilities (Math/min 15000 remaining) (get options :context)))))))
+                    (await (answer-text (get stage :instruction) text target capabilities (Math/min 15000 remaining) (get options :context) (get options :recentMessages)))))))
                 (setq lang target)
                 (if (and out (get out :value)) (setq text (get (get out :value) :text)) (setq failed t))))))
           (setq i (+ i 1))))

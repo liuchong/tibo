@@ -95,7 +95,7 @@
                 (let* ((context (js-object :transport "lark" :actor actor :scope group :authenticated t
                           :account account :conversationType (if (js-call allowed :includes group) "group" kind)))
                        (job (js-object :group group :key (str "reaction-" (message-key (str actor ":" id))) :command "pray"
-                         :prayerMaterial material :context context :createdAt (iso created) :acceptedAt (iso (Date/now)))))
+                         :triggerKind "prayer" :prayerMaterial material :context context :createdAt (iso created) :acceptedAt (iso (Date/now)))))
                   (put audit :reason "chat-not-authorized")
                   (when (allowed-job? job allowed) (put audit :reason "accepted") job)))))))))
   (defun markdown-post (markdown)
@@ -112,9 +112,10 @@
       (unless (get (get response :data (js-object)) :message_id) (fail "Lark 返回缺少 message_id"))
       (get (get response :data) :message_id)))
   (defasync deliver (client group key command &optional title-time context prepared job)
+    (setq job (or job (js-object)))
     (let* ((ledger-key (delivery-key group key)) (started (Date/now))
-           (latency (js-object :startedAt (iso started))))
-      (setq job (or job (js-object)))
+           (latency (js-object :startedAt (iso started) :replyPolicy (get job :replyPolicy)
+             :contextMessages (get (get job :recentMessages (js-array)) :length))))
       (when (get job :acceptedAt)
         (put latency :acceptedAt (get job :acceptedAt))
         (put latency :queueMs (Math/max 0 (- started (ms (get job :acceptedAt)))))
@@ -127,6 +128,7 @@
       (try
         (let* ((options (js-object :channel group :persist false :titleTime title-time :context context
                  :prayerMaterial (get job :prayerMaterial)
+                 :recentMessages (get job :recentMessages)
                  :humanInput (and (not prepared) context (= (get context :authenticated) t))))
                (response (if prepared (js-object :ok t :text (get prepared :text)) (try
                   (let* ((route-start (Date/now)) (query (await (resolve-query command context options))))
