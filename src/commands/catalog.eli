@@ -21,7 +21,7 @@
       (js-object :name "signals" :aliases (js-array "信号") :purpose "查询近48h已识别的承诺、暗示、补偿及发布信号" :params (js-object) :positionals (js-array))
       (js-object :name "stats" :aliases (js-array "统计") :purpose "查询历史global间隔的均值、中位数、最短/最长及可用样本量" :params (js-object) :positionals (js-array))
       (js-object :name "help" :aliases (js-array "帮助" "commands" "命令") :purpose "查看当前身份可用的业务命令和参数" :params (js-object) :positionals (js-array))
-      (js-object :name "pray" :aliases (js-array "祈祷" "上香" "🙏") :purpose "趣味电子上香；offer祈祷一次，me查看本人档案，board查看本会话匿名功德榜，stats查看本会话愿力池。不能改变重置概率，需要可信本人身份"
+      (js-object :name "pray" :aliases (js-array "祈祷" "上香" "🙏") :purpose "趣味电子上香；offer祈祷一次，me查看本人档案，board查看本会话匿名功德榜，stats查看本会话愿力池、已解锁的集体彩蛋及仪式内容。询问什么集体彩蛋、十次上香效果应选stats，不选ask。集体彩蛋按会话上香次数10/50/100/233/500/1000解锁，个人功德15秒冷却；不能改变重置概率，需要可信本人身份"
         :params (js-object :action (js-object :type "string" :enum (js-array "offer" "me" "board" "stats") :default "offer")
           :limit (js-object :type "integer" :minimum 1 :maximum 20 :default 10)) :positionals (js-array "action" "limit"))
       (js-object :name "subscribe" :aliases (js-array "订阅") :purpose "订阅本人定点私聊报告，每天北京时间09:00/21:00推送；需要可信IM身份，不能指定其他收件人" :params (js-object) :positionals (js-array))

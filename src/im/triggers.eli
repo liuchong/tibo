@@ -6,7 +6,8 @@
   (import "../prayer/pray.eli" has-pray?)
   (import "../ai/runtime.eli" ai-call)
   (import "../platform/privacy.eli" public-text private-question?)
-  (import "../platform/state.eli" with-lock read-state write-state)
+  (import "../platform/state.eli" read-state write-state)
+  (import "../platform/transaction.eli" state-transaction)
   (import "../platform/util.eli" clean matches fail)
   (defconst profiles (js-array
     (js-object :name "claude" :pattern "claude|克劳德|克洛德" :base 0.55 :threshold 0.50)
@@ -47,7 +48,7 @@
     (let* ((candidates (keywords text)) (now (Date/now))
            (key (str "im-trigger-" (js-call (fingerprint (str (get context :transport) ":" (get context :account "") ":" (get context :scope))) :slice 0 40)))
            (id (fingerprint request-id)) (content (fingerprint (js-call (clean text) :toLowerCase))))
-      (await (with-lock key (async ()
+      (await (state-transaction key (async ()
         (let* ((state (or (await (read-state key)) (js-object :hits (js-array) :decisions (js-array))))
                (old (js-call (get state :decisions) :find (lambda (d) (= (get d :id) id))))
                (hits (js-call (get state :hits) :filter (lambda (h) (> (get h :at) (- now 300000)))))

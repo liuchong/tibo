@@ -46,7 +46,7 @@ test('native HTTP/WebSocket bot receives, persists before ACK, replies, enforces
  const react=(message='om_reply8',actor='ou_admin',emoji='THANKS',type='user')=>{
   trialNow+=70000;writeFileSync(clockFile,String(trialNow));
   sockets.at(-1).send(encode_frame({sequence:BigInt(++sequence),log:1n,service:809,kind:1,
-   headers:[{key:'type',value:'event'}],payload:new TextEncoder().encode(JSON.stringify({header:{event_type:'im.message.reaction.created_v1'},
+   headers:[{key:'type',value:'event'}],payload:new TextEncoder().encode(JSON.stringify({header:{event_type:'im.message.reaction.created_v1',event_id:`reaction:${actor}:${message}:${emoji}:${type}`},
     event:{message_id:message,operator_type:type,user_id:{open_id:actor},reaction_type:{emoji_type:emoji},action_time:String(trialNow)}}))}));
  };
  try{
@@ -94,7 +94,7 @@ test('native HTTP/WebSocket bot receives, persists before ACK, replies, enforces
   const ackBefore=acks.length;
   for(let i=0;i<20;i++)send('',`om_discussion${i}`,{mentions:[],content:JSON.stringify({text:`Claude编程模型怎么样？讨论${i}`})},`ou_member${i}`,1000);
   await until(()=>acks.length>=ackBefore+20);
-  await until(async()=>{const s=JSON.parse(await readFile(join(dir,'lark-inbox.json'),'utf8'));return s.jobs.length===0;});
+  await until(async()=>{const s=JSON.parse(await readFile(join(dir,'lark-inbox.json'),'utf8'));return s.pending===0;});
   expect(posts).toHaveLength(18);
   const receipts=await Promise.all(Array.from({length:20},(_,i)=>readFile(join(dir,delivery_key('oc_fixture',`om_discussion${i}`)+'.json'),'utf8').then(JSON.parse)));
   expect(receipts.filter(r=>r.state==='sent')).toHaveLength(1);expect(receipts.filter(r=>r.state==='suppressed')).toHaveLength(19);
@@ -136,15 +136,15 @@ test('durable inbox recovers accepted jobs, skips uncertain sends and handles su
  }finally{await inbox?.stop();if(old===undefined)delete process.env.TIBO_STATE_DIR;else process.env.TIBO_STATE_DIR=old;await rm(dir,{recursive:true,force:true});}
 });
 
-test('inbox writes before returning acceptance and retains bounded jobs when stopping before processing',async()=>{
+test('inbox writes individual events before acceptance and recovers beyond the old 32-job limit',async()=>{
  const dir=await mkdtemp(join(tmpdir(),'tibo-inbox-accept-'));const old=process.env.TIBO_STATE_DIR;process.env.TIBO_STATE_DIR=dir;let inbox,calls=0;
  try{
   inbox=await create_inbox({send:async()=>{calls++;throw new Error('must not send');}},['oc_fixture']);
   await inbox.accept({group:'oc_fixture',key:'accepted',command:'help'});await inbox.stop();
-  expect((await read_state('lark-inbox')).jobs).toHaveLength(1);expect(calls).toBe(0);
+  expect((await read_state('lark-inbox')).pending).toBe(1);expect(await readdir(join(dir,'lark-inbox-pending'))).toHaveLength(1);expect(calls).toBe(0);
   const jobs=Array.from({length:32},(_,i)=>({group:'oc_fixture',key:String(i),command:'help'}));await write_state('lark-inbox',{jobs});
-  inbox=await create_inbox({},['oc_fixture']);await expect(inbox.accept({group:'oc_fixture',key:'overflow',command:'help'})).rejects.toThrow('已满');
-  expect((await read_state('lark-inbox')).jobs).toHaveLength(32);await inbox.stop();
+  inbox=await create_inbox({},['oc_fixture']);await inbox.accept({group:'oc_fixture',key:'overflow',command:'help'});
+  await inbox.stop();expect((await read_state('lark-inbox')).pending).toBe(34);expect(await readdir(join(dir,'lark-inbox-pending'))).toHaveLength(34);
  }finally{await inbox?.stop();if(old===undefined)delete process.env.TIBO_STATE_DIR;else process.env.TIBO_STATE_DIR=old;await rm(dir,{recursive:true,force:true});}
 });
 
@@ -158,7 +158,7 @@ test('unreadable delivery state pauses the worker and preserves accepted queries
   await write_state('lark-inbox',{jobs:[{group:'oc_fixture',key:'broken',command:'help'}]});
   await writeFile(join(dir,delivery_key('oc_fixture','broken')+'.json'),'invalid');
   inbox=await create_inbox({},['oc_fixture']);inbox.resume();await until(()=>inbox.status().paused);
-  expect((await read_state('lark-inbox')).jobs).toHaveLength(1);await inbox.stop();
+  expect((await read_state('lark-inbox')).pending).toBe(1);await inbox.stop();expect(await readdir(join(dir,'lark-inbox-pending'))).toHaveLength(1);
  }finally{await inbox?.stop();if(old===undefined)delete process.env.TIBO_STATE_DIR;else process.env.TIBO_STATE_DIR=old;await rm(dir,{recursive:true,force:true});}
 });
 
@@ -173,8 +173,9 @@ test('fixed business commands bypass a blocked ordinary query without losing, du
   inbox=await create_inbox({send:async body=>{sent.push(body);if(sent.length===1)await blocked;return {code:0,data:{message_id:'om_lanes'+sent.length}};}},['oc_fixture']);
   await inbox.accept({group:'oc_fixture',key:'slow',command:'ask slow question'});await until(()=>sent.length===1);
   await inbox.accept({group:'oc_fixture',key:'fast',command:'help'});await until(()=>sent.length===2);
-  await until(async()=> (await read_state('lark-inbox')).jobs.length===1);
-  expect((await read_state('lark-inbox')).jobs[0].key).toBe('slow');
+  await until(async()=> (await read_state('lark-inbox')).pending===1);
+  const remaining=await readdir(join(dir,'lark-inbox-pending'));expect(remaining).toHaveLength(1);
+  expect(JSON.parse(await readFile(join(dir,'lark-inbox-pending',remaining[0]),'utf8')).key).toBe('slow');
   expect(JSON.parse(sent[1].content).zh_cn.content[0][0].text).toContain('命令');
   release();await until(()=>inbox.status().pending===0);await inbox.accept({group:'oc_fixture',key:'fast',command:'help'});
   await delay(30);expect(sent).toHaveLength(2);

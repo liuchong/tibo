@@ -62,6 +62,8 @@ oracle 使用 temperature=1，wish 使用 temperature=1.2，分析与文字任�
 
 本地示例：“善信，本神愿汝token不枯，上下文经卷不散，CI天灯长明。”本地祝词同样随机选择，保留正常成就和彩蛋，不重复加娱乐免责声明。素材读取与关键词触发规则见 [IM 触发过滤](im-triggers.md)。它不是神谕的厂商彩蛋入口，不抓取新闻，也不调用命令或搜索。
 
+祈祷记账与祝词生成分成两阶段：快速并发先写入档案，允许回复时才为该事件生成一次祝词。群限频不会丢次数或未展示的集体彩蛋，详情见 [集体彩蛋与快速连发](pray-subscriptions.md#集体彩蛋与快速连发)。彩蛋仪式由本地规则生成，模型只写吉祥话，不负责判断是否达到门槛。
+
 ## 维护与验证
 
 业务实现：`src/prayer/oracle.eli`、`src/prayer/wish.eli`、`src/prayer/pray.eli`；时事采集：`src/prayer/oracle-news.eli`；话题与资料排序：`src/prayer/oracle-context.eli`；会话避重：`src/prayer/oracle-memory.eli`；入口：commands / presentation。测试覆盖请求与查询区分、关闭和熔断时零网络、引用校验、日期与域名范围、官方消息兜底和共享缓存、任务级熔断及业务状态不变；祝词还覆盖先记账后生成、身份隔离、超时、本地兜底及重复事件不重复调用。
