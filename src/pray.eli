@@ -218,7 +218,8 @@
       ;; identity lock during network I/O, and never regenerate on a replay.
       (when (get response :wishRequest)
         (try
-          (let ((wish (await (generate-wish (get response :wishScene) (get response :wishVariant) (get (or options (js-object)) :noAi)))))
+          (let ((wish (await (generate-wish (get response :wishScene) (get response :wishVariant) (get (or options (js-object)) :noAi)
+            (or (get (or options (js-object)) :prayerMaterial) (get (or options (js-object)) :inputText))))))
             (when wish
               (await (with-lock identity-key (async ()
                 (let* ((root (await (identity-state)))

@@ -10,11 +10,12 @@ Lark 是独立的 Eliscript 接入程序，复用核心命令与共享报告。�
 
 | 事件 / 权限 | 用途 |
 | --- | --- |
-| `im.message.receive_v1` | 接收用户文本消息 |
+| `im.message.receive_v1` | 接收用户文本和富文本消息 |
 | `im.message.reaction.created_v1` | 接收消息表情反应 |
 | `im:message.group_at_msg:readonly` | 接收群内 @ 机器人消息 |
-| `im:message.group_msg` | 接收群内未 @ 的上香文本；允许平台投递所有群消息，程序仍按授权群与命令规则过滤 |
+| `im:message.group_msg` | 接收群内未 @ 的上香、点名和次级关键词候选；允许平台投递所有群消息，程序仍按授权群与命令规则过滤 |
 | `im:message.p2p_msg:readonly` | 接收用户私聊消息 |
+| `im:message:readonly` | 读取被点击祈祷反应的消息正文，支持群成员消息作为素材 |
 | `im:message:send_as_bot` | 以机器人身份发送消息 |
 | `im:message.reactions:read` | 查看消息表情反应 |
 | `im:chat:read` | 核实旧发送回执对应的单聊/群聊类型，使旧机器人消息也支持私聊表情上香 |
@@ -28,6 +29,7 @@ Lark 是独立的 Eliscript 接入程序，复用核心命令与共享报告。�
       "im:message.group_at_msg:readonly",
       "im:message.group_msg",
       "im:message.p2p_msg:readonly",
+      "im:message:readonly",
       "im:message:send_as_bot",
       "im:message.reactions:read",
       "im:chat:read"
@@ -71,9 +73,9 @@ bun run compile
 ## 消息入口与展示
 
 - 来自 user 的私聊文本无需 @。
-- 授权群的查询需准确 @ 本机器人或在文字中包含 `tibo`（不区分大小写）；其他机器人、应用操作者和非文本消息不作为命令入口。
-- 已收到的群文本含 Unicode 🙏 或 Lark 原生 `[双手合十]` 时只执行上香，无需 @；未 @ 消息需开通 `im:message.group_msg` 并发布生效，否则平台不会交付。
-- “双手合十”反应的枚举是 `THANKS`；只接受本应用已成功发送并记录的授权群消息上的用户反应。
+- 授权群里 @ 本机器人或文字包含 `tibo`（不区分大小写）强触发；其他关键词先走 [相关度与降敏](im-triggers.md)。接收文本和富文本，其他机器人/应用操作者不作为文字命令入口。
+- 已收到的群消息含 Unicode 🙏 或 Lark 原生 `[双手合十]` 时只执行上香，无需 @；未 @ 消息需开通 `im:message.group_msg` 并发布生效，否则平台不会交付。
+- “双手合十”反应的枚举是 `THANKS`；支持授权群或私聊的可读取消息上的用户反应，包括群成员消息；正文只作为祝词素材，不读取邻近聊天。
 - 超过 5 分钟或未来超过 1 分钟的消息、反应事件忽略。
 
 回复使用 post 富文本内的 Markdown `md` 元素，保留加粗标题、条目与原帖链接。客户端实际渲染需要真机验证，不根据本地 JSON 结构宣称效果已验收。普通查询、翻译、上香和订阅用法见 [命令参考](commands.md)、[语言与管道](language-pipelines.md)、[上香与订阅](pray-subscriptions.md)。
@@ -129,6 +131,7 @@ API 成功证据还需结合客户端消息核对实际可见性。不要删除�
 - [发送消息](https://open.feishu.cn/document/server-docs/im-v1/message/create)
 - [接收消息事件](https://open.feishu.cn/document/server-docs/im-v1/message/events/receive)
 - [表情反应事件](https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/im-v1/message-reaction/events/created)
+- [获取指定消息](https://open.feishu.cn/document/server-docs/im-v1/message/get)：固定只读 API 获取反应对应的正文。
 - [表情枚举](https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/im-v1/message-reaction/emojis-introduce)
 - [长连接协议实现参考](https://github.com/larksuite/node-sdk/blob/main/ws-client/index.ts)：只核对协议，不安装或运行 SDK。
 
@@ -140,4 +143,4 @@ API 成功证据还需结合客户端消息核对实际可见性。不要删除�
 
 旧事件仍遵守五分钟接收窗口，重装不会自动重新执行过期事件。相同人对同一条消息的表情使用同一个去重键，平台重投或反复切换表情不能重复记账。只在明确核对平台原始反应和发送回执后，由本地维护处理已确认遗漏的旧事件，不能替换去重键强制重复发送。
 
-`tibo-lark status` 的 events 包含当前进程接收/接受的计数、最近接收时间，以及最近表情 accepted/reason；只记录诊断标签，不存消息正文或身份。reason 可区分 not-prayer、stale-or-invalid-time、not-own-message、chat-metadata-unavailable、chat-not-authorized、accepted。连接和队列快照按定时更新，事件字段则在处理事件后更新；无新表情事件时先核对长连接事件订阅，不能把“未收到”当“生成慢”。完整执行能力边界见 [执行边界](execution-boundary.md)。
+`tibo-lark status` 的 events 包含当前进程接收/接受的计数、最近接收时间，以及最近表情 accepted/reason；只记录诊断标签，不存消息正文或身份。reason 可区分 not-prayer、stale-or-invalid-time、not-own-message、chat-metadata-unavailable、chat-not-authorized、accepted。连接和队列快照按定时更新，事件字段则在处理事件后更新；无新表情事件时先核对长连接事件订阅，不能把“未收到”当“生成慢”。次级候选入队不等于发送，过滤理由查本地投递账本 state=filtered；规则见 [IM 触发过滤](im-triggers.md)。完整执行能力边界见 [执行边界](execution-boundary.md)。

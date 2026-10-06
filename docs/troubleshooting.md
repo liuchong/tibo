@@ -79,7 +79,7 @@ launchd 会自动恢复被 kill 的服务；需要停机调试用 service uninst
 ~/.local/lib/tibo/tibo-lark status
 ```
 
-`check` 成功只证明凭据和机器人身份。消息必须实际交付，来自 user、在授权群、正确 @ 或文字包含 tibo（不区分大小写），或含 🙏 / 原生双手合十，且处于时效范围内。无 @ 入口必须已开通并发布 `im:message.group_msg`；其余无 @ 普通群消息直接忽略。检查平台事件订阅、应用发布范围和本地 inbox 后，再查投递状态。
+`check` 成功只证明凭据和机器人身份。消息必须实际交付，来自 user、在授权群、正确 @ 或文字包含 tibo（不区分大小写），或含 🙏 / 原生双手合十，且处于时效范围内。无 @ 入口必须已开通并发布 `im:message.group_msg`；次级关键词只有相关度和降敏通过后才回应；其余无 @ 普通群消息忽略。检查平台事件订阅、应用发布范围和本地 inbox 后，再查投递状态。
 
 订阅只在下一次北京时间 09:00 / 21:00 私聊推送；09:02 启动不补发。核心 daemon ready 不证明 Lark 在运行。共享报告生成失败时该定点不自动重跑，某个收件人发送失败也不重新生成报告。
 
@@ -87,8 +87,8 @@ launchd 会自动恢复被 kill 的服务；需要停机调试用 service uninst
 
 ## 祈祷没回复与查询耗时
 
-直接发送 🙏 文本与点击消息上的双手合十是不同平台事件。文本走 im.message.receive_v1，消息表情走 im.message.reaction.created_v1，两项都要订阅。私聊表情只认本机器人已确认发送的消息；旧回执需一次固定 API 核实会话，查验失败看本地事件原因与平台权限。
+直接发送 🙏 文本与点击消息上的双手合十是不同平台事件。文本走 im.message.receive_v1，消息表情走 im.message.reaction.created_v1，两项都要订阅。表情可指向平台可读取的本机器人或成员消息；旧回执或陌生消息需固定 API 核实正文与会话，查验失败看本地事件原因与平台权限。
 
-先看 tibo-lark status 的 events：reactions 未增加说明没有观察到新表情事件；增加但 lastReaction.accepted=false 则看 reason；accepted=true 后再查投递账本，不能笼统归因于 AI。固定祈祷走快捷队列并且无需模型；采集和文字任务走普通队列。
+先看 tibo-lark status 的 events：reactions 未增加说明没有观察到新表情事件；增加但 lastReaction.accepted=false 则看 reason；accepted=true 后再查投递账本，不能笼统归因于 AI。固定祈祷走快捷队列，基础记账无需模型，祝词最多等待 1.5 秒模型生成；采集和文字任务走普通队列。
 
 投递账本的 latency 区分 platformMs（平台产生到程序收到）、queueMs（已接受到开始执行）、routeMs、executeMs、sendMs；预测还细分 collectionMs、analysisMs。totalMs 是开始执行到发送完成，不能误当成包含前面两项的端到端耗时。不同查询及缓存命中会有差异，不应保证所有请求同一时间完成。源码修改后按运维步骤同时重装核心和 Lark，不能只重启旧二进制。

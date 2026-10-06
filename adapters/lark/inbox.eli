@@ -5,6 +5,7 @@
   (import "../../src/state.eli" read-state write-state)
   (import "../../src/commands.eli" fixed-query)
   (import "../../src/util.eli" fail iso ms)
+  (import "../../src/im-trigger.eli" decide-secondary)
   (import "./service.eli" delivery-key deliver allowed-job?)
   (defun fast-job? (job)
     ;; Classify locally, without AI. Pipes and management stay in the normal lane.
@@ -33,7 +34,12 @@
                       (when (and (allowed-job? job groups)
                                  (or (not (get job :expiresAt)) (> (ms (get job :expiresAt)) (Date/now)))
                                  (not (await (read-state (delivery-key (get job :group) (get job :key))))))
-                        (await (deliver client (get job :group) (get job :key) (get job :command) (get job :titleTime) (get job :context) nil job)))) :call nil)
+                        (let ((decision (when (= (get job :triggerLevel) 2)
+                          (await (decide-secondary (get job :command) (get job :context) (get job :key))))))
+                          (if (and decision (not (get decision :accepted)))
+                            (await (write-state (delivery-key (get job :group) (get job :key))
+                              (js-object :state "filtered" :at (iso (Date/now)) :reason (get decision :reason) :method (get decision :method))))
+                            (await (deliver client (get job :group) (get job :key) (get job :command) (get job :titleTime) (get job :context) nil job)))))) :call nil)
                       :catch (async (error)
                         (console/error "tibo-lark: 查询投递未完成，详情留在本地账本")
                         (try
