@@ -25,7 +25,7 @@
           (if (get info :activeIncident) "active-incident" "no-known-active-incident") "|"
           (if (get info :recentRelease) "recent-release" "no-known-release")))
         (learned (signal-experience (get snapshot :predictionExperience (js-array)) signal (get model :p24) (get model :p48) (get snapshot :now) bucket)))
-      (js-object :policyVersion "3" :information info :p24 (clamp (get learned :p24))
+      (js-object :policyVersion "4" :information info :p24 (clamp (get learned :p24))
         :p48 (Math/max (clamp (get learned :p24)) (clamp (get learned :p48)))
         :base24 (get model :p24) :base48 (get model :p48) :confidence "低"
         :signal signal :signalStrength (if active (if (get promise :primary) "强" "中") "弱")
