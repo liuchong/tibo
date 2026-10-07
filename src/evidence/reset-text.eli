@@ -5,5 +5,5 @@
       (matches "reset all propagated|reset.*(?:complete|propagated)|(?:we(?:'ve| have)?|I(?:'ve| have)?) reset|(?:usage|limits|accounts).*(?:have been|has been|were|are now) reset" text)
       (not (matches "banked|reset card" text))))
   (defun conditional-reset? (text)
-    (and (matches "reset" text) (matches "\\beither\\b[\\s\\S]*\\bor\\b|\\bif\\b[\\s\\S]*reset|reset[\\s\\S]*\\binstead\\b" text)))
+    (and (matches "reset" text) (matches "\\beither\\b[\\s\\S]*\\bor\\b|\\bif\\b[\\s\\S]*reset|reset[\\s\\S]*\\binstead\\b|\\b(?:updates?|improvements?)\\s+or\\s+(?:a\\s+|full\\s+|global\\s+)*reset\\b" text)))
   (export completed? conditional-reset?))

@@ -1,5 +1,6 @@
 (module tibo.forecast.signals
   (import "../evidence/reset-text.eli" completed? conditional-reset?)
+  (import "../evidence/post-context.eli" active-programme)
   (import "../platform/host.eli" Date Set Number Intl)
   (import "../platform/util.eli" ms iso hour-ms day-ms matches match sorted last-item recent)
   ;; PST/PDT are fixed offsets. An unqualified PT uses IANA Pacific DST.
@@ -50,10 +51,11 @@
            (globals (js-call events :filter (lambda (e) (get e :global))))
            (bankeds (js-call events :filter (lambda (e) (get e :banked))))
            (last-global (last-item globals)) (last-banked (last-item bankeds))
+           (programme (active-programme posts now last-global))
            (promise nil) (hints (js-array)) (catalysts (js-array)) (compensation nil))
-      (js-call posts :forEach
+      (js-call (sorted posts "at") :forEach
         (lambda (post)
-          (when (recent (get post :at) now 48)
+          (when (or (recent (get post :at) now 48) (and programme (= (get programme :postId) (get post :id))))
             (let* ((text (get post :text)) (at (get post :at))
                    (is-reset (matches "reset" text))
                    (negative (matches "can't|can’t|cannot|won't|won’t|no reset|not.*reset" text))
@@ -75,5 +77,5 @@
                 (setq compensation (js-object :postId (get post :id) :text text :primary (= (get post :provenance) "primary"))))
               (when (matches "launch|release|million.*users|milestone|roll(?:ing)? out" text)
                 (js-call catalysts :push (js-object :postId (get post :id) :text text :at at :consumed consumed)))))))
-      (js-object :lastGlobal last-global :lastBanked last-banked :promise promise :hints hints :catalysts catalysts :compensation compensation)))
+      (js-object :lastGlobal last-global :lastBanked last-banked :promise promise :hints hints :catalysts catalysts :compensation compensation :programme programme)))
   (export pacific-target target-time completed? conditional-reset? normalize-events analyze-signals))

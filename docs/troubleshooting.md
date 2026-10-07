@@ -35,7 +35,7 @@ tibo diagnose
 - latestPost 的时间、出处、verifiedAt 与 truncated。
 - archiveCachedAt 是站点缓存时间，不是本次请求时间。
 - sources 的 ok / fetched，以及 oembed 的 attempted / verified。
-- 最近预测的 AI postIds 是否包含目标帖子；只有近 48h 最多 8 条进入预测上下文。
+- 最近预测的 AI postIds 与 selection 是否包含目标帖子；最多 8 条按证据价值选取并保留最新帖，有声明期限的计划可超过 48h。programme 记录期限、已见 Day 与旧线索是否已消耗；超期或未被规则识别的旧帖不会无限保留。
 
 主页抓不到时仍可能通过存档发现、oEmbed 核实已知原文。oEmbed 不负责发现未知帖子；正文末尾有截断提示时不能补全原文。扩大查询范围也不能消除公开来源漏帖。
 

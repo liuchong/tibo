@@ -1,7 +1,7 @@
 (module tibo.presentation.business
   (import "../platform/host.eli" RegExp)
   (import "../forecast/availability.eli" usage-text)
-  (import "./report.eli" render-report)
+  (import "./report.eli" render-report context-lines)
   (import "../platform/privacy.eli" public-text)
   (import "../platform/util.eli" ms utc beijing last-item sorted)
   (defun event-text (event)
@@ -21,6 +21,7 @@
       (unless (= horizon "24") (js-call lines :push (str "• 48h（含24h）：" (get p :p48) "%")))
       (js-call lines :push (str "• 依据：历史算法" (if (= (get p :mode) "ai-blend") "与可用AI建议" "") "；概率尚未校准"))
       (js-call lines :push (str "• 上次 global：" (event-text (get s :lastGlobal))))
+      (js-call (context-lines s snapshot) :forEach (lambda (line) (js-call lines :push line)))
       (when latest
         (js-call lines :push (str "• 最新 Tibo 发言：" (utc (get latest :at)) "｜" (public-text (get latest :text) 240)
           (if (> (get (get latest :text) :length) 240) "…" "")
@@ -49,6 +50,11 @@
               (str (get row 1) " " (cond ((js-call (js-array "ok" "cached") :includes (get (get features (get row 0) (js-object)) :state)) "可用")
                 ((= (get (get features (get row 0) (js-object)) :state) "disabled") "未开启")
                 ((= (get (get features (get row 0) (js-object)) :state) "skipped") "跳过") (t "暂不可用"))))) :join "、")))
+          (let* ((ai (get result :ai)) (base (get ai :baseline)) (proposal (get (get features :forecast (js-object)) :value)))
+            (when proposal
+              (js-call lines :push (str "• 概率采用：历史与规则基线 " (get base :p24) "%/" (get base :p48)
+                "%；AI建议 " (get proposal :p24) "%/" (get proposal :p48) "%；实际融合权重 " (Math/round (* 100 (get ai :weight))) "%"
+                (if (and (= (get base :p24) (get p :p24)) (= (get base :p48) (get p :p48))) "；最终整数概率未改变。" "；建议仍待事后校准。")))))
           (when (js-call (Object/keys features) :some (lambda (name) (js-call (js-array "fallback" "blocked") :includes (get (get features name) :state))))
             (js-call lines :push "• 部分AI辅助暂时出了问题，已保留可用的算法结果。"))
           (when (get brief :value)

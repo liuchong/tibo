@@ -44,7 +44,7 @@
         (progn
           (put observed :history history)
           (put observed :forecast (js-object :available false :p24 nil :p48 nil :base24 nil :base48 nil :confidence "低"
-            :mode "evidence-only" :policyVersion "3" :information (information snapshot (get observed :signals) history)
+            :mode "evidence-only" :policyVersion "4" :information (information snapshot (get observed :signals) history)
             :signal "数值依据不足" :signalStrength "未知" :reasons (js-array "历史不足，保留公告和原帖；不编造数值概率"))) observed))))
   (defasync load-snapshot (&optional path offline)
     (if path (validate-snapshot (JSON/parse (await (readFile path "utf8"))))

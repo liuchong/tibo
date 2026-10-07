@@ -56,10 +56,13 @@
                    :historicalPrediction (js-object :p24 (Math/round (get prob :base24)) :p48 (Math/round (get prob :base48)))
                    :information (get prob :information) :policyVersion (get prob :policyVersion)
                    :signalBucket (get prob :signalBucket) :models (get (get prob :model) :candidates) :signal (get prob :signal) :outcome nil)))
+            (put row :programme (get (get result :signals) :programme))
             (when (and proposal (get proposal :value))
               (put row :aiPrediction (js-object :p24 (get (get proposal :value) :p24) :p48 (get (get proposal :value) :p48)))
               (put row :baselinePrediction (get ai :baseline)))
             (when ai
+              (put row :evidenceSelection (get ai :selection))
+              (put row :aiWeight (get ai :weight))
               (let* ((features (get ai :features)) (research (get features :research)) (review (get features :review)))
                 (when (and research (get research :value))
                   (put row :researchFeatures (js-call (get (get research :value) :facts) :map (lambda (f)
