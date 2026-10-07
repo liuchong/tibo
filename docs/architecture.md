@@ -52,6 +52,8 @@ evidence/post-body 可选补取长帖全文，核对官方截断片段但保留�
 
 没有模型服务或部分资料获取失败时，自有算法仍可运行；证据不足时明确返回未知，不填造概率。重组目录不改变概率规则、状态格式、固定推送时间、权限或模型能力。详细算法见 [判断约定](decision-contract.md)，可选任务见 [AI 资料与任务](ai-research.md)。
 
+presentation/forecast-evidence 选择公开参考与必要理由，presentation/report 渲染唯一固定模板，business 复用此模板。CLI、MCP 和订阅生成不维护各自的报告版本；完整数据仍保留在本地 JSON 中。evidence/public-posts 为受限搜索核实固定官方 X 账户的补充原帖，不引入任意抓取或系统执行能力。报告约定见 [预测报告格式](forecast-report.md)。
+
 ## 扩展与维护
 
 新增能力放在其职责目录，不在 src 第一层重新堆积文件，也不创建收容各种业务的通用 helper。仅在一个模块有明确的独立职责时拆分，避免为每个小函数增加包装层。

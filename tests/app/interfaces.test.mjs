@@ -17,7 +17,7 @@ test('dependency-free MCP subprocess negotiates lifecycle, calls tools, validate
   send({jsonrpc:'2.0',method:'notifications/initialized'});
   expect((await request('tools/list')).result.tools.map(x=>x.name)).toEqual(['codex_reset_forecast','codex_reset_status','codex_reset_history','tibo_query','tibo_ask']);
   const forecast=(await request('tools/call',{name:'codex_reset_forecast',arguments:{}})).result;
-  expect(forecast.isError).not.toBe(true);expect(forecast.content[0].text).toContain('**Codex 重置概率');
+  expect(forecast.isError).not.toBe(true);expect(forecast.content[0].text).toContain('**Codex 重置预测');
   const posts=(await request('tools/call',{name:'tibo_query',arguments:{command:'posts',args:{limit:1}}})).result;
   expect(posts.isError).not.toBe(true);expect(posts.content[0].text).toContain('Tibo X 发言');
   expect((await request('tools/call',{name:'tibo_ask',arguments:{question:'帮助'}})).result.content[0].text).toContain('Tibo 查询命令');
@@ -44,7 +44,7 @@ test('CLI and independent Lark entry run with no node_modules directory',async()
  try{
   const env={...process.env,TIBO_STATE_DIR:join(dir,'state'),TIBO_CONFIG_FILE:join(dir,'absent.env'),TIBO_AI_FEATURES:'',DEEPSEEK_API_KEY:'',TIBO_LARK_CHAT_IDS:'',TIBO_LARK_APP_ID:'',TIBO_LARK_APP_SECRET:''};
   const run=args=>spawnSync(process.execPath,[join(dir,'bin/tibo.mjs'),...args],{cwd:dir,encoding:'utf8',env,timeout:5000});
-  const f=run(['forecast','--snapshot',file]);expect(f.status).toBe(0);expect(f.stdout).toContain('• 模型验证');expect(f.stderr).toBe('');
+  const f=run(['forecast','--snapshot',file]);expect(f.status).toBe(0);expect(f.stdout).toContain('**判断理由**');expect(f.stdout).not.toContain('• 模型验证');expect(f.stderr).toBe('');
   const s=run(['status','--snapshot',file,'--since','2026-09-23T00:00:00Z']);expect(s.status).toBe(0);expect(JSON.parse(s.stdout).accountApplied).toBe('unknown');
   const bad=run(['status','--snapshot',file,'--since','no-time']);expect(bad.status).toBe(2);expect(bad.stdout).toContain('未能识别');
   const l=spawnSync(process.execPath,[join(dir,'lark.mjs')],{cwd:dir,encoding:'utf8',env,timeout:5000});expect(l.status).toBe(1);expect(l.stderr).toContain('本地配置');

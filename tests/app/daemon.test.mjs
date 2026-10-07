@@ -17,7 +17,7 @@ test('daemon actually produces a core report when every network source fails and
  try{await writeFile(join(dir,'ledger.json'),JSON.stringify(snapshot()));
  const code=`globalThis.fetch=async()=>{throw new Error('unavailable')};const {start_daemon}=await import(${JSON.stringify(host)});await start_daemon(true);console.log('finished');`;
  const env={...process.env,TIBO_STATE_DIR:dir,TIBO_AI_FEATURES:'',TIBO_DAEMON_INTERVAL:'60'};
- const once=spawnSync(process.execPath,['--eval',code],{env,encoding:'utf8',timeout:5000});expect(once.status).toBe(0);expect(once.stdout).toContain('finished');expect(JSON.parse(await readFile(join(dir,'daemon.json'),'utf8')).state).toBe('ready');expect(JSON.parse(await readFile(join(dir,'daemon-latest.json'),'utf8')).report).toContain('**Codex 重置判断');
+ const once=spawnSync(process.execPath,['--eval',code],{env,encoding:'utf8',timeout:5000});expect(once.status).toBe(0);expect(once.stdout).toContain('finished');expect(JSON.parse(await readFile(join(dir,'daemon.json'),'utf8')).state).toBe('ready');expect(JSON.parse(await readFile(join(dir,'daemon-latest.json'),'utf8')).report).toContain('**Codex 重置预测');
  const signalCode=`globalThis.fetch=async()=>{throw new Error('unavailable')};const {start_daemon}=await import(${JSON.stringify(host)});setTimeout(()=>process.kill(process.pid,'SIGTERM'),200);await start_daemon();console.log('stopped');`;
  const stop=spawnSync(process.execPath,['--eval',signalCode],{env,encoding:'utf8',timeout:5000});expect(stop.status).toBe(0);expect(stop.stdout).toContain('stopped');expect(stop.stderr).toContain('已停止');
  }finally{await rm(dir,{recursive:true,force:true});}

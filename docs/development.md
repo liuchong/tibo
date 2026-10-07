@@ -11,7 +11,7 @@
 | `src/forecast/` | 事件与信号、历史统计、模型、信息完整度；cycle 负责公告与七天参考、journal 负责实际报告复盘、experience 负责独立经验训练；不调用 AI 或 IM |
 | `src/evidence/` | 采集、原文判定、HTML、受限搜索和资料校验；post-body 匹配截断长帖的存档正文；不依赖预测模型或 AI 网关 |
 | `src/ai/` | runtime 任务网关、enhance 预测辅助、repair 人工输入修复 |
-| `src/presentation/` | language 语言与提示、syntax 管道定义/解析、text 一次性文字处理、pipeline 顺序执行、business 业务展示、report 完整报告；index 提供共用文字接口 |
+| `src/presentation/` | language 语言与提示、syntax 管道定义/解析、text 一次性文字处理、pipeline 顺序执行、business 业务展示、forecast-evidence 参考筛选、report 固定简洁报告；index 提供共用文字接口 |
 | `src/prayer/` | 祈祷档案、festivals 会话次数彩蛋与展示确认、celebration 六级随机大场面、wish 吉祥话、oracle 神谕、时事素材、oracle-context 话题/资料匹配、oracle-memory 会话避重与 material 祈祷素材 |
 | `src/subscriptions/` | registry 本人订阅、schedule 固定定点、bulletin 共享报告 |
 | `src/im/` | 多级触发与相关度、reactions 本地表情选择、文字与表情的独立预算、匿名近期上下文和同会话事务 |
