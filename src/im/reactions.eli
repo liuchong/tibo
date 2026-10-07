@@ -1,0 +1,14 @@
+(module tibo.im.reactions
+  (import "./triggers.eli" keywords local-score)
+  (import "../platform/privacy.eli" private-question?)
+  (import "../platform/util.eli" matches)
+  ;; Transport-neutral, local-only acknowledgement. It makes no factual claims.
+  (defun reaction-choice (text decision)
+    (when (and (not (private-question? text))
+      (not (matches "去世|死亡|自杀|伤害|受伤|bereave|suicide|death|died" text))
+      (not (js-call (js-array "unrelated" "filter-unavailable" "ambient-expired") :includes (get decision :reason)))
+      (not (and (= (get decision :method) "ai") (not (get decision :accepted))))
+      (js-call (keywords text) :some (lambda (p) (>= (local-score text p) 0.60))))
+      (cond ((matches "claude|anthropic|克劳德|克洛德" text) "SMILE")
+        ((matches "上线|发布|release|shipped|launch" text) "THUMBSUP") (t "OK"))))
+  (export reaction-choice))

@@ -17,7 +17,7 @@
   (defun output (value) (print (source-free-text value)))
   (defconst help "tibo query \"固定指令\" / ask \"自然语言提问\"\ntibo \"自然语言提问\"（未识别为CLI命令时自动ask）\ntibo commands\ntibo posts [--limit N] [--hours N] [--keyword TEXT] [--offline]\ntibo banked / signals / stats [--offline]\ntibo forecast [--json] [--no-ai] [--offline] [--snapshot FILE]\ntibo status [--since ISO-UTC] [--offline] [--snapshot FILE]\ntibo history [--offline] [--snapshot FILE]\ntibo evaluate [--snapshot FILE]\ntibo ai-status / diagnose（本地只读）\ntibo clear-history / clear-experience / reset-ai（先申请）\ntibo confirm ID / cancel ID\ntibo daemon [--once] / daemon-status\ntibo service install|restart|status|uninstall\ntibo mcp\n\n祈祷、功德和神谕是娱乐功能，不影响真实重置概率，也不会实际重置账户。\n核心无需API key；AI各功能可选且失败自动降级。业务查询与本地维护命令分开，远程不开放维护命令。默认配置 ~/.config/tibo/config.env，环境变量优先。")
   (defconst cli-commands (js-array "forecast" "status" "history" "posts" "banked" "signals" "stats" "help" "--help" "-h"
-    "query" "ask" "commands" "evaluate" "ai-status" "clear-history" "clear-experience" "reset-ai" "ai-reset" "confirm" "cancel"
+    "query" "ask" "commands" "review" "evaluate" "ai-status" "clear-history" "clear-experience" "reset-ai" "ai-reset" "confirm" "cancel"
     "diagnose" "daemon" "daemon-status" "service" "mcp"))
   (defun parse-args (argv)
     (if (and (> (get argv :length) 0) (not (js-call cli-commands :includes (get argv 0))))
@@ -99,7 +99,7 @@
                   (let ((response (await (execute-query (js-object :command name :args params) args))))
                     (output (get response :text)) (unless (get response :ok) (put process :exitCode 2)))))
               ((= command "commands") (output (help-text context)))
-              ((js-call (js-array "posts" "banked" "signals" "stats") :includes command)
+              ((js-call (js-array "posts" "banked" "signals" "stats" "review") :includes command)
                 (let ((params (js-object)))
                   (js-call (js-array "limit" "hours" "keyword" "postId") :forEach (lambda (key) (when (Object/hasOwn args key) (put params key (get args key)))))
                   (let ((response (await (execute-query (js-object :command command :args params) args))))

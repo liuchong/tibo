@@ -33,6 +33,16 @@
               (js-object :method "POST" :redirect "error" :headers (js-object :content-type "application/json" :authorization (str "Bearer " (await (funcall access))))
                 :body (JSON/stringify body)))))
           ;; Fixed read-only API for verified legacy message metadata, never an AI URL.
+          :react (async (id emoji)
+            (unless (and (js-call (new RegExp "^om_[A-Za-z0-9_-]{1,180}$") :test id)
+              (js-call (js-array "OK" "SMILE" "THUMBSUP") :includes emoji)) (fail "Invalid reaction"))
+            (let ((result (await (request-json (str base "/open-apis/im/v1/messages/" id "/reactions")
+              (js-object :method "POST" :redirect "error" :headers (js-object :content-type "application/json"
+                :authorization (str "Bearer " (await (funcall access))))
+                :body (JSON/stringify (js-object :reaction_type (js-object :emoji_type emoji)))) 1800))))
+              (unless (and (= (get result :code) 0) (get (get result :data (js-object)) :reaction_id))
+                (let ((error (new Error "Reaction unavailable"))) (put error :larkCode (get result :code)) (throw error)))
+              (get (get result :data) :reaction_id)))
           :chatInfo (async (id)
             (unless (js-call (new RegExp "^oc_[A-Za-z0-9]+$") :test id) (fail "Invalid chat ID"))
             (let ((result (await (request-json (str base "/open-apis/im/v1/chats/" id)

@@ -1,13 +1,14 @@
 (module tibo.presentation.business
   (import "../platform/host.eli" RegExp)
   (import "../forecast/availability.eli" usage-text)
+  (import "../forecast/cycle.eli" cycle-text)
   (import "./report.eli" render-report context-lines)
   (import "../platform/privacy.eli" public-text)
   (import "../platform/util.eli" ms utc beijing last-item sorted)
   (defun event-text (event)
     (if (not event) "未见可用记录"
       (str (utc (get event :at)) "｜" (if (get event :global) "global" "banked") "｜"
-        (if (get event :verified) "已核实完成公告" (if (get event :verifiedBanked) "已核实发卡原文" "存档记录，未逐条核实"))
+        (if (get event :verified) (if (= (get event :provenance) "primary") "已核实完成公告" "存档完成公告，全文未由官方接口核实") (if (get event :verifiedBanked) "已核实发卡原文" "存档记录，未逐条核实"))
         (if (get event :text) (str "｜" (get event :text)) ""))))
   (defun post-text (post)
     (str (utc (get post :at)) "｜" (if (= (get post :provenance) "primary") "原文已核实" "存档原文") "\n"
@@ -21,6 +22,7 @@
       (unless (= horizon "24") (js-call lines :push (str "• 48h（含24h）：" (get p :p48) "%")))
       (js-call lines :push (str "• 依据：历史算法" (if (= (get p :mode) "ai-blend") "与可用AI建议" "") "；概率尚未校准"))
       (js-call lines :push (str "• 上次 global：" (event-text (get s :lastGlobal))))
+      (js-call lines :push (cycle-text (get result :cycle)))
       (js-call (context-lines s snapshot) :forEach (lambda (line) (js-call lines :push line)))
       (when latest
         (js-call lines :push (str "• 最新 Tibo 发言：" (utc (get latest :at)) "｜" (public-text (get latest :text) 240)

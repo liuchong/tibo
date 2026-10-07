@@ -14,6 +14,7 @@
         :documents (if ai (get ai :documents) (documents-from snapshot))
         :ai (if ai (js-object :postIds (get ai :postIds) :selection (get ai :selection) :recentPostCount (get ai :recentPostCount)
           :features (get ai :features) :baseline (get ai :baseline) :weight (get ai :weight)) nil)
+        :cycle (get result :cycle) :forecastCases (get snapshot :forecastCases (js-array))
         :programme (get (get result :signals) :programme)
         :forecast (js-object :p24 (get (get result :forecast) :p24) :p48 (get (get result :forecast) :p48)
           :mode (get (get result :forecast) :mode) :signal (get (get result :forecast) :signal)

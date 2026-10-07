@@ -8,13 +8,13 @@
 | --- | --- |
 | `src/app/` | CLI、MCP、后台采集入口；engine 编排采集、算法和可选 AI |
 | `src/commands/` | index 公共查询接口；catalog、parser、router、execute、help、admin 分别负责命令定义、固定解析、语义解析、执行、帮助和管理票据 |
-| `src/forecast/` | 事件与信号、历史统计、模型、信息完整度、预测经验；不调用 AI 或 IM |
-| `src/evidence/` | 采集、原文判定、HTML、受限搜索和资料校验；不依赖预测模型或 AI 网关 |
+| `src/forecast/` | 事件与信号、历史统计、模型、信息完整度；cycle 负责公告与七天参考、journal 负责实际报告复盘、experience 负责独立经验训练；不调用 AI 或 IM |
+| `src/evidence/` | 采集、原文判定、HTML、受限搜索和资料校验；post-body 匹配截断长帖的存档正文；不依赖预测模型或 AI 网关 |
 | `src/ai/` | runtime 任务网关、enhance 预测辅助、repair 人工输入修复 |
 | `src/presentation/` | language 语言与提示、syntax 管道定义/解析、text 一次性文字处理、pipeline 顺序执行、business 业务展示、report 完整报告；index 提供共用文字接口 |
 | `src/prayer/` | 祈祷档案、festivals 会话次数彩蛋与展示确认、celebration 六级随机大场面、wish 吉祥话、oracle 神谕、时事素材、oracle-context 话题/资料匹配、oracle-memory 会话避重与 material 祈祷素材 |
 | `src/subscriptions/` | registry 本人订阅、schedule 固定定点、bulletin 共享报告 |
-| `src/im/` | 多级触发与相关度、独立回复预算、匿名近期上下文和同会话事务 |
+| `src/im/` | 多级触发与相关度、reactions 本地表情选择、文字与表情的独立预算、匿名近期上下文和同会话事务 |
 | `src/platform/` | 宿主、工具函数、配置、原子状态、transaction 同进程排队与跨进程锁等待、公开文本保护与本地安装管理 |
 | `adapters/lark/` | Lark API、WebSocket、inbox-store 磁盘事件队列、inbox 有限缓存与并发工作任务、广播与投递 |
 | `tests/` | 按职责组织的测试；共用 fixture 与协议入口在 helpers |

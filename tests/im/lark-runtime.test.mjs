@@ -15,7 +15,7 @@ async function until(predicate,timeout=5000){const deadline=Date.now()+timeout;w
 
 test('native HTTP/WebSocket bot receives, persists before ACK, replies, enforces confirmation, reconnects and stops',async()=>{
  const dir=await mkdtemp(join(tmpdir(),'tibo-lark-runtime-'));
- const sockets=[],acks=[],posts=[],requests=[];let child,closed,stderr='',socketCount=0;
+ const sockets=[],acks=[],posts=[],reactions=[],requests=[];let child,closed,stderr='',socketCount=0;
  // Fixed port is released in finally, never changed to evade an occupied listener.
  const server=Bun.serve({hostname:'127.0.0.1',port:18761,
   async fetch(req,server){
@@ -26,6 +26,7 @@ test('native HTTP/WebSocket bot receives, persists before ACK, replies, enforces
    if(path==='/open-apis/bot/v3/info')return Response.json({code:0,bot:{open_id:'ou_bot'}});
    if(path==='/callback/ws/endpoint')return Response.json({code:0,data:{URL:'wss://msg-frontier.feishu.cn/ws?service_id=809',ClientConfig:{PingInterval:5,ReconnectInterval:1}}});
    if(path==='/open-apis/im/v1/messages'){posts.push(body);return Response.json({code:0,data:{message_id:'om_reply'+posts.length}});}
+   if(/^\/open-apis\/im\/v1\/messages\/om_\w+\/reactions$/.test(path)){reactions.push({path,body});return Response.json({code:0,data:{reaction_id:'reaction_'+reactions.length}});}
    if(path==='/ai')return new Response('fixture-secret /Users/private deepseek-flash',{status:401});
    return new Response('unexpected',{status:404});
   },websocket:{open(ws){sockets.push(ws);socketCount++;},async message(ws,bytes){
@@ -97,8 +98,9 @@ test('native HTTP/WebSocket bot receives, persists before ACK, replies, enforces
   await until(async()=>{const s=JSON.parse(await readFile(join(dir,'lark-inbox.json'),'utf8'));return s.pending===0;});
   expect(posts).toHaveLength(18);
   const receipts=await Promise.all(Array.from({length:20},(_,i)=>readFile(join(dir,delivery_key('oc_fixture',`om_discussion${i}`)+'.json'),'utf8').then(JSON.parse)));
-  expect(receipts.filter(r=>r.state==='sent')).toHaveLength(1);expect(receipts.filter(r=>r.state==='suppressed')).toHaveLength(19);
-  console.log('Local discussion trial: 20 people mentioning Claude via WebSocket, 1 reply + 19 suppressed receipts; all events drained and acknowledged.');
+  expect(receipts.filter(r=>r.state==='sent')).toHaveLength(1);expect(receipts.filter(r=>r.state==='suppressed')).toHaveLength(18);expect(receipts.filter(r=>r.state==='reacted')).toHaveLength(1);
+  expect(reactions).toHaveLength(1);expect(reactions[0].body).toEqual({reaction_type:{emoji_type:'SMILE'}});expect(reactions[0].path).toMatch(/\/om_discussion\d+\/reactions$/);
+  console.log('Local discussion trial: 20 people mentioning Claude via WebSocket, 1 text + 1 reaction + 18 silent receipts; all events drained and acknowledged.');
   child.kill('SIGTERM');expect(await closed).toBe(0);expect(JSON.parse(await readFile(join(dir,'lark-runtime.json'),'utf8')).state).toBe('stopped');
   expect((await readdir(dir)).some(x=>x.endsWith('.lock'))).toBe(false);
   console.log('Local Lark trial: 17 HTTP replies; group + DM self-subscription, unsubscribe/resubscribe, pray text/reaction, admin confirmation and reconnect.');

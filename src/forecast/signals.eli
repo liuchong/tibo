@@ -1,5 +1,5 @@
 (module tibo.forecast.signals
-  (import "../evidence/reset-text.eli" completed? conditional-reset?)
+  (import "../evidence/reset-text.eli" completed? conditional-reset? routine-reset?)
   (import "../evidence/post-context.eli" active-programme)
   (import "../platform/host.eli" Date Set Number Intl)
   (import "../platform/util.eli" ms iso hour-ms day-ms matches match sorted last-item recent)
@@ -34,8 +34,12 @@
             (when (and (<= (ms (get event :at)) (ms now)) (not (js-call seen :has key)))
               (js-call seen :add key)
               (let ((copy (Object/assign (js-object) event)))
+                (when (or (get event :automaticWeekly) (= (get event :kind) "automatic-weekly")
+                  (routine-reset? (str text " " (get event :summary "") " " (get event :scope ""))))
+                  (put copy :global false))
                 ;; Source text beats a tracker type. Future promises do not reset the clock.
                 (when (> (get text :length) 0)
+                  (when (routine-reset? text) (put copy :global false))
                   (when (and (matches "banked|reset card" text) (not (matches "global.*reset|reset.*global" text)))
                     (put copy :global false) (put copy :banked t))
                   (when (and (not (completed? text)) (matches "landing tomorrow|will reset|reset tomorrow|reset next week" text))
@@ -57,7 +61,7 @@
         (lambda (post)
           (when (or (recent (get post :at) now 48) (and programme (= (get programme :postId) (get post :id))))
             (let* ((text (get post :text)) (at (get post :at))
-                   (is-reset (matches "reset" text))
+                   (is-reset (and (matches "reset" text) (not (routine-reset? text))))
                    (negative (matches "can't|can’t|cannot|won't|won’t|no reset|not.*reset" text))
                    (target (target-time post))
                    (scope-match (match "(?:for|across)\\s+((?:all|every|paid|Plus|Pro|Business)[^.]+?(?:accounts|users|plans))" text))
