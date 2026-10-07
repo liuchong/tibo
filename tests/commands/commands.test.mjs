@@ -24,7 +24,7 @@ test('public output removes local identity, paths, credentials and provider name
  try{const secret=`${homedir()}/secret ${userInfo().username} ${process.cwd()} fixture-private-credential deepseek-flash sk-123456789abcdef /etc/local-secret`;
  const r=judge(snapshot());r.ai={model:'deepseek-flash',features:{forecast:{state:'blocked',reason:secret,code:401,retryAt:'2026-01-01'},brief:{state:'ok',value:{summary:secret,followups:[secret,'观察新公告']}}}};
  const text=public_forecast(r,'both');for(const value of ['fixture-private-credential','deepseek-flash','sk-123456789abcdef','/etc/local-secret',homedir(),process.cwd(),'401'])expect(text).not.toContain(value);
- expect(text).toContain('出了问题');expect(public_text(secret)).not.toContain(userInfo().username);
+ expect(text).toContain('**判断理由**');expect(text).not.toContain('出了问题');expect(public_text(secret)).not.toContain(userInfo().username);
  }finally{if(original===undefined)delete process.env.DEEPSEEK_API_KEY;else process.env.DEEPSEEK_API_KEY=original;}
 });
 async function subprocess(code){const dir=await mkdtemp(join(tmpdir(),'tibo-router-'));try{const r=spawnSync(process.execPath,['--eval',code],{env:{...process.env,TIBO_STATE_DIR:dir,TIBO_AI_FEATURES:'router',DEEPSEEK_API_KEY:'fixture-router-secret'},encoding:'utf8',timeout:5000});expect(r.status).toBe(0);expect(r.stderr).toBe('');return JSON.parse(r.stdout);}finally{await rm(dir,{recursive:true,force:true});}}

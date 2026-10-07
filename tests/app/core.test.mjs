@@ -66,9 +66,11 @@ test('empty and invalid evidence fail rather than fabricate a report',()=>{
  expect(()=>judge(snapshot({events:[]}))).toThrow();expect(()=>validate_snapshot(snapshot({now:'invalid'}))).toThrow();
  expect(judge(snapshot({now:'2028-01-01T00:00:00Z'})).forecast.p24).toBeGreaterThan(0);
 });
-test('own report keeps evidence and model fields, percent constraints and UTC formatting',()=>{
+test('public forecast has the fixed concise sections; full model data stays in the result',()=>{
  const r=judge(snapshot());const report=render_report(r);const fields=report.split('\n').filter(x=>x.startsWith('•')).map(x=>x.split('：')[0]);
- expect(fields).toEqual(['• 24h 内 global 重置概率','• 48h 内 global 重置概率（含 24h）','• 置信度','• 重置时钟','• 7天参考','• 个人每周自动刷新','• Tibo 最新一条','• 上次 global','• 近期 global 间隔（天）','• 条件样本','• 最近一次 banked','• 事故','• 催化','• 24h','• 48h','• 信号判断','• 模型验证','• 关键数据点','• 变化趋势','• 下次跟进']);
+ expect(fields.slice(0,3)).toEqual(['• 24h','• 48h','• 上次重置']);
+ expect(report.match(/^\*\*(?:概率|参考消息|判断理由)\*\*$/gm)).toEqual(['**概率**','**参考消息**','**判断理由**']);
+ expect(report).not.toMatch(/概率推导|采集|模型验证|7天参考|个人每周|AI 辅助/);expect(r.forecast.model.usableIntervals).toBeGreaterThan(0);
  expect(report).toContain('UTC 09-24 00:00');expect(report).not.toContain('09-24T');expect(report).not.toContain('http');expect(r.forecast.p48).toBeGreaterThanOrEqual(r.forecast.p24);
 });
 test('completion detection rejects negation and banked',()=>{

@@ -36,7 +36,7 @@ tibo query 'help'
 
 `posts --postId` 只查询已知记录中的指定帖子，忽略 hours 窗口；不会凭任意 ID 新建抓取任务。条数是上限，公开来源没有足够匹配记录时返回更少条。状态查询不会读取你的 Codex 账户额度。
 
-`forecast/status` 中的 7 天是“上次 global 后满 7 天”的参考，不能代替个人额度页面的自动刷新日期。个人每周自动刷新不算强行 global，不计入概率或复盘。状态规则与模型同时适用于 CLI、MCP 和 IM，详见 [判断约定](decision-contract.md#重置时钟与-7-天参考)。
+`status` 中的 7 天是“上次 global 后满 7 天”的参考，不能代替个人额度页面的自动刷新日期。个人每周自动刷新不算强行 global，不计入概率或复盘。`forecast` 只展示概率、相关原始消息和简短理由，格式见 [预测报告约定](forecast-report.md)。状态规则与模型同时适用于 CLI、MCP 和 IM，详见 [判断约定](decision-contract.md#重置时钟与-7-天参考)。
 
 可直接问“刚重置了吗”“上次重置多久了”“还有几天到 7 天参考”。语义路由优先选择 status；显式 `ask` 也补入相同状态。AI 关闭或失败时，此类显式问答保留固定状态说明，不编造个人剩余额度。“刚重置了对吧”不触发求重置彩蛋；“帮我重置一下”仍是角色回应。
 
@@ -59,7 +59,7 @@ CLI 还提供以下本地操作，它们不属于 IM 用户命令：
 
 | 入口 | 输出或作用 |
 | --- | --- |
-| `tibo` / `tibo forecast` | 完整判断报告；`--json` 输出证据和算法结构，过滤内部发现源名称与地址 |
+| `tibo` / `tibo forecast` | 固定简洁预测报告；`--json` 输出完整证据和算法结构，过滤内部发现源名称与地址 |
 | `tibo status` / `tibo history` | 本地 JSON；使用 `query` 得到适合聊天的 Markdown |
 | `tibo posts --limit 5` | 原文查询，也可用 hours/keyword/postId |
 | `tibo evaluate` | 离线模型回放与已有前瞻成绩 |

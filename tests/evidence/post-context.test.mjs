@@ -67,9 +67,9 @@ test('AI relation cannot declare a whole multi-day programme fulfilled by one da
  expect(validate_research(r,i)).toEqual(r);
 });
 
-test('public report explains the retained programme and whether AI actually changed numbers, even when latest post is casual',()=>{
- const r=judge(input());r.ai={baseline:{p24:r.forecast.p24,p48:r.forecast.p48},weight:.16,features:{brief:{state:'disabled'},forecast:{state:'ok',value:{p24:r.forecast.p24,p48:r.forecast.p48}}}};
- const text=public_forecast(r,'both');expect(text).toContain('期限内计划：28天');expect(text).toContain(intent.text);
- expect(text).toContain('实际融合权重 16%');expect(text).toContain('最终整数概率未改变');
- expect(text).not.toContain('普通发布即完成');
+test('public report keeps related programme and intent but omits casual posts and model diagnostics',()=>{
+ const s=input();s.posts=s.posts.map((p,i)=>({...p,id:String(2106845241357824205n+BigInt(i)),url:undefined}));
+ const r=judge(s);r.ai={baseline:{p24:r.forecast.p24,p48:r.forecast.p48},weight:.16,features:{brief:{state:'disabled'},forecast:{state:'ok',value:{p24:r.forecast.p24,p48:r.forecast.p48}}}};
+ const text=public_forecast(r,'both');expect(text).toContain('每日');expect(text).toContain(intent.text);
+ expect(text).not.toMatch(/实际融合权重|最终整数概率|Ordinary conversation|普通发布即完成/);
 });
