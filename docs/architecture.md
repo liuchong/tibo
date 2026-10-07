@@ -48,6 +48,8 @@ app/engine 组织采集、标准化与判断。evidence 获取公开内容并保
 
 evidence/post-context 提取有期限的条件计划、合并已见 Day 标签并选择最多 8 条相关原帖。采集核实、规则信号与 AI 共享这套背景规则；forecast 仍保留完整近 48h 信号分析，不把 AI 的帖子输入数量上限误作证据全量。
 
+evidence/post-body 可选补取长帖全文，核对官方截断片段但保留存档等级。forecast/cycle 区分统一完成时钟、从公告起算的 7 天参考与未知的个人刷新日期；forecast/journal 保存每份真实报告的复盘，experience 仍单独保存不重叠训练样本。im/reactions 决定是否适合轻量表情，reply-policy 统一预留预算，Lark 的固定 react 方法完成发送；核心不依赖 Lark API。
+
 没有模型服务或部分资料获取失败时，自有算法仍可运行；证据不足时明确返回未知，不填造概率。重组目录不改变概率规则、状态格式、固定推送时间、权限或模型能力。详细算法见 [判断约定](decision-contract.md)，可选任务见 [AI 资料与任务](ai-research.md)。
 
 ## 扩展与维护

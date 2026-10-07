@@ -74,6 +74,7 @@ TIBO_AI_FEATURES=
 | --- | --- |
 | `ledger.json` | 累积历史公告和帖子，旧证据不是本次采集成功证明 |
 | `experience.json` | 不重叠的前瞻预测窗口、标签与成绩 |
+| `forecast-journal.json` | 最多 400 份真实报告回执和逐窗口复盘；不作为独立训练样本 |
 | `report-*.json` / `evidence-*.json` | 各报告通道上次概率与证据，用于趋势比较 |
 | `diagnostics-cli.json` / `diagnostics-daemon.json` | 最近成功生成报告的采集、AI 输入与结果诊断 |
 | `ai.json` | AI 用量、缓存、最近失败阶段和冷却 |
@@ -82,6 +83,7 @@ TIBO_AI_FEATURES=
 | `confirm-*.json` / `backup-*.json` | 危险操作确认票据 / 操作前数据 |
 | `bulletin-*.json` / `lark-*.json` | 共享定点报告、收件人任务、交互入队、投递与运行状态 |
 | `lark-inbox-pending/` | 每事件一个持久化任务，原子落盘后才 ACK；重装保留，已完成后删除 |
+| `im-replies-*.json` / `lark-reaction-circuit-*.json` | 群内文字与表情预算 / 表情接口失败后的 10 分钟暂停；只保留摘要、状态与时间 |
 
 这些文件属于本地运维数据，不直接发送到 IM 或模型。变更状态目录相当于切换一套应用数据；部署和 CLI 若读不同目录，会看见不同档案与历史。安装固定日志路径见 [安装与运维](operations.md)。
 

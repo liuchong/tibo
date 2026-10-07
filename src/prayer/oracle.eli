@@ -12,6 +12,7 @@
     (when (and (= (value-type question) "string") (<= (get question :length) 800) (not (private-question? question)))
       (cond
         ((and (matches "重置|\\breset\\b" question)
+          (not (matches "刚[\\s\\S]*重置|重置(?:了|过)|already|has[\\s\\S]*reset|reset[\\s\\S]*happen" question))
           (not (matches "概率|几率|历史|上次|什么时候|何时|是否|会不会|预计|预测|查询|记录|配置|状态|确认|reset-ai|reset-history|\\b(?:probability|forecast|history|when|status|config|confirm)\\b" question))
           (matches "(?:帮我|给我|请|求|快|现在|立刻|马上|能不能|能否|可不可以).{0,30}(?:重置|reset)|重置.{0,15}(?:一下|额度|token|账户|帐号)|(?:please|can you|could you|would you).{0,30}reset|^reset (?:my|our|the|all)|重置吧|reset please" question)) "invoke-reset")
         ((or (matches "claude|anthropic|克劳德|克洛德" question)

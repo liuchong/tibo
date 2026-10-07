@@ -7,7 +7,7 @@
     (js-array
       (js-object :name "forecast" :aliases (js-array "预测" "概率" "重置" "/tibo") :purpose "查询未来24h/48h global重置概率"
         :params (js-object :horizon (js-object :type "string" :enum (js-array "24" "48" "both") :default "both") :noAi (js-object :type "boolean" :default false)) :positionals (js-array "horizon"))
-      (js-object :name "status" :aliases (js-array "状态") :purpose "查询最近global公告；可判断指定UTC时间之后是否有公告，不能判断个人账户额度"
+      (js-object :name "status" :aliases (js-array "状态") :purpose "查询是否刚重置、上次global时间、已过多久、上次global后7天参考倒计时；实际个人每周自动刷新时间未知，7天自动刷新不算强行global。可判断指定UTC时间之后是否有公告"
         :params (js-object :since (js-object :type "string" :format "UTC-ISO-8601")) :positionals (js-array "since"))
       (js-object :name "posts" :aliases (js-array "发言" "推文" "tweets" "x" "原文") :purpose "查询Tibo的X原文，最新在前；可筛选条数、近多少小时、关键词或postId；固定命令返回原文"
         :params (js-object :limit (js-object :type "integer" :minimum 1 :maximum 10 :default 3)
@@ -20,6 +20,7 @@
       (js-object :name "banked" :aliases (js-array "发卡" "卡") :purpose "查询最近一次banked发卡及证据等级，不移动global时钟" :params (js-object) :positionals (js-array))
       (js-object :name "signals" :aliases (js-array "信号") :purpose "查询近48h已识别的承诺、暗示、补偿及发布信号" :params (js-object) :positionals (js-array))
       (js-object :name "stats" :aliases (js-array "统计") :purpose "查询历史global间隔的均值、中位数、最短/最长及可用样本量" :params (js-object) :positionals (js-array))
+      (js-object :name "review" :aliases (js-array "复盘" "预测复盘") :purpose "只读查看最近实际预测及24h/48h内是否遇到已完成global公告；重叠窗口不能当独立准确率，个人7天自动刷新不计入" :params (js-object) :positionals (js-array))
       (js-object :name "help" :aliases (js-array "帮助" "commands" "命令") :purpose "查看当前身份可用的业务命令和参数" :params (js-object) :positionals (js-array))
       (js-object :name "pray" :aliases (js-array "祈祷" "上香" "🙏") :purpose "趣味电子上香；offer祈祷一次，me查看本人档案，board查看本会话匿名功德榜，stats查看本会话愿力池、已解锁的集体彩蛋及仪式内容。询问什么集体彩蛋、十次上香效果应选stats，不选ask。集体彩蛋按会话上香次数10/50/100/233/500/1000解锁，个人功德15秒冷却；不能改变重置概率，需要可信本人身份"
         :params (js-object :action (js-object :type "string" :enum (js-array "offer" "me" "board" "stats") :default "offer")

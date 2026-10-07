@@ -11,6 +11,7 @@ tibo query 'posts 5'
 tibo query 'posts 5 reset --hours 72'
 tibo query 'history 5 global'
 tibo query 'status 2026-10-02T00:00:00Z'
+tibo query 'review'
 tibo query 'help'
 ```
 
@@ -19,20 +20,25 @@ tibo query 'help'
 | 命令 | 位置参数与命名参数 | 用途 |
 | --- | --- | --- |
 | `forecast`，别名 `预测/概率/重置` | `horizon=24/48/both`，默认 both；`--no-ai` | 未来 24h/48h global 概率 |
-| `status`，别名 `状态` | `since` 可选，UTC ISO 时间，必须以 Z 结尾 | 最近公告，以及指定时间之后公开记录是否更新 |
+| `status`，别名 `状态` | `since` 可选，UTC ISO 时间，必须以 Z 结尾 | 最近公告、是否刚重置、已过时间、7 天参考倒计时；个人实际自动刷新时间未知 |
 | `posts`，别名 `发言/推文/x/原文` | 位置：`limit keyword`；limit 1..10 默认 3；hours 1..168 默认 48；keyword ≤80 字符；postId 16..20 位数字 | 最新在前的原文、核实状态、原帖链接 |
 | `history`，别名 `历史/公告历史` | `limit kind`；limit 1..20 默认 5；kind global/banked/all 默认 all | 公告历史，最新在前 |
 | `banked`，别名 `发卡/卡` | 无 | 最近一次额度卡与证据等级 |
 | `signals`，别名 `信号` | 无 | 近 48h 的承诺、暗示、补偿及发布信号 |
 | `stats`，别名 `统计` | 无 | global 间隔均值、中位数、范围与可用样本量 |
+| `review`，别名 `复盘/预测复盘` | 无 | 最近 6 份真实报告的原始概率及严格 24h/48h 公告结果；重叠窗口不能当独立成绩 |
 | `help`，别名 `帮助/commands/命令` | 无 | 当前身份可用命令、参数和管道用法 |
-| `ask`，别名 `问答` | `question` 必填，≤800 字符；带空格时加引号 | 一次性文字问答，不执行操作，不发现实时新闻 |
+| `ask`，别名 `问答` | `question` 必填，≤800 字符；带空格时加引号 | 一次性文字问答；询问最近重置、到期时间时补入业务状态，其他概念问答不额外采集；不能操作账户 |
 | `pray`，别名 `祈祷/上香/🙏` | `action limit`；action offer/me/board/stats 默认 offer；limit 1..20 默认 10 | 上香、本人档案、当前会话榜单与愿力池 |
 | `subscribe`，别名 `订阅` | 无 | 订阅本人定点私聊报告 |
 | `unsubscribe`，别名 `退订/取消订阅` | 无 | 取消本人订阅 |
 | `subscription`，别名 `订阅状态` | 无 | 本人订阅状态与下一定点 |
 
 `posts --postId` 只查询已知记录中的指定帖子，忽略 hours 窗口；不会凭任意 ID 新建抓取任务。条数是上限，公开来源没有足够匹配记录时返回更少条。状态查询不会读取你的 Codex 账户额度。
+
+`forecast/status` 中的 7 天是“上次 global 后满 7 天”的参考，不能代替个人额度页面的自动刷新日期。个人每周自动刷新不算强行 global，不计入概率或复盘。状态规则与模型同时适用于 CLI、MCP 和 IM，详见 [判断约定](decision-contract.md#重置时钟与-7-天参考)。
+
+可直接问“刚重置了吗”“上次重置多久了”“还有几天到 7 天参考”。语义路由优先选择 status；显式 `ask` 也补入相同状态。AI 关闭或失败时，此类显式问答保留固定状态说明，不编造个人剩余额度。“刚重置了对吧”不触发求重置彩蛋；“帮我重置一下”仍是角色回应。
 
 ## 自然语言与文字问答
 
@@ -72,7 +78,7 @@ CLI 还提供以下本地操作，它们不属于 IM 用户命令：
 | 命令 | 作用 |
 | --- | --- |
 | `clear-history` | 申请清空本地历史缓存 |
-| `clear-experience` | 申请清空前瞻预测经验 |
+| `clear-experience` | 申请清空前瞻预测经验与报告复盘，二者均备份，不重新导入清空前的旧定点报告 |
 | `reset-ai` | 申请清除 AI 冷却与缓存 |
 | `confirm ID` | 用明确固定指令确认本人本会话中的申请 |
 | `cancel ID` | 取消本人本会话中的申请 |

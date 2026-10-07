@@ -5,6 +5,7 @@
   (import "../platform/state.eli" read-state write-state with-lock)
   (import "./reset-text.eli" completed?)
   (import "./post-context.eli" post-context)
+  (import "./post-body.eli" expand-post)
   (import "./reference.eli" reference-data feed-posts reference-url)
   (import "../platform/util.eli" fail canonical-text ms iso matches match sorted last-item recent unknown utc)
   (defconst archive-url "https://aiidelist.com/codex-reset")
@@ -78,7 +79,10 @@
       (js-call cached :forEach (lambda (p) (js-call items :set (get p :id) p)))
       (js-call primary :forEach (lambda (p)
         (let ((old (js-call items :get (get p :id))))
-          (when (or (not old) (= (get p :provenance) "primary") (not (= (get old :provenance) "primary")))
+          (when (and (not (and old (get old :expandedFromPrimary)
+                       (or (and (= (get p :provenance) "archive") (not (get p :expandedFromPrimary)))
+                         (and (get p :truncated) (= (get old :primaryExcerpt) (get p :text))))))
+            (or (not old) (= (get p :provenance) "primary") (get p :expandedFromPrimary) (not (= (get old :provenance) "primary"))))
             (js-call items :set (get p :id) (Object/assign (js-object) (or old (js-object)) p))))))
       (sorted (Array/from (js-call items :values)) "at")))
   (defun merge-events (old fresh)
@@ -92,7 +96,7 @@
         (let* ((text (get p :text)) (global (completed? text))
                (banked (and (matches "banked|reset card" text) (matches "added|granted|available|issued" text)
                             (not (matches "will|tomorrow|not |no " text)))))
-          (when (and (or global banked) (or (not (get p :discoverySourceUrl)) (= (get p :provenance) "primary")))
+          (when (and (or global banked) (or (not (get p :discoverySourceUrl)) (= (get p :provenance) "primary") (get p :expandedFromPrimary)))
             (js-call result :push (js-object :id (get p :id) :at (get p :at) :global global :banked banked
               :observed false :url (get p :url) :scope "以原文对象为准" :provenance (get p :provenance)))))))
       result))
@@ -139,7 +143,7 @@
                (candidates (get context :posts))
                (checks (await (Promise/all (js-call candidates :map
                  (async (p)
-                   (try (parse-embed (await (request-json (str "https://publish.x.com/oembed?omit_script=true&url=" (encodeURIComponent (get p :url))))) (get p :id) now)
+                   (try (await (expand-post (parse-embed (await (request-json (str "https://publish.x.com/oembed?omit_script=true&url=" (encodeURIComponent (get p :url))))) (get p :id) now)))
                      (catch error (unknown unknowns (str "X 原文核实 " (get p :id) "：" (get error :message))) nil))))))))
           (let ((verified (js-call checks :filter (lambda (p) (not (nullish? p))))))
             (js-call sources :push (js-object :name "oembed" :ok (> (get verified :length) 0) :fetched (> (get verified :length) 0) :at now

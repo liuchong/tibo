@@ -2,6 +2,7 @@
   (import "../platform/privacy.eli" source-free-text)
   (import "../platform/host.eli" RegExp)
   (import "../forecast/availability.eli" usage-text)
+  (import "../forecast/cycle.eli" cycle-text)
   (import "../platform/util.eli" utc beijing clean days decimal values ms hour-ms last-item sorted)
   (defun bullet (label text) (str "• " label "：" (clean text)))
   (defun ratios (sample) (str (get sample :a) "/" (get sample :n) "、" (get sample :b) "/" (get sample :n)))
@@ -59,6 +60,7 @@
       (js-call lines :push (bullet "48h 内 global 重置概率（含 24h）" (str (get prob :p48) "%")))
       (js-call lines :push (bullet "置信度" (get prob :confidence)))
       (js-call lines :push "**客观数据**")
+      (js-call lines :push (cycle-text (get result :cycle)))
       (js-call lines :push (bullet "Tibo 最新一条"
         (if latest (str (utc (get latest :at)) "｜" (get latest :text)) "未核实")))
       (js-call lines :push (js-call (context-lines signals snapshot) :join "\n"))
@@ -123,6 +125,7 @@
           "• 24h / 48h：暂无法估计；至少需要3个可用global间隔。\n"
           "• " (usage-text (get (get result :forecast) :information)) "。\n"
           "• 最近global：" (if global (utc (get global :at)) "未核实") "。\n"
+          (cycle-text (get result :cycle)) "\n"
           "• 最新原帖：" (if latest (str (utc (get latest :at)) "｜" (get latest :text) "\n" (get latest :url "")) "未核实") "\n"
           "• 已降级为证据展示；未拿到数据不代表没有重置。banked不移动global时钟，个人账户生效未知。"))))
   (defun render-report (result &optional previous title-time)

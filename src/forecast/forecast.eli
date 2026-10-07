@@ -2,9 +2,11 @@
   (import "./models.eli" ensemble)
   (import "./availability.eli" information)
   (import "./signal-model.eli" signal-experience)
+  (import "./cycle.eli" reset-cycle)
   (import "../platform/util.eli" ms hour-ms clamp)
   (defun forecast (snapshot history signals)
     (let* ((info (information snapshot signals history))
+           (cycle (reset-cycle (get signals :lastGlobal) (get snapshot :now)))
            (model (ensemble (get history :intervals) (get history :elapsedMs) (get snapshot :now) (get snapshot :experience) (not (get info :clockReliable))))
            (promise (get signals :promise))
            (active (and promise (not (get promise :fulfilled)) (= (get promise :kind) "global")
@@ -23,12 +25,17 @@
           (if (and active (get promise :primary)) "primary-promise" "other") "|"
           (if (and banked (<= (- (ms (get snapshot :now)) (ms (get banked :at))) (* 96 hour-ms))) "recent-banked" "no-recent-banked") "|"
           (if (get info :activeIncident) "active-incident" "no-known-active-incident") "|"
-          (if (get info :recentRelease) "recent-release" "no-known-release")))
+          (if (get info :recentRelease) "recent-release" "no-known-release") "|"
+          (cond ((not (get info :clockReliable)) "wait-unknown")
+            ((get cycle :justReset) "wait-under24h")
+            ((get cycle :referencePassed) "wait-over7d") (t "wait-1to7d"))))
         (learned (signal-experience (get snapshot :predictionExperience (js-array)) signal (get model :p24) (get model :p48) (get snapshot :now) bucket)))
-      (js-object :policyVersion "4" :information info :p24 (clamp (get learned :p24))
+      (js-object :policyVersion "5" :cycle cycle :information info :p24 (clamp (get learned :p24))
         :p48 (Math/max (clamp (get learned :p24)) (clamp (get learned :p48)))
         :base24 (get model :p24) :base48 (get model :p48) :confidence "低"
         :signal signal :signalStrength (if active (if (get promise :primary) "强" "中") "弱")
-        :reasons (js-array reason (if (get learned :applied) "同类信号实际经验通过留出检验，20%保守融合；仍未证明校准" "同类信号经验不足或未优于基线，不作固定加减；banked 不移动时钟"))
+        :reasons (js-array reason (if (get learned :applied) "同类信号实际经验通过留出检验，20%保守融合；仍未证明校准" "同类信号经验不足或未优于基线，不作固定加减；banked 不移动时钟")
+          (if (get cycle :justReset) "刚完成global，按新时钟计算剩余等待；旧暗示已消耗" "按当前已等时间计算剩余等待")
+          "个人7天自动刷新不属于预测目标，不设global的7天截止日")
         :signalExperience learned :signalBucket bucket :mode (if (get learned :applied) "learned-signal" (if (get info :clockReliable) "adaptive-history" "history-rate-fallback")) :model model))))
   (export forecast))

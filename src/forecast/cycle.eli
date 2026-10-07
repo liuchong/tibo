@@ -1,0 +1,23 @@
+(module tibo.forecast.cycle
+  (import "../platform/util.eli" ms iso day-ms hour-ms decimal utc)
+  ;; This reference is not an account's actual weekly deadline or a global hazard.
+  (defun reset-cycle (global now)
+    (let* ((known (and global (get global :verified) (not (get global :observed))))
+      (elapsed (when global (Math/max 0 (- (ms now) (ms (get global :at)))))))
+      (js-object :lastGlobalAt (when global (get global :at)) :announcementVerified (not (not known))
+        :elapsedHours (when global (/ elapsed hour-ms)) :justReset (not (not (and known (< elapsed day-ms))))
+        :sevenDayReferenceAt (when known (iso (+ (ms (get global :at)) (* 7 day-ms))))
+        :referenceRemainingDays (when known (Math/max 0 (- 7 (/ elapsed day-ms))))
+        :referencePassed (not (not (and known (>= elapsed (* 7 day-ms)))))
+        :accountNextAutomaticAt nil :accountApplied "unknown"
+        :predictionTarget "provider-global-only" :automaticWeeklyCountsAsGlobal false)))
+  (defun cycle-text (cycle)
+    (str "• 重置时钟：" (if (get cycle :lastGlobalAt)
+      (str "距上次 global " (decimal (get cycle :elapsedHours)) "小时"
+        (if (get cycle :justReset) "，刚重置过（24h内公告）" "")
+        (if (get cycle :announcementVerified) "。" "；完成原文未核实。")) "未核实。")
+      "\n• 7天参考：" (if (get cycle :sevenDayReferenceAt)
+        (str (if (get cycle :referencePassed) "上次 global 后7天已过" (str "距上次 global 后满7天还剩 " (decimal (get cycle :referenceRemainingDays)) "天"))
+          "（" (utc (get cycle :sevenDayReferenceAt)) "），仅为参考。") "未核实。")
+      "\n• 个人每周自动刷新：实际时间未核实，以账户额度页面为准；周期起点、手动使用额度卡或购买重置会影响日期。7天自动刷新不算强行 global 重置，不计入24h/48h概率和公告历史。"))
+  (export reset-cycle cycle-text))

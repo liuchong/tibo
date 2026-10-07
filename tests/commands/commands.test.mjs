@@ -1,7 +1,7 @@
 import {test,expect} from 'bun:test';import {mkdtemp,writeFile,rm} from 'node:fs/promises';import {tmpdir,homedir,userInfo} from 'node:os';import {join,resolve} from 'node:path';import {spawnSync} from 'node:child_process';
 import {catalog,visible_catalog,fixed_query,validate_query,execute_query,public_forecast} from '../../dist/src/commands/index.mjs';import {public_text} from '../../dist/src/platform/privacy.mjs';import {judge} from '../../dist/src/app/engine.mjs';import {snapshot,post,event} from '../helpers/fixture.mjs';
 test('one command registry defines aliases, defaults, bounds and rejects all operations or extra arguments',()=>{
- expect(visible_catalog().map(c=>c.name)).toEqual(['forecast','status','posts','history','banked','signals','stats','help','pray','subscribe','unsubscribe','subscription','ask']);
+ expect(visible_catalog().map(c=>c.name)).toEqual(['forecast','status','posts','history','banked','signals','stats','review','help','pray','subscribe','unsubscribe','subscription','ask']);
  expect(fixed_query('预测 48')).toEqual({command:'forecast',args:{horizon:'48',noAi:false}});
  expect(fixed_query('发言 5 reset --hours 24')).toEqual({command:'posts',args:{limit:5,hours:24,keyword:'reset'}});
  expect(fixed_query('历史 3 global').args).toEqual({limit:3,kind:'global'});expect(fixed_query('forecast --no-ai').args.noAi).toBe(true);

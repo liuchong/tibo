@@ -7,11 +7,12 @@
   (import "../../src/presentation/syntax.eli" parse-pipeline)
   (import "../../src/prayer/pray.eli" pray record-pray)
   (import "../../src/im/triggers.eli" decide-secondary)
+  (import "../../src/im/reactions.eli" reaction-choice)
   (import "../../src/im/context.eli" conversation-context group-context?)
   (import "../../src/im/reply-policy.eli" reply-permit settle-reply)
-  (import "./service.eli" delivery-key deliver)
+  (import "./service.eli" delivery-key deliver account-key)
   (defun reply-kind (job)
-    (cond ((= (get job :triggerLevel) 2) "ambient")
+    (cond ((>= (get job :triggerLevel 0) 2) "ambient")
       ((= (get job :triggerKind) "prayer") "prayer")
       (t (let* ((base (try (get (parse-pipeline (get job :command) t) :base) (catch error (get job :command))))
         (query (fixed-query base)))
@@ -26,6 +27,26 @@
           (setq recorded (get response :ok))))
       (await (write-state key (js-object :state "suppressed" :at (iso (Date/now)) :reason (get decision :reason)
         :replyPolicy decision :prayerRecorded recorded))) nil))
+  (defasync maybe-react (client job decision activity)
+    (let* ((context (get job :context)) (text (get job :command)) (id (get job :key))
+      (circuit-key (str "lark-reaction-circuit-" (account-key)))
+      (circuit (try (await (read-state circuit-key)) (catch error (js-object :until (+ (Date/now) 600000)))))
+      (emoji (when (and (= (reply-kind job) "ambient") (group-context? context)
+        (= (get context :authenticated) t) (<= (get (or circuit (js-object)) :until 0) (Date/now))
+        (= (value-type (get client :react)) "function")) (reaction-choice text decision)))
+      (permit (when emoji (await (reply-permit context (str "reaction:" id) "reaction" text activity t))))
+      (key (delivery-key (get job :group) id)))
+      (when (and permit (get permit :accepted))
+        ;; Reserve the durable receipt before external I/O; uncertain sends are not retried.
+        (await (write-state key (js-object :state "reaction-sending" :at (iso (Date/now)) :emoji emoji :replyPolicy permit)))
+        (try
+          (let ((reaction-id (await (js-call client :react id emoji))))
+            (await (write-state key (js-object :state "reacted" :at (iso (Date/now)) :emoji emoji :reactionId reaction-id :replyPolicy permit)))
+            (await (settle-reply context (str "reaction:" id) "sent")))
+          (catch error
+            (try (await (write-state circuit-key (js-object :until (+ (Date/now) 600000) :at (iso (Date/now))))) (catch error nil))
+            (await (write-state key (js-object :state "reaction-unavailable-or-uncertain" :at (iso (Date/now)) :emoji emoji :replyPolicy permit)))
+            (await (settle-reply context (str "reaction:" id) "uncertain")))) t)))
   (defasync process-interaction (client job)
     ;; Count first, before any send receipt or AI. A failed count leaves the
     ;; durable inbox event retryable; later replay/generation never counts twice.
@@ -43,15 +64,19 @@
         ((not (get first :accepted))
           ;; Keep sensitivity statistics even when speech is suppressed;
           ;; classify locally only, never spend AI on an exhausted budget.
-          (when (= kind "ambient") (await (decide-secondary command context id t)))
-          (await (suppress job first)))
+          (setq decision (when (= kind "ambient") (await (decide-secondary command context id t))))
+          (await (suppress job first))
+          (when decision (await (maybe-react client job decision (get history :activity)))))
         (t
-          (setq decision (when (= kind "ambient") (await (decide-secondary command context id))))
-          (if (and decision (not (get decision :accepted)))
-            (await (write-state (delivery-key (get job :group) id) (js-object :state "filtered" :at (iso (Date/now))
-              :reason (get decision :reason) :method (get decision :method))))
+          (setq decision (when (= kind "ambient") (await (decide-secondary command context id (= (get job :triggerLevel) 3)))))
+          (if (and decision (or (not (get decision :accepted)) (= (get job :triggerLevel) 3)))
+            (progn
+              (await (write-state (delivery-key (get job :group) id) (js-object :state "filtered" :at (iso (Date/now))
+                :reason (get decision :reason) :method (get decision :method))))
+              (await (maybe-react client job decision (get history :activity))))
             (let ((permit (await (reply-permit context id kind command (get history :activity) t))))
-              (if (not (get permit :accepted)) (await (suppress job permit))
+              (if (not (get permit :accepted)) (progn (await (suppress job permit))
+                (when decision (await (maybe-react client job decision (get history :activity)))))
                 (progn
                   (put job :recentMessages (get history :messages)) (put job :replyPolicy permit)
                   (try (await (deliver client (get job :group) id command (get job :titleTime) context nil job))

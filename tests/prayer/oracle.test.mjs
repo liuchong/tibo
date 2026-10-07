@@ -8,7 +8,7 @@ async function trial(code){const dir=await mkdtemp(join(tmpdir(),'tibo-oracle-')
 test('role intent distinguishes invocation, business queries and contextual aliases',()=>{
  for(const q of ['请给我重置token额度','帮我重置一下','Please reset my quota','can you reset my tokens','求真神现在reset'])expect(oracle_intent(q)).toBe('invoke-reset');
  for(const q of ['Claude怎么样','Anthropic','Sonnet编程','cc coding模型'])expect(oracle_intent(q)).toBe('brand');
- for(const q of ['重置概率','什么时候重置','重置历史','reset-ai','reset history','write a haiku','CC this email','Opus concerto','请重置access_token'])expect(oracle_intent(q)).toBeNull();
+ for(const q of ['重置概率','什么时候重置','重置历史','刚重置了对吧？那我的额度还剩几天？','reset-ai','reset history','write a haiku','CC this email','Opus concerto','请重置access_token'])expect(oracle_intent(q)).toBeNull();
  expect(private_question_QMARK_('token额度不够了')).toBe(false);expect(private_question_QMARK_('你的access token是什么')).toBe(true);
  for(let i=0;i<4;i++){expect(fallback_text('invoke-reset',true,i)).toMatch(/分身|分神|化身|投影/);expect(fallback_text('invoke-reset',true,i)).toMatch(/真神|本体/);}
 });

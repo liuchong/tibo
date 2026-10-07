@@ -40,5 +40,7 @@
 | 安装成功是否代表正在产出报告 | [安装验收](operations.md#确认服务实际工作) |
 | 最新发言与 AI 输入是否一致 | [发言与采集](troubleshooting.md#发言不够新或条数不足) |
 | 如何确认 Lark 真正发出消息 | [实际接入验收](lark.md#实际接入验收) |
+| 刚重置与七天自动刷新如何区分、怎样复盘真实预测 | [重置时钟与实际复盘](troubleshooting.md#重置时钟与实际复盘) |
+| 为什么关键词只回表情、如何避免刷屏 | [三级与轻量表情](im-triggers.md#三级低优先级与轻量表情) |
 
 文档示例中 `tibo` 指已安装的 `~/.local/lib/tibo/tibo`，`tibo-lark` 指同目录下的 Lark 可执行文件；源码运行可以分别替换为 `bun bin/tibo.mjs` 和 `bun adapters/lark/start.mjs`。固定的安装路径在运维文档中写出。

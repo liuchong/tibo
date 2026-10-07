@@ -9,6 +9,8 @@
   (import "../forecast/availability.eli" information)
   (import "../presentation/report.eli" render-report)
   (import "../forecast/experience.eli" record-prediction)
+  (import "../forecast/cycle.eli" reset-cycle)
+  (import "../forecast/journal.eli" update-journal cases)
   (import "../ai/enhance.eli" enhance)
   (import "./diagnostics.eli" diagnostics)
   (import "../platform/state.eli" read-state write-state)
@@ -32,7 +34,8 @@
   (defun observe (snapshot)
     (validate-snapshot snapshot)
     (let* ((events (normalize-events snapshot)) (signals (analyze-signals snapshot events)))
-      (js-object :templateVersion "2" :snapshot snapshot :events events :signals signals)))
+      (js-object :templateVersion "3" :snapshot snapshot :events events :signals signals
+        :cycle (reset-cycle (get signals :lastGlobal) (get snapshot :now)))))
   (defun judge (snapshot)
     (let* ((result (observe snapshot)) (history (summarize-history (get result :events) (get snapshot :now)))
            (prob (forecast snapshot history (get result :signals))))
@@ -44,7 +47,7 @@
         (progn
           (put observed :history history)
           (put observed :forecast (js-object :available false :p24 nil :p48 nil :base24 nil :base48 nil :confidence "低"
-            :mode "evidence-only" :policyVersion "4" :information (information snapshot (get observed :signals) history)
+            :mode "evidence-only" :policyVersion "5" :information (information snapshot (get observed :signals) history)
             :signal "数值依据不足" :signalStrength "未知" :reasons (js-array "历史不足，保留公告和原帖；不编造数值概率"))) observed))))
   (defasync load-snapshot (&optional path offline)
     (if path (validate-snapshot (JSON/parse (await (readFile path "utf8"))))
@@ -63,11 +66,15 @@
            (snapshot (await (load-snapshot (get options :snapshotPath) (get options :offline))))
            (collected (Date/now))
            (native (available-judgment snapshot))
+           (prior-journal (when (and (not (get options :snapshotPath)) (not (get options :offline)))
+             (try (await (update-journal native)) (catch error nil))))
+           (context-ready (when prior-journal (put snapshot :forecastCases (cases (get prior-journal :reports)))))
            (result (if (= (get (get native :forecast) :available) false) native
              (await (enhance native (or (get options :snapshotPath) (get options :offline) (get options :noAi))))))
            (previous (await (read-state (str "report-" channel)))))
       (put result :timing (js-object :collectionMs (- collected started) :analysisMs (- (Date/now) collected)))
       (when (and (not (= (get (get result :forecast) :available) false)) (not (get options :snapshotPath)) (not (get options :offline)))
+        (try (put result :forecastJournal (await (update-journal result channel t))) (catch error nil))
         (try (put result :experience (await (record-prediction result)))
           (catch error (put (get (get result :forecast) :information) :experienceUnavailable t))))
       (when (and previous (> (ms (get previous :now)) (ms (get snapshot :now)))) (setq previous nil))
@@ -87,6 +94,6 @@
       (js-object :now (get (get result :snapshot) :now) :latestGlobal event
         :state (if (not event) "unknown" (if verified (if (= (get event :provenance) "primary") "confirmed-announcement" "archived-announcement") "unverified-record"))
         :newSince (if (not event) "unknown" (if since (if new-reset (if verified (if (= (get event :provenance) "primary") "confirmed" "archived") "unverified") "none-in-evidence") "not-requested"))
-        :accountApplied "unknown" :latestBanked (get (get result :signals) :lastBanked)
+        :accountApplied "unknown" :cycle (get result :cycle) :latestBanked (get (get result :signals) :lastBanked)
         :unknowns (get (get result :snapshot) :unknowns))))
   (export validate-snapshot observe judge available-judgment load-snapshot run-report save-report reset-status))

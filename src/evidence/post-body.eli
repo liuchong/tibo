@@ -1,0 +1,18 @@
+(module tibo.evidence.post-body
+  (import "../platform/util.eli" canonical-text matches fail)
+  (import "./transport.eli" request-json)
+  ;; Optional long-note archive, bound to the independently verified official excerpt.
+  (defun expanded-body (post data)
+    (let* ((tweet (get data :tweet)) (text (canonical-text (get tweet :text "")))
+      (prefix (js-call (get (js-call (get post :text) :split "…") 0) :trim)))
+      (unless (and (= (get post :provenance) "primary") (get post :truncated)
+        (= (get tweet :id) (get post :id)) (= (get (get tweet :author) :screen_name) "thsottiaux")
+        (>= (get prefix :length) 40) (> (get text :length) (get prefix :length)) (<= (get text :length) 20000)
+        (js-call text :startsWith (canonical-text prefix))) (fail "扩展正文无法与官方片段核对"))
+      (Object/assign (js-object) post (js-object :text text :provenance "archive" :truncated false
+        :via "matched-long-note" :primaryExcerpt (get post :text) :expandedFromPrimary t))))
+  (defasync expand-post (post)
+    (if (not (and (get post :truncated) (matches "reset" (get post :text)))) post
+      (try (expanded-body post (await (request-json (str "https://api.fxtwitter.com/thsottiaux/status/" (get post :id)) nil 4000)))
+        (catch error post))))
+  (export expanded-body expand-post))

@@ -18,6 +18,7 @@ Lark 是独立的 Eliscript 接入程序，复用核心命令与共享报告。�
 | `im:message:readonly` | 读取被点击祈祷反应的消息正文，支持群成员消息作为素材 |
 | `im:message:send_as_bot` | 以机器人身份发送消息 |
 | `im:message.reactions:read` | 查看消息表情反应 |
+| `im:message.reactions:write_only` | 对弱相关或文字回复预算不足的群消息加轻量表情；固定 OK / SMILE / THUMBSUP 枚举 |
 | `im:chat:read` | 核实旧发送回执对应的单聊/群聊类型，使旧机器人消息也支持私聊表情上香 |
 
 上表权限按完整设计要求配置，`im:message.group_msg` 必需，不能只开通群 @ 权限。事件订阅与 API 权限是两项设置，以下 JSON 可在“权限管理 → 批量导入/导出权限”导入：
@@ -32,6 +33,7 @@ Lark 是独立的 Eliscript 接入程序，复用核心命令与共享报告。�
       "im:message:readonly",
       "im:message:send_as_bot",
       "im:message.reactions:read",
+      "im:message.reactions:write_only",
       "im:chat:read"
     ],
     "user": []
@@ -79,6 +81,8 @@ bun run compile
 - 超过 5 分钟或未来超过 1 分钟的消息、反应事件忽略。
 
 回复预算不足时静默消费，不补发积压回复；上香仍记档，不生成祝词或群回执。授权群已收到的普通人类消息可进入脱敏短窗口，只有允许回复时才附带最近五分钟的少量背景给最终问答模型，不另外补读平台历史，也不改变当前命令、权限或真实重置概率。
+
+低优先级候选以及部分不适合文字插话的二级消息，可以按独立表情预算对原消息加 OK / SMILE / THUMBSUP。三级不调用 AI；原有群与个人总量已满则仍静默，祈祷不会变成单纯表情。表情失败只暂停此能力 10 分钟，不发送权限错误。接口为固定 `POST /open-apis/im/v1/messages/:message_id/reactions`，详见 [官方说明](https://open.larksuite.com/document/uAjLw4CM/ukTMukTMukTM/reference/im-v1/message-reaction/create)。
 
 回复使用 post 富文本内的 Markdown `md` 元素，保留加粗标题、条目与原帖链接。客户端实际渲染需要真机验证，不根据本地 JSON 结构宣称效果已验收。普通查询、翻译、上香和订阅用法见 [命令参考](commands.md)、[语言与管道](language-pipelines.md)、[上香与订阅](pray-subscriptions.md)。
 

@@ -1,6 +1,6 @@
 import {test,expect} from 'bun:test';
 import {mkdtemp,rm,writeFile} from 'node:fs/promises';import {tmpdir} from 'node:os';import {join} from 'node:path';
-import {snapshot,event} from '../helpers/fixture.mjs';
+import {snapshot,event,post} from '../helpers/fixture.mjs';
 import {available_judgment,judge,run_report} from '../../dist/src/app/engine.mjs';
 import {public_forecast} from '../../dist/src/commands/index.mjs';
 import {signal_experience} from '../../dist/src/forecast/signal-model.mjs';
@@ -40,7 +40,8 @@ test('failed history ingestion does not turn unresolved windows into negative ex
  try{
   await write_state('experience',{predictions:[{at:'2026-09-01T00:00:00Z',p24:10,p48:20,models:[],signal:'未识别新承诺',outcome:null}]});
   await record_prediction(judge(snapshot()));expect((await read_state('experience')).predictions[0].outcome).toBeNull();
-  await record_prediction(judge(snapshot({sources:[{name:'archive',ok:true}]})));expect((await read_state('experience')).predictions[0].outcome.y48).toBe(1);
+  await record_prediction(judge(snapshot({sources:[{name:'archive',ok:true}]})));expect((await read_state('experience')).predictions[0].outcome).toBeNull();
+  await record_prediction(judge(snapshot({sources:[{name:'archive',ok:true}],posts:[...snapshot().posts,post(3,'Reset all propagated.',{id:'event-3'})]})));expect((await read_state('experience')).predictions[0].outcome.y48).toBe(1);
  }finally{if(old===undefined)delete process.env.TIBO_STATE_DIR;else process.env.TIBO_STATE_DIR=old;await rm(dir,{recursive:true,force:true});}
 });
 

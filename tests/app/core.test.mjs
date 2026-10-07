@@ -68,7 +68,7 @@ test('empty and invalid evidence fail rather than fabricate a report',()=>{
 });
 test('own report keeps evidence and model fields, percent constraints and UTC formatting',()=>{
  const r=judge(snapshot());const report=render_report(r);const fields=report.split('\n').filter(x=>x.startsWith('•')).map(x=>x.split('：')[0]);
- expect(fields).toEqual(['• 24h 内 global 重置概率','• 48h 内 global 重置概率（含 24h）','• 置信度','• Tibo 最新一条','• 上次 global','• 近期 global 间隔（天）','• 条件样本','• 最近一次 banked','• 事故','• 催化','• 24h','• 48h','• 信号判断','• 模型验证','• 关键数据点','• 变化趋势','• 下次跟进']);
+ expect(fields).toEqual(['• 24h 内 global 重置概率','• 48h 内 global 重置概率（含 24h）','• 置信度','• 重置时钟','• 7天参考','• 个人每周自动刷新','• Tibo 最新一条','• 上次 global','• 近期 global 间隔（天）','• 条件样本','• 最近一次 banked','• 事故','• 催化','• 24h','• 48h','• 信号判断','• 模型验证','• 关键数据点','• 变化趋势','• 下次跟进']);
  expect(report).toContain('UTC 09-24 00:00');expect(report).not.toContain('09-24T');expect(report).not.toContain('http');expect(r.forecast.p48).toBeGreaterThanOrEqual(r.forecast.p24);
 });
 test('completion detection rejects negation and banked',()=>{

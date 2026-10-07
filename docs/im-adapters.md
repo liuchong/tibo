@@ -43,7 +43,9 @@ context 只用于权限、档案与投递，不加入模型提示词或公开结
 
 ## 触发策略与消息素材
 
-复用 [核心触发与回复规则](im-triggers.md)，不要各自实现一套关键词阈值或次数限制。一级强触发跳过相关度判断，二级候选调用 decide-secondary；两者都经过独立 reply-permit 的群回复预算。适配器先预检、再相关度判断、最后原子预留名额，发送结果用 settle-reply 确认；未知结果保留占用，明确未发才释放。超限事件安静消费，不积压补发。群内上香超限时仍以原投递 requestId 调用 pray 并设置 noAi，不发送回执；平台去重防止重复计数。私聊正常响应。
+复用 [核心触发与回复规则](im-triggers.md)，不要各自实现一套关键词阈值或次数限制。一级强触发跳过相关度判断，二级候选调用 decide-secondary；三级仅做本地判断和可选表情，不调用回答模型。文字与表情都经过 reply-permit 的群总量及各自预算。适配器先预检、再相关度判断、最后原子预留名额，发送结果用 settle-reply 确认；未知结果保留占用，明确未发才释放。超限事件安静消费，不积压补发。群内上香超限时仍以原投递 requestId 调用 pray 并设置 noAi，不发送回执；平台去重防止重复计数。私聊正常响应。
+
+轻量回应通过 reaction-choice 返回固定表情名称，适配器可提供 react(originalMessageId, emoji) 映射到原生平台接口，不支持时静默。原消息 ID 只能来自已认证事件，emoji 只能来自程序白名单；模型没有任意接口能力。发送前写入持久回执，成功保留平台 reaction_id 或同等证据；失败冷却、未知结果不重发。收到本应用产生的表情事件不能当作人类上香，避免回应循环。
 
 祈祷入队后先以相同 requestId 调用 record-pray(silent)，原子提交个人与会话记账；失败保留事件重试。允许回复才设置 completePrayer，补全原回执的可选祝词，不重记账。静默路径设置 silent/noAi，不预留彩蛋展示。发送接入层设置 festivalDelivery，读取 festivalMessages（最多两条）并逐条持久化发送；整个庆典确认后才用 settle-festivals(sent) 标记已展示。普通回执 rejected/failed-before-send 释放预留，额外部分失败按各自账本接续，未知结果保留待核对。这些是程序内部选项，不能来自 AI 或人类命令参数。详见 [庆典契约](collective-celebrations.md)。
 
