@@ -82,7 +82,7 @@ bun run compile
 
 回复预算不足时静默消费，不补发积压回复；上香仍记档，不生成祝词或群回执。授权群已收到的普通人类消息可进入脱敏短窗口，只有允许回复时才附带最近五分钟的少量背景给最终问答模型，不另外补读平台历史，也不改变当前命令、权限或真实重置概率。
 
-低优先级候选、部分不适合文字插话的二级消息，以及被文字限频的点名普通查询，可以按独立表情预算对原消息加 OK / SMILE / THUMBSUP。表情不占文字额度，文字额度用完也可轻量回应；每群间隔 15 秒、每 10 分钟最多 12 个，完整个人与话题规则见 [触发与回复节奏](im-triggers.md#三级低优先级与轻量表情)。三级和表情选择不调用 AI，表情只表示收到，被限频查询不会执行。管理和订阅变更不改成表情，祈祷照常独立记账。表情失败只暂停此能力 10 分钟，不发送权限错误。接口为固定 `POST /open-apis/im/v1/messages/:message_id/reactions`，详见 [官方说明](https://open.larksuite.com/document/uAjLw4CM/ukTMukTMukTM/reference/im-v1/message-reaction/create)。
+低优先级候选、部分不适合文字插话的二级消息，以及被文字限频的点名普通查询，可以按独立表情预算对原消息加 OK / SMILE / THUMBSUP。表情不占文字额度，文字额度用完也可轻量回应；每群间隔 5 秒，十分钟额度随最近收到的人类消息量在 20 / 25 / 30 之间调整，完整个人与话题规则见 [触发与回复节奏](im-triggers.md#三级低优先级与轻量表情)。每条原消息默认一枚，持久回执阻止重投、重启或冷却结束后向旧消息补点其他表情。三级和表情选择不调用 AI，表情只表示收到，被限频查询不会执行。管理和订阅变更不改成表情，祈祷照常独立记账。表情失败只暂停此能力 10 分钟，不发送权限错误。接口为固定 `POST /open-apis/im/v1/messages/:message_id/reactions`，详见 [官方说明](https://open.larksuite.com/document/uAjLw4CM/ukTMukTMukTM/reference/im-v1/message-reaction/create)。
 
 回复使用 post 富文本内的 Markdown `md` 元素，保留加粗标题、条目与原帖链接。客户端实际渲染需要真机验证，不根据本地 JSON 结构宣称效果已验收。普通查询、翻译、上香和订阅用法见 [命令参考](commands.md)、[语言与管道](language-pipelines.md)、[上香与订阅](pray-subscriptions.md)。
 
