@@ -52,7 +52,7 @@ test('native HTTP/WebSocket bot receives, persists before ACK, replies, enforces
  };
  try{
   await writeFile(join(dir,'experience.json'),JSON.stringify({sentinel:'preserved'}));
-  const env={...process.env,TIBO_TEST_NOW:'2026-10-04T00:00:00Z',TIBO_TEST_CLOCK_FILE:clockFile,TIBO_CONFIG_FILE:join(dir,'absent.env'),TIBO_STATE_DIR:dir,TIBO_SNAPSHOT:'',TIBO_LARK_APP_ID:'fixture-app',TIBO_LARK_APP_SECRET:'fixture-secret',TIBO_LARK_CHAT_IDS:'oc_fixture',TIBO_LARK_BOT_OPEN_ID:'',TIBO_LARK_ADMIN_OPEN_IDS:'ou_admin',TIBO_LARK_DOMAIN:'feishu',TIBO_AI_FEATURES:'router',DEEPSEEK_API_KEY:'fixture-router-key',TIBO_TEST_SERVER:server.url.origin};
+  const env={...process.env,TIBO_TEST_NOW:'2026-10-04T00:00:00Z',TIBO_TEST_CLOCK_FILE:clockFile,TIBO_CONFIG_FILE:join(dir,'absent.env'),TIBO_STATE_DIR:dir,TIBO_SNAPSHOT:'',TIBO_LARK_APP_ID:'fixture-app',TIBO_LARK_APP_SECRET:'fixture-secret',TIBO_LARK_CHAT_IDS:'oc_fixture',TIBO_LARK_ADMIN_CHAT_IDS:'oc_fixture',TIBO_LARK_NOTIFY_CHAT_IDS:'oc_fixture',TIBO_LARK_BOT_OPEN_ID:'',TIBO_LARK_ADMIN_OPEN_IDS:'ou_admin',TIBO_LARK_DOMAIN:'feishu',TIBO_AI_FEATURES:'router',DEEPSEEK_API_KEY:'fixture-router-key',TIBO_TEST_SERVER:server.url.origin};
   child=spawn(process.execPath,[resolve('tests/helpers/lark-client.mjs')],{env,stdio:['ignore','pipe','pipe']});
   child.stderr.on('data',x=>stderr+=x);closed=new Promise(r=>child.once('close',r));
   await until(()=>stderr.includes('已启动'));

@@ -4,7 +4,7 @@
   (import "../../src/platform/util.eli" fail)
   (defun markdown-post (markdown)
     (JSON/stringify (js-object :zh_cn (js-object :content (js-array (js-array (js-object :tag "md" :text markdown)))))))
-  (defasync send-report (client group key text)
+  (defasync send-report (client group key text &optional metadata)
     (let ((response (await (js-call client :send
       (js-object :receive_id group :msg_type "post" :content (markdown-post (public-text text))
                         :uuid (js-call key :slice -40))
@@ -14,5 +14,6 @@
           (when (Number/isInteger (get response :code)) (put error :larkCode (get response :code)))
           (throw error)))
       (unless (get (get response :data (js-object)) :message_id) (fail "Lark 返回缺少 message_id"))
+      (when metadata (put metadata :chatId (get (get response :data) :chat_id)))
       (get (get response :data) :message_id)))
   (export markdown-post send-report))

@@ -30,9 +30,9 @@ tibo query 'help'
 | `help`，别名 `帮助/commands/命令` | 无 | 当前身份可用命令、参数和管道用法 |
 | `ask`，别名 `问答` | `question` 必填，≤800 字符；带空格时加引号 | 一次性文字问答；询问最近重置、到期时间时补入业务状态，其他概念问答不额外采集；不能操作账户 |
 | `pray`，别名 `祈祷/上香/🙏` | `action limit`；action offer/me/board/stats 默认 offer；limit 1..20 默认 10 | 上香、本人档案、当前会话榜单与愿力池 |
-| `subscribe`，别名 `订阅` | 无 | 订阅本人定点私聊报告 |
-| `unsubscribe`，别名 `退订/取消订阅` | 无 | 取消本人订阅 |
-| `subscription`，别名 `订阅状态` | 无 | 本人订阅状态与下一定点 |
+| `subscribe`，别名 `订阅` | `target=personal/group`，默认 personal；可选 `chatId` | 任何会话默认订阅本人私聊；group 由管理员申请并确认 |
+| `unsubscribe`，别名 `退订/取消订阅` | 同 subscribe | 默认取消本人订阅；group 由管理员申请并确认 |
+| `subscription`，别名 `订阅状态` | 同 subscribe | 默认查看本人订阅；group 由管理员查看指定群订阅 |
 
 `posts --postId` 只查询已知记录中的指定帖子，忽略 hours 窗口；不会凭任意 ID 新建抓取任务。条数是上限，公开来源没有足够匹配记录时返回更少条。状态查询不会读取你的 Codex 账户额度。
 

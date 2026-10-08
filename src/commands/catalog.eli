@@ -3,6 +3,9 @@
   (import "../platform/privacy.eli" public-text source-free-text)
   (import "./admin.eli" is-admin)
   (import "../platform/util.eli" fail ms)
+  (defconst subscription-params (js-object
+    :target (js-object :type "string" :enum (js-array "personal" "group") :default "personal")
+    :chatId (js-object :type "string" :format "Lark-chat-ID" :maxLength 100)))
   (defconst catalog
     (js-array
       (js-object :name "forecast" :aliases (js-array "预测" "概率" "重置" "/tibo") :purpose "查询未来24h/48h global重置概率"
@@ -25,9 +28,9 @@
       (js-object :name "pray" :aliases (js-array "祈祷" "上香" "🙏") :purpose "趣味电子上香；offer祈祷一次，me查看本人档案，board查看本会话匿名功德榜，stats查看本会话愿力池、已解锁的集体彩蛋及仪式内容。询问什么集体彩蛋、十次上香效果应选stats，不选ask。集体彩蛋按会话上香次数10/50/100/233/500/1000解锁，个人功德15秒冷却；不能改变重置概率，需要可信本人身份"
         :params (js-object :action (js-object :type "string" :enum (js-array "offer" "me" "board" "stats") :default "offer")
           :limit (js-object :type "integer" :minimum 1 :maximum 20 :default 10)) :positionals (js-array "action" "limit"))
-      (js-object :name "subscribe" :aliases (js-array "订阅") :purpose "订阅本人定点私聊报告，每天北京时间09:00/21:00推送；需要可信IM身份，不能指定其他收件人" :params (js-object) :positionals (js-array))
-      (js-object :name "unsubscribe" :aliases (js-array "退订" "取消订阅") :purpose "取消本人定点私聊订阅，不影响群推送或其他人" :params (js-object) :positionals (js-array))
-      (js-object :name "subscription" :aliases (js-array "订阅状态") :purpose "查看本人定点私聊订阅状态与下一定点时间" :params (js-object) :positionals (js-array))
+      (js-object :name "subscribe" :aliases (js-array "订阅") :purpose "任何会话默认订阅本人私聊报告，每天北京时间09:00/21:00；target=personal默认；target=group仅管理员在操作群/私聊申请群订阅并二次确认，操作群可省略chatId指当前群，私聊需指定chatId；不能代他人或自定义时间" :params subscription-params :positionals (js-array "target" "chatId"))
+      (js-object :name "unsubscribe" :aliases (js-array "退订" "取消订阅") :purpose "任何会话默认取消本人私聊订阅；target=group取消指定群订阅，仅管理员在操作群/私聊申请并二次确认，省略chatId规则同subscribe" :params subscription-params :positionals (js-array "target" "chatId"))
+      (js-object :name "subscription" :aliases (js-array "订阅状态") :purpose "任何会话默认查看本人私聊订阅；target=group仅管理员在操作群/私聊查看群订阅，省略chatId规则同subscribe" :params subscription-params :positionals (js-array "target" "chatId"))
       (js-object :name "ask" :aliases (js-array "问答") :purpose "一次性AI文字问答，可解释Tibo概念、处理文字或常识问答；不能执行命令或操作账户，不提供未抓取的新事件事实"
         :params (js-object :question (js-object :type "string" :maxLength 800 :required t)) :positionals (js-array "question"))
       (js-object :name "clear-history" :aliases (js-array "清空历史" "重置历史") :purpose "危险写操作：申请清空本地历史缓存，需要管理员及二次确认" :admin t :params (js-object) :positionals (js-array))
@@ -62,15 +65,22 @@
                         (unless (and (Number/isInteger value) (>= value (get rule :minimum)) (<= value (get rule :maximum))) (fail "整数参数超出范围")))
                       ((= (get rule :type) "boolean") (unless (= (value-type value) "boolean") (fail "参数必须为布尔值")))
                       (t (unless (= (value-type value) "string") (fail "参数必须为字符串"))
-                         (unless (= (public-text value (or (get rule :maxLength) 200)) (source-free-text value)) (fail "参数包含非业务信息"))
+                         (unless (or (= (get rule :format) "Lark-chat-ID")
+                           (= (public-text value (or (get rule :maxLength) 200)) (source-free-text value))) (fail "参数包含非业务信息"))
                          (when (and (get rule :enum) (not (js-call (get rule :enum) :includes value))) (fail "枚举参数不合法"))
                          (when (and (get rule :maxLength) (or (= value "") (> (get value :length) (get rule :maxLength)))) (fail "关键词长度不合法"))
                          (when (get rule :format)
+                           (if (= (get rule :format) "Lark-chat-ID")
+                             (unless (js-call (new RegExp "^oc_[A-Za-z0-9]+$") :test value) (fail "chatId必须为Lark群ID"))
                            (if (= (get rule :format) "X-ID")
                              (unless (js-call (new RegExp "^[0-9]{16,20}$") :test value) (fail "postId必须为X帖子ID"))
                              (progn
                                (unless (js-call (new RegExp "^20[0-9]{2}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{1,3})?Z$") :test value) (fail "since必须为UTC时间"))
-                               (ms value))))))
+                               (ms value)))))))
                 (put values key value)))))))
       (js-object :command name :args values)))
-  (export catalog visible-catalog definition canonical validate-query))
+  (defun write-query? (query)
+    (or (get (or (definition (get query :command)) (js-object)) :admin)
+      (and (js-call (js-array "subscribe" "unsubscribe") :includes (get query :command))
+        (= (get (get query :args (js-object)) :target "personal") "group"))))
+  (export catalog visible-catalog definition canonical validate-query write-query?))
