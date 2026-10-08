@@ -85,6 +85,8 @@ Lark 完整的首次配置与验收见 [接入文档](lark.md)。只修改文档
 
 Lark 未安装时不要执行第二条。重启后重新检查实际运行状态；`daemon-status` 与 `tibo-lark status` 是本地最后状态，不能单独证明进程仍活着。
 
+仅修改 Lark 交互群、操作群或通知群时，只重启 `tibo-lark`。三个列表分别为 `TIBO_LARK_CHAT_IDS`、`TIBO_LARK_ADMIN_CHAT_IDS`、`TIBO_LARK_NOTIFY_CHAT_IDS`；只有被动交互支持默认 `all`。升级旧配置时明确补齐操作群和原先推送群，个人订阅保留；不要把 `all` 填进敏感群列表。配置与命令群订阅的优先行为见 [会话接入与通知边界](conversation-access.md)。
+
 ```bash
 ~/.local/lib/tibo/tibo-lark service uninstall
 ~/.local/lib/tibo/tibo service uninstall

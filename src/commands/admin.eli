@@ -1,10 +1,12 @@
 (module tibo.commands.admin
+  (import "../im/access.eli" chat-list)
   (import "node:process" :default process)
   (import "node:crypto" randomUUID createHash)
   (import "../platform/host.eli" Date RegExp)
   (import "../platform/state.eli" read-state write-state with-lock)
   (import "../ai/runtime.eli" reset-ai)
   (import "../forecast/experience.eli" accuracy)
+  (import "../subscriptions/registry.eli" group-subscription namespace-key)
   (import "../platform/util.eli" iso fail)
   (defun cli-context () (js-object :transport "cli" :actor (str "uid:" (js-call process :getuid)) :scope "local"))
   (defun is-admin (context)
@@ -23,16 +25,23 @@
                      (js-call (new RegExp "^oc_[A-Za-z0-9]+$") :test (get context :scope ""))
                      (or (= (get context :conversationType) "p2p")
                        (and (= (get context :conversationType) "group")
-                         (js-call (js-call (js-call (get env :TIBO_LARK_CHAT_IDS "") :split ",") :map (lambda (id) (js-call id :trim))) :includes (get context :scope))))))
+                         (js-call (chat-list (get env :TIBO_LARK_ADMIN_CHAT_IDS "")) :includes (get context :scope))))))
               (t false)))))
   (defconst actions (js-object :clear-history "清空本地历史缓存（下一次联网采集会重建）"
                               :clear-experience "清空本地预测经验与成绩"
-                              :reset-ai "清除AI暂停与缓存，允许后续重新调用"))
+                              :reset-ai "清除AI暂停与缓存，允许后续重新调用"
+                              :subscribe-group "订阅目标群的早晚报告"
+                              :unsubscribe-group "取消目标群的早晚报告"))
   (defun ticket-key (id)
     (unless (and (= (value-type id) "string") (js-call (new RegExp "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$") :test id)) (fail "确认ID不合法"))
     (str "confirm-" id))
-  (defasync apply-action (name id)
+  (defasync apply-action (name id &optional args context)
     (let ((backup-key (str "backup-" id)))
+      (if (js-call (js-array "subscribe-group" "unsubscribe-group") :includes name)
+        (progn
+          (await (write-state backup-key (js-object :kind (namespace-key (get context :transport) (get context :account))
+            :at (iso (Date/now)) :value (await (read-state (namespace-key (get context :transport) (get context :account)))))))
+          (await (group-subscription (get context :transport) (get context :account) (get args :chatId) (= name "subscribe-group"))))
       (if (= name "reset-ai") (await (reset-ai backup-key))
         (let ((key (cond ((= name "clear-history") "ledger") ((= name "clear-experience") "experience") (t (fail "未知写操作")))))
           (await (with-lock key (async ()
@@ -43,15 +52,19 @@
                 (await (write-state "forecast-journal" (js-object :reports (js-array) :savedScheduleImported t)))))))
             (await (write-state key (if (= key "ledger")
               (js-object :schemaVersion 1 :now (iso (Date/now)) :events (js-array) :posts (js-array))
-              (js-object :predictions (js-array) :accuracy (accuracy (js-array)))))))))))))
+              (js-object :predictions (js-array) :accuracy (accuracy (js-array))))))))))))))
   (defasync manage (name args context)
     (if (not (is-admin context)) (js-object :ok false :text "仅管理员可申请或确认写操作。")
       (await (with-lock "admin-actions" (async ()
         (if (Object/hasOwn actions name)
-          (let ((id (randomUUID)))
+          (let ((id (randomUUID)) (group-action (js-call (js-array "subscribe-group" "unsubscribe-group") :includes name)))
+            (when (and group-action (not (and (= (get context :transport) "lark")
+              (js-call (new RegExp "^oc_[A-Za-z0-9]+$") :test (get args :chatId ""))))) (fail "群订阅目标无效"))
             (await (write-state (ticket-key id) (js-object :state "pending" :action name :actor (get context :actor)
-              :scope (get context :scope) :transport (get context :transport) :expiresAt (+ (Date/now) 300000))))
+              :scope (get context :scope) :transport (get context :transport) :account (get context :account)
+              :args (if group-action (js-object :chatId (get args :chatId)) (js-object)) :expiresAt (+ (Date/now) 300000))))
             (js-object :ok t :text (str "写操作尚未执行：" (get actions name) "。\n确认ID：" id
+              (if group-action (str "\n目标群确认尾码：" (js-call (get args :chatId) :slice -6)) "")
               "\n五分钟内发送“确认 " id "”执行，或“取消 " id "”。确认仅对本申请人和当前会话有效。")))
           (let* ((id (get args :id)) (key (ticket-key id)) (ticket (await (read-state key))))
             (if (or (not ticket) (not (= (get ticket :state) "pending"))
@@ -64,7 +77,8 @@
                   ;; Claim before mutation. Replays never execute an uncertain action twice.
                   (put ticket :state "executing") (await (write-state key ticket))
                   (try
-                    (await (apply-action (get ticket :action) id))
+                    (when (and (get ticket :account) (not (= (get ticket :account) (get context :account)))) (fail "确认应用不匹配"))
+                    (await (apply-action (get ticket :action) id (get ticket :args) context))
                     (put ticket :state "completed") (await (write-state key ticket))
                     (js-object :ok t :text (str "已完成：" (get actions (get ticket :action)) "。操作前数据已在本地备份。"))
                     (catch error

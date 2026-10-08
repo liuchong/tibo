@@ -5,7 +5,7 @@
   (import "../presentation/syntax.eli" pipe-catalog parse-pipeline validate-stages)
   (import "../presentation/pipeline.eli" present)
   (import "../platform/util.eli" fail)
-  (import "./catalog.eli" catalog visible-catalog canonical validate-query definition)
+  (import "./catalog.eli" catalog visible-catalog canonical validate-query definition write-query?)
   (import "./parser.eli" fixed-query)
   (import "./router.eli" resolve-query repair-command)
   (import "./help.eli" help-text)
@@ -29,7 +29,7 @@
       (lang (or (language (get query :language)) (language (get options :messageLanguage)) (detect-language (get query :question (get (get query :args (js-object)) :question "")))))
       (spec (definition name)))
       (cond ((= name "pipeline-error") (js-object :ok false :text (notice lang "unsupported")))
-        ((and (> (get stages :length) 0) (and spec (get spec :admin)))
+        ((and (> (get stages :length) 0) (write-query? query))
           (js-object :ok false :text (notice lang "write")))
         (t
           (let* ((base (js-object :command name :args (get query :args (js-object)))))
@@ -41,13 +41,15 @@
                   (let ((repaired (when (get options :inputText) (await (repair-command (get options :inputText) (get options :context) options)))))
                     (if (and repaired (= (get repaired :command) name)) (setq base repaired) (throw error))))))
           (let* (
-            (response (await (execute-core base (Object/assign (js-object) options (js-object :language lang))))))
-            (when (and (get response :ok) (not (= name "ask")) (not (and spec (get spec :admin)))
+            (response (if (and (> (get stages :length) 0) (write-query? base))
+              (js-object :ok false :text (notice lang "write"))
+              (await (execute-core base (Object/assign (js-object) options (js-object :language lang)))))))
+            (when (and (get response :ok) (not (= name "ask")) (not (write-query? base))
                        (oracle-trigger? (get query :question (get options :inputText ""))))
               (let ((extra (await (oracle-reply (get query :question (get options :inputText "")) lang (get options :noAi) (get options :context) (get options :recentMessages)))))
                 (put response :text (str (get response :text) "\n\n" (get extra :text)))))
             (when (and (not (= lang "zh")) (js-call (js-array "semantic-error" "semantic-disabled" "unsupported") :includes name))
               (put response :text (notice lang (if (= name "unsupported") "unsupported" "semantic"))))
-            (if (and spec (get spec :admin)) response
+            (if (write-query? base) response
               (await (present response query options (js-object :commands (visible-catalog (get options :context) t) :pipes pipe-catalog))))))))))
   (export catalog visible-catalog canonical validate-query fixed-query resolve-query execute-query public-forecast help-text))

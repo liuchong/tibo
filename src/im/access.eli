@@ -1,0 +1,15 @@
+(module tibo.im.access
+  (import "../platform/host.eli" RegExp Set)
+  (import "../platform/util.eli" fail)
+  (defun chat-list (raw &optional allow-all)
+    (let* ((text (js-call raw :trim))
+      (groups (Array/from (new Set (js-call (js-call (js-call text :split ",") :map (lambda (id) (js-call id :trim))) :filter (lambda (id) (> (get id :length) 0)))))))
+      (if (= text "all")
+        (if allow-all (js-array "all") (fail "管理群和通知群必须明确指定，不支持 all"))
+        (progn
+          (unless (js-call groups :every (lambda (id) (js-call (new RegExp "^oc_[A-Za-z0-9]+$") :test id)))
+            (fail "群配置必须为逗号分隔的群ID或允许的 all")) groups))))
+  (defun group-allowed? (groups id)
+    (and (= (value-type id) "string") (js-call (new RegExp "^oc_[A-Za-z0-9]+$") :test id)
+      (or (js-call groups :includes "all") (js-call groups :includes id))))
+  (export chat-list group-allowed?))

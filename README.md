@@ -40,6 +40,7 @@ bun run start -- forecast --no-ai
 | 设置 AI、状态目录与接入凭据 | [配置参考](docs/configuration.md) |
 | 安装、重装、重启后台服务 | [安装与运维](docs/operations.md) |
 | 接入 MCP / Lark | [MCP](docs/mcp.md) / [Lark](docs/lark.md) |
+| 普通群交互、操作群与报告订阅 | [会话接入与通知边界](docs/conversation-access.md) |
 | 排查旧发言、AI 降级与投递问题 | [故障排查](docs/troubleshooting.md) |
 | 理解算法、AI 策略或扩展程序 | [判断算法](docs/decision-contract.md) / [AI 任务](docs/ai-research.md) / [开发指南](docs/development.md) |
 
