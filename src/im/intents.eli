@@ -1,0 +1,20 @@
+;; Compose independent intents from one human message without letting an
+;; offering swallow its explicit command or relevant discussion.
+(module tibo.im.intents
+  (import "../platform/host.eli" RegExp)
+  (import "../platform/util.eli" clean)
+  (import "./triggers.eli" trigger-candidate)
+  (import "../commands/parser.eli" fixed-query)
+  (import "../presentation/syntax.eli" parse-pipeline)
+  (defun message-intents (text mentioned private-chat)
+    (let ((candidate (trigger-candidate text mentioned private-chat)))
+      (when (and candidate (= (get candidate :kind) "prayer"))
+        (let* ((stripped (clean (js-call text :replace (new RegExp "🙏[\\uFE0F\\u{1F3FB}-\\u{1F3FF}]*|\\[双手合十\\]" "gu") " ")))
+               (body (clean (js-call stripped :replace (new RegExp "^tibo\\s*[,，:：]?\\s*" "i") "")))
+               (query (when (> (get body :length) 0)
+                 (try (fixed-query (get (parse-pipeline body t) :base)) (catch error nil))))
+               (offering (and query (= (get query :command) "pray") (= (get (get query :args) :action "offer") "offer"))))
+          (when (and (> (get body :length) 0) (not offering))
+            (let ((other (trigger-candidate body (or mentioned query (js-call (new RegExp "tibo" "i") :test text)) private-chat)))
+              (when other (put candidate :companion other)))))) candidate))
+  (export message-intents))

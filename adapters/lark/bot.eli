@@ -76,6 +76,7 @@
                             (when candidate
                               (await (js-call inbox :accept (js-object :group (get message :chat_id) :key id :command (get candidate :command)
                                 :triggerLevel (get candidate :level) :triggerKind (get candidate :kind) :prayerMaterial (get candidate :material)
+                                :companion (get candidate :companion)
                                 :context context :createdAt (iso created) :acceptedAt (iso (Date/now)))))
                               (setq accepted t)))))
                       (finally

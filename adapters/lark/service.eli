@@ -5,7 +5,7 @@
   (import "../../src/app/engine.eli" save-report)
   (import "../../src/platform/state.eli" read-state write-state)
   (import "../../src/commands/index.eli" resolve-query execute-query)
-  (import "../../src/im/triggers.eli" trigger-candidate)
+  (import "../../src/im/intents.eli" message-intents)
   (import "../../src/im/access.eli" chat-list group-allowed?)
   (import "../../src/prayer/material.eli" prayer-material)
   (import "../../src/prayer/pray.eli" settle-festivals)
@@ -63,7 +63,7 @@
         (let ((text (message-text message)))
           (js-call mentions :forEach (lambda (mention) (setq text (js-call text :replaceAll (get mention :key) ""))))
           (setq text (clean text))
-          (let ((candidate (trigger-candidate text
+          (let ((candidate (message-intents text
             (js-call mentions :some (lambda (m) (= (get (get m :id (js-object)) :open_id) bot-id))) (= (get message :chat_type) "p2p"))))
             (when candidate
               (put candidate :material (if (= (get candidate :kind) "prayer") (prayer-material text) "")) candidate))))))
