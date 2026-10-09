@@ -19,6 +19,10 @@ const graph = new Map();
 const identities = new Set();
 for (const file of files) {
   const text = await readFile(resolve(root, file), 'utf8');
+  if (file.startsWith('src/chat/') &&
+      /\b(?:lark|feishu|root_id|parent_id|thread_id|reply_in_thread|page_token|message_position)\b|\b(?:om|omt|oc|ou)_/i.test(text)) {
+    failures.push(`${file}: shared dialogue module contains platform-specific vocabulary`);
+  }
   const identity = text.match(/^\(module\s+([^\s()]+)/m)?.[1];
   if (!identity || identities.has(identity)) failures.push(`${file}: missing or duplicate module identity`);
   identities.add(identity);
@@ -34,7 +38,8 @@ for (const file of files) {
     const layer = file.split('/')[1];
     const targetLayer = target.split('/')[1];
     const allowed = {platform: ['platform'], evidence: ['evidence', 'platform'],
-      forecast: ['forecast', 'evidence', 'platform'], ai: ['ai', 'evidence', 'forecast', 'platform']}[layer];
+      forecast: ['forecast', 'evidence', 'platform'], ai: ['ai', 'evidence', 'forecast', 'platform'],
+      chat: ['chat', 'ai', 'platform']}[layer];
     if (file.startsWith('src/') && allowed && (!target.startsWith('src/') || !allowed.includes(targetLayer))) {
       failures.push(`${file}: ${layer} imports higher-level module ${target}`);
     }

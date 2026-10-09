@@ -111,7 +111,9 @@
                   (await (write-state progress-key progress))))
               (if more (js-object :state "partial" :messages (js-array))
                 (progn
-                  (await (import-turns key (js-call records :sort (lambda (a b) (or (- (get a :at) (get b :at)) (- (get a :position) (get b :position))))) (get progress :end)))
+                  (await (import-turns key (js-call
+                    (js-call records :sort (lambda (a b) (or (- (get a :at) (get b :at)) (- (get a :position) (get b :position)))))
+                    :map (lambda (row) (js-object :id (get row :id) :role (get row :role) :content (get row :content)))) (get progress :end)))
                   (await (write-state progress-key nil))
                   ;; An older paused import must catch up to this request before
                   ;; answering. It resumes from through on the next attempt.

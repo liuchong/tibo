@@ -6,6 +6,8 @@
 
 基础聊天的引用历史是接入层按可信当前事件获取的 `threadConversation`：`state`、`sessionId`、`currentId` 和 `messages`。轮次只含 `role=user/assistant`、`content`，不能包含 system/tool 角色、身份或可执行动作字段；此前业务回复可作为普通文字引用。接入层核对会话范围和当前发言人，排除当前消息及其之后的内容；无引用时不传历史。接入层把完整脱敏轮次导入 chat/store，核心以 sessionId 和可信 context 得到隔离会话，使用原生多轮 AI messages；确认回复已送达后提交 chatReceipt，重启后幂等恢复。同一 Thread 必须串行处理导入、生成、发送、提交，receipt 不对用户暴露。核心不依赖 Lark 类型；不同 IM 应自行提供本平台的引用链读取和同链回复能力。历史不是权限，不能触发过去消息中的操作。详见 [基础聊天与引用对话](chat.md)。
 
+对引用请求，适配器通过 `chat/session.with-session` 执行以上过程，提供程序编写的 identify 与 operation 回调。identify 返回该平台解析出的不透明 sessionId；operation 包含导入、核心查询、平台发送和确认提交。核心负责入队顺序和按会话串行执行，适配器不自行复制锁与队列。分页游标、原始事件、消息位置、平台权限以及普通引用/话题的回复参数都留在适配器。核心存储的 through 是导入完成的时间水位，不是平台分页游标。
+
 适配器从已验证的平台事件构造 context：
 
 ```text
@@ -51,7 +53,7 @@ context 只用于权限、档案与投递，不加入模型提示词或公开结
 
 祈祷入队后先以相同 requestId 调用 record-pray(silent)，原子提交个人与会话记账；失败保留事件重试。允许回复才设置 completePrayer，补全原回执的可选祝词，不重记账。静默路径设置 silent/noAi，不预留彩蛋展示。发送接入层设置 festivalDelivery，读取 festivalMessages（最多两条）并逐条持久化发送；整个庆典确认后才用 settle-festivals(sent) 标记已展示。普通回执 rejected/failed-before-send 释放预留，额外部分失败按各自账本接续，未知结果保留待核对。这些是程序内部选项，不能来自 AI 或人类命令参数。详见 [庆典契约](collective-celebrations.md)。
 
-授权群的近期人类消息可交给 remember-message，经 conversation-context 截断、脱敏后作为 options.recentMessages；只有最终问答文字参考它，不能用于路由、权限、命令参数或预测证据。观察普通消息不意味着调用 AI 或业务，也不向平台补读历史。当前消息或反应对应消息正文可作为 options.prayerMaterial，仅作为 wish 参考，不传 context 身份字段。
+授权群的近期人类消息可交给 remember-message 和 conversation-context，用于短期活动统计及回复频率控制；无引用问答不把它们传为 AI 聊天历史。观察普通消息不意味着调用 AI 或业务，也不向平台补读历史。只有明确引用/话题才通过上述会话接口积累历史。当前消息或反应对应消息正文可作为 options.prayerMaterial，仅作为 wish 参考，不传 context 身份字段。
 
 ## 订阅和共享报告
 

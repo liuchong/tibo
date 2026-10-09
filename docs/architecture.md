@@ -24,13 +24,14 @@ Tibo 是一个独立应用。CLI、MCP 和 IM 共用业务能力，IM 接入放�
 - evidence 依赖 platform，负责发现、获取与证据判定。reset-text 是采集与信号分析共用的原文判定规则，不包含预测模型。
 - forecast 依赖 platform 和 evidence，进行历史统计、信号分析与概率计算。它不依赖 AI、入口、命令、展示或 IM；experience 通过固定状态接口保存历史成绩。
 - ai 依赖 platform、evidence 与 forecast，提供可选的结构化任务及调整。证据校验与算法保持可独立运行。
+- chat 只依赖 chat、ai 和 platform，提供跨接入方式的会话隔离、导入去重、追加提交、容量摘要与串行处理。它不解析平台原始事件，不读取平台 API，不生成平台回复参数。
 - presentation 负责输出与文字处理；prayer 负责档案、角色和吉祥话；subscriptions 负责订阅、定点与共享报告。需要编排多个能力时，通过明确模块调用完成。
 - commands 组合业务能力，并分离目录、固定解析、语义路由、执行和管理确认。app 负责进程入口和预测编排。
 - im 提供跨平台触发规则；adapters/lark 实现平台身份认证、事件读取与投递。src 内的模块不能导入具体适配器。
 
 部分上层模块会跨职责调用，例如共享定点报告使用 app/engine 和 presentation/business；这属于报告编排，不让订阅人数进入预测计算。模块依赖保持无环，不能为了方便在基础层反向调用命令入口。
 
-`bun run check:architecture` 检查本地导入有效、模块名唯一、依赖无环以及上述基础层方向。它也检查命令、MCP 和 Lark 收件/广播路径不能依赖子进程或本地安装模块。实际模型输出不会调用进程的行为仍由运行测试验证，见 [执行边界](execution-boundary.md)。
+`bun run check:architecture` 检查本地导入有效、模块名唯一、依赖无环以及上述基础层方向。它还约束 chat 的依赖层，并阻止平台专用的标识格式和事件/回复字段进入 chat。命令、MCP 和 Lark 收件/广播路径不能依赖子进程或本地安装模块。实际模型输出不会调用进程的行为仍由运行测试验证，见 [执行边界](execution-boundary.md)。
 
 ## 查询与管道
 
