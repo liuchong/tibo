@@ -22,7 +22,7 @@ async function trial(body,features=''){
 }
 test('the prayer runs while projection delivery is blocked; the forecast starts only after confirmation, and replay repeats nothing',async()=>{
  const r=await trial(`let release;const gate=new Promise(r=>release=r);const send=client.send;client.send=async b=>{if(b.content.includes('重置神谕'))await gate;return send(b)};
- const j=job('伟大的重置之神啊，请赐予我一次重置吧！🙏',undefined,{...ctx,conversationType:'group'});const work=process_interaction(client,j);
+ const j=job('请给我一次重置吧！🙏',undefined,{...ctx,conversationType:'group'});const work=process_interaction(client,j);
  for(let i=0;i<100&&!posts.length;i++)await new Promise(r=>setTimeout(r,2));const before={posts:posts.slice(),network,offers:(await read_state(identity_key)).offers};release();await work;
  const first=posts.slice();await process_interaction(client,j);console.log(JSON.stringify({before,first,posts,root:await receipt(j.key),projection:await receipt(j.key+':content'),forecast:await receipt(j.key+':forecast'),offers:(await read_state(identity_key)).offers}));`);
  expect(r.before.posts).toHaveLength(1);expect(r.before.posts[0]).toContain('**🙏 香客');expect(r.before.network).toBe(0);expect(r.before.offers).toBe(1);

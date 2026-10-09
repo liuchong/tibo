@@ -2,7 +2,7 @@
 ;; offering swallow its explicit command or relevant discussion.
 (module tibo.im.intents
   (import "../platform/host.eli" RegExp)
-  (import "../platform/util.eli" clean matches)
+  (import "../platform/util.eli" clean)
   (import "./triggers.eli" trigger-candidate)
   (import "../commands/parser.eli" fixed-query)
   (import "../presentation/syntax.eli" parse-pipeline)
@@ -17,6 +17,6 @@
                (offering (and query (= (get query :command) "pray") (= (get (get query :args) :action "offer") "offer"))))
           (when (and (> (get body :length) 0) (not offering))
             (let ((other (trigger-candidate body (or mentioned query (js-call (new RegExp "tibo" "i") :test text)
-              (and (= (oracle-intent body) "invoke-reset") (matches "重置之神|reset god|codex|token|额度" body))) private-chat)))
+              (= (oracle-intent body) "invoke-reset")) private-chat)))
               (when other (put candidate :companion other)))))) candidate))
   (export message-intents))
