@@ -1,11 +1,25 @@
 ;; Application-owned callbacks include execution and delivery; no result buffer.
+;; Nodes are program-defined only, never model output or human parameters.
 (module tibo.im.tasks
   (import "../platform/host.eli" Promise)
+  (import "../platform/util.eli" fail)
+  (defun parallel-tasks (children) (js-object :kind "parallel" :children children))
+  (defun sequence-tasks (children) (js-object :kind "sequence" :children children))
+  (defasync run-task (node &optional previous)
+    (if (= (value-type node) "function") (await (funcall node previous))
+      (progn
+        (unless (and node (Array/isArray (get node :children))
+          (js-call (js-array "parallel" "sequence") :includes (get node :kind))) (fail "任务组合不合法"))
+        (if (= (get node :kind) "parallel")
+          (let* ((results (await (Promise/allSettled (js-call (get node :children) :map
+            (async (child) (await (run-task child previous)))))))
+            (failure (js-call results :find (lambda (result) (= (get result :status) "rejected")))))
+            ;; Successful siblings have delivered even if another branch fails.
+            (when failure (throw (get failure :reason)))
+            (if (js-call results :some (lambda (result) (= (get result :value) false))) false results))
+          (let ((value previous) (i 0) (children (get node :children)))
+            (while (and (< i (get children :length)) (not (= value false)))
+              (setq value (await (run-task (get children i) value)) i (+ i 1))) value)))))
   (defasync run-tasks (operations)
-    (let* ((results (await (Promise/allSettled
-      (js-call operations :map (async (operation) (await (funcall operation)))))))
-      (failure (js-call results :find (lambda (result) (= (get result :status) "rejected")))))
-      ;; Wait only to settle the durable parent. Successful siblings have already
-      ;; delivered, even when another task fails or is still generating.
-      (when failure (throw (get failure :reason))) results))
-  (export run-tasks))
+    (await (run-task (if (Array/isArray operations) (parallel-tasks operations) operations))))
+  (export parallel-tasks sequence-tasks run-tasks))

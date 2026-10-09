@@ -157,11 +157,12 @@
         (let* ((options (js-object :channel group :persist false :titleTime title-time :context context
                  :conversationMode (not (not (get job :reference)))
                  :prayerMaterial (get job :prayerMaterial)
+                 :oracleForecast (get job :oracleForecast) :messageLanguage (get job :messageLanguage)
                  :recentMessages (get job :recentMessages)
                  :completePrayer t :festivalDelivery t
                  :humanInput (and (not prepared) context (= (get context :authenticated) t))))
                (response (if prepared (js-object :ok t :text (get prepared :text)) (try
-                  (let* ((route-start (Date/now)) (query (await (resolve-query command context options))))
+                  (let* ((route-start (Date/now)) (query (or (get job :internalQuery) (await (resolve-query command context options)))))
                     (put latency :routeMs (- (Date/now) route-start))
                     (when (and (= (get query :command) "ask") (get job :reference) (not (get options :noAi))
                       (> (get (get (config) :key) :length) 0)
@@ -187,7 +188,7 @@
                  (dm (js-call group :startsWith "ou_")))
             (put latency :sendMs (- (Date/now) send-start))
             (put latency :totalMs (- (Date/now) started))
-            (await (write-state ledger-key (js-object :state "sent" :messageId id :at (iso (Date/now)) :group group :key key :latency latency
+            (await (write-state ledger-key (js-object :state "sent" :messageId id :at (iso (Date/now)) :group group :key key :latency latency :businessOk (get response :ok)
               :chatReceipt (get response :chatReceipt)
               :festivalRequest festival-request :festivalIds (get response :festivalIds) :festivalMessages (get response :festivalMessages))))
             (await (finish-chat ledger-key))

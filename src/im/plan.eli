@@ -1,0 +1,35 @@
+;; Shared intent composition. Platform delivery and receipts remain in adapters.
+(module tibo.im.plan
+  (import "./tasks.eli" parallel-tasks sequence-tasks)
+  (import "../prayer/oracle.eli" oracle-intent)
+  (import "../commands/parser.eli" fixed-query)
+  (import "../presentation/syntax.eli" parse-pipeline)
+  (import "../presentation/language.eli" detect-language)
+  (defun reset-invocation? (command)
+    (try
+      (let* ((base (get (parse-pipeline command t) :base)) (query (fixed-query base)))
+        (and (or (not query) (= (get query :command) "ask"))
+          (= (oracle-intent (if query (get (get query :args) :question) base)) "invoke-reset")))
+      (catch error false)))
+  (defun interaction-plan (job execute)
+    (let* ((id (get job :key)) (other (get job :companion))
+      (command (if other (get other :command) (get job :command)))
+      (invocation (reset-invocation? command)) (composed (or other invocation)))
+      (if (not composed) (js-object :composed false :tree (lambda () (funcall execute job)))
+        (let* ((content-id (str id ":content"))
+          (content (Object/assign (js-object) job (js-object :key content-id :messageId (get job :messageId id)
+            :sourceEvent id :command command :companion nil :prayerMaterial "" :oracleForecast invocation)))
+          (prayer (when other (Object/assign (js-object) job (js-object :key (str id ":prayer")
+            :messageId (get job :messageId id) :sourceEvent id :companion nil))))
+          (forecast (when invocation (Object/assign (js-object) content (js-object :key (str id ":forecast")
+            :command "forecast" :triggerLevel 1 :triggerKind "direct" :oracleForecast false
+            :followupOf content-id :messageLanguage (detect-language command)
+            :internalQuery (js-object :command "forecast" :args (js-object) :language (detect-language command))))))
+          (content-tree (if invocation
+            (sequence-tasks (js-array (lambda () (funcall execute content)) (lambda () (funcall execute forecast))))
+            (lambda () (funcall execute content)))))
+          (when other (put content :triggerLevel (get other :level)) (put content :triggerKind (get other :kind)))
+          (js-object :composed t :prayerId (when prayer (get prayer :key)) :contentId content-id
+            :forecastId (when forecast (get forecast :key))
+            :tree (if prayer (parallel-tasks (js-array content-tree (lambda () (funcall execute prayer)))) content-tree))))))
+  (export reset-invocation? interaction-plan))
