@@ -11,6 +11,7 @@
   (import "../../src/im/reactions.eli" reaction-choice)
   (import "../../src/im/context.eli" conversation-context group-context?)
   (import "../../src/im/reply-policy.eli" reply-permit settle-reply)
+  (import "../../src/im/tasks.eli" run-tasks)
   (import "./service.eli" delivery-key deliver account-key)
   (defun reply-kind (job)
     (cond ((>= (get job :triggerLevel 0) 2) "ambient")
@@ -70,7 +71,8 @@
           (js-object :requestId (delivery-key (get job :group) (get job :key)))) (js-object :silent t))))
     (let* ((context (get job :context)) (kind (reply-kind job)) (command (get job :command)) (id (get job :key))
       (history (await (conversation-context context command (get job :messageId id) (or (get job :createdAt) (iso (Date/now))))))
-      (first (await (reply-permit context id kind command (get history :activity)))) (decision nil))
+      (origin (get job :sourceEvent ""))
+      (first (await (reply-permit context id kind command (get history :activity) nil origin))) (decision nil))
       (cond
         ((and (= kind "ambient") (group-context? context) (get job :createdAt)
           (< (Date/parse (get job :createdAt)) (- (Date/now) 90000)))
@@ -88,7 +90,7 @@
               (await (write-state (delivery-key (get job :group) id) (js-object :state "filtered" :at (iso (Date/now))
                 :reason (get decision :reason) :method (get decision :method))))
               (await (maybe-react client job decision (get history :activity))))
-            (let ((permit (await (reply-permit context id kind command (get history :activity) t))))
+            (let ((permit (await (reply-permit context id kind command (get history :activity) t origin))))
               (if (not (get permit :accepted)) (progn (await (suppress job permit))
                 (unless (= (get permit :reason) "repeat-request") (await (maybe-react client job decision (get history :activity)))))
                 (progn
@@ -101,22 +103,16 @@
     (let ((other (get job :companion)))
       (if (not other) (await (process-single client job))
         (let* ((group (get job :group)) (id (get job :key)) (root (delivery-key group id))
-               (prayer (Object/assign (js-object) job (js-object :key (str id ":prayer") :messageId id :companion nil)))
+               (prayer (Object/assign (js-object) job (js-object :key (str id ":prayer") :messageId id :sourceEvent id :companion nil)))
                (content (Object/assign (js-object) job (js-object :key (str id ":content") :messageId id :companion nil
-                 :command (get other :command) :triggerLevel (get other :level) :triggerKind (get other :kind) :prayerMaterial "")))
+                 :sourceEvent id :command (get other :command) :triggerLevel (get other :level) :triggerKind (get other :kind) :prayerMaterial "")))
                (prayer-key (delivery-key group (get prayer :key))) (content-key (delivery-key group (get content :key))))
-          ;; Count before any classifier or reply; both branches have durable
-          ;; receipts. A retry only resumes the missing branch, never a write.
-          (await (record-pray (js-object :action "offer")
-            (Object/assign (js-object) (get job :context) (js-object :requestId prayer-key)) (js-object :silent t)))
-          ;; Evaluate discussion before our own prayer reply spends capacity;
-          ;; unrelated prayers must not suppress their accompanying question.
-          (let ((failure nil))
-            (try (unless (await (read-state content-key)) (await (process-single client content)))
-              (catch error (setq failure error)))
-            (try (unless (await (read-state prayer-key)) (await (process-single client prayer)))
-              (catch error (setq failure (or failure error))))
-            (when failure (throw failure)))
+          ;; Each branch owns accounting, pacing, execution and immediate send.
+          ;; On replay only the missing branch runs; one failure never cancels
+          ;; a sibling already in flight. No branch waits for the other's I/O.
+          (await (run-tasks (js-array
+            (async () (unless (await (read-state content-key)) (await (process-single client content))))
+            (async () (unless (await (read-state prayer-key)) (await (process-single client prayer)))))))
           (await (write-state root (js-object :state "handled" :at (iso (Date/now))
             :receiptKey prayer-key :companionReceiptKey content-key)))))))
   (export reply-kind process-interaction))

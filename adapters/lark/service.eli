@@ -6,7 +6,7 @@
   (import "../../src/platform/state.eli" read-state write-state)
   (import "../../src/chat/session.eli" with-session)
   (import "../../src/chat/store.eli" commit-turn)
-  (import "../../src/commands/index.eli" resolve-query execute-query)
+  (import "../../src/commands/index.eli" fixed-query resolve-query execute-query)
   (import "../../src/ai/runtime.eli" config)
   (import "../../src/prayer/oracle.eli" oracle-trigger?)
   (import "../../src/im/intents.eli" message-intents)
@@ -208,8 +208,12 @@
               (await (settle-festivals context festival-request (get (await (read-state ledger-key)) :state)))))
           (throw (new Error "投递未完成；检查本地账本，未知结果不自动重试"))))))
   (defasync deliver (client group key command &optional title-time context prepared job)
-    (let ((reference (get (or job (js-object)) :reference)))
-      (if (and reference context (= (get context :authenticated) t) (= (get context :scope) group))
+    (let* ((reference (get (or job (js-object)) :reference))
+      (fixed (when (= (value-type command) "string") (fixed-query command)))
+      ;; Prayer has no dialogue turn to import or commit. Keep its native reply
+      ;; target but do not put it behind a quoted question's generation lane.
+      (prayer (and fixed (= (get fixed :command) "pray"))))
+      (if (and (not prayer) reference context (= (get context :authenticated) t) (= (get context :scope) group))
         (await (with-session context (async ()
           ;; Platform selectors are resolved here; the shared core treats the
           ;; resulting identifier as opaque and owns the ordering mechanics.
