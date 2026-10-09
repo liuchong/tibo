@@ -3,7 +3,7 @@
   (import "node:timers" setTimeout)
   (import "./state.eli" with-lock)
   (defconst pending (new Map))
-  (defasync locked (key operation)
+  (defasync locked (key operation wait-ms)
     (let ((attempts 0) (finished false) (value nil))
       (while (not finished)
         (try
@@ -11,12 +11,12 @@
           (catch error
             ;; Only acquisition contention is retried, never a failed mutation.
             (unless (and (js-call (get error :message "") :startsWith "已有实例运行或无法确认锁的所有者：")
-              (< attempts 400)) (throw error))
+              (< attempts (Math/ceil (/ wait-ms 25)))) (throw error))
             (setq attempts (+ attempts 1))
             (await (new Promise (lambda (resolve) (setTimeout resolve 25))))))) value))
-  (defasync state-transaction (key operation)
+  (defasync state-transaction (key operation &optional wait-ms)
     (let* ((previous (or (js-call pending :get key) (Promise/resolve nil)))
-      (result (js-call previous :then (lambda () (locked key operation))))
+      (result (js-call previous :then (lambda () (locked key operation (or wait-ms 10000)))))
       (tail (js-call result :catch (lambda (error) nil))))
       (js-call pending :set key tail)
       (try (await result)

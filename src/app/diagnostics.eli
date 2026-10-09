@@ -5,7 +5,7 @@
   (defun diagnostics (result)
     (let* ((snapshot (get result :snapshot)) (ai (get result :ai))
       (latest (last-item (sorted (js-call (get snapshot :posts) :filter (lambda (p) (<= (ms (get p :at)) (ms (get snapshot :now))))) "at"))))
-      (js-object :at (get snapshot :now) :archiveCachedAt (get snapshot :cachedAt) :timing (get result :timing)
+      (js-object :at (get snapshot :now) :archiveCachedAt (get snapshot :cachedAt) :timing (get result :timing) :reuse (get result :reuse)
         :latestPost (if latest (js-object :id (get latest :id) :at (get latest :at) :text (get latest :text)
           :url (get latest :url) :provenance (get latest :provenance) :verifiedAt (get latest :cachedAt)
           :truncated (get latest :truncated false)) nil)
