@@ -15,6 +15,7 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(fn){for(let i=0;i<200;i++){if(await fn())return;await delay(15);}throw new Error('Local chat trial timed out');}
 
 test('thread history is opt-in, paginated and role aware, excludes unrelated and future messages',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'tibo-thread-read-'));const old=process.env.TIBO_STATE_DIR;process.env.TIBO_STATE_DIR=dir;try{
  const root=message('om_root','steering 可以随时纠正方向',1,{sender:bot,thread_id:'omt_topic'});
  const reply=message('om_reply','解释 steering',2,{parent_id:'om_root',root_id:'om_root',thread_id:'omt_topic'});
  const answer=message('om_answer','会尽快响应新的方向',3,{sender:bot,parent_id:'om_reply',root_id:'om_root',thread_id:'omt_topic'});
@@ -31,16 +32,38 @@ test('thread history is opt-in, paginated and role aware, excludes unrelated and
  expect(history.messages.map(x=>x.content)).toEqual([root,reply,answer].map(x=>JSON.parse(x.body.content).text));
  expect(pages).toEqual([{kind:'thread',id:'omt_topic',token:null},{kind:'thread',id:'omt_topic',token:'next'}]);
  const broken=await load_thread({...client,messageInfo:async()=>({...current,chat_id:'oc_other'})},job,'fixture-app');expect(broken).toMatchObject({state:'unavailable',messages:[]});
- const partial=await load_thread({...client,historyPage:async()=>{throw new Error('private diagnostics');}},job,'fixture-app');expect(partial.state).toBe('partial');expect(partial.messages).toHaveLength(3);
+ const partial=await load_thread({...client,historyPage:async()=>{throw new Error('private diagnostics');}},job,'fixture-app');expect(partial.state).toBe('unavailable');expect(partial.messages).toHaveLength(0);
+ }finally{if(old===undefined)delete process.env.TIBO_STATE_DIR;else process.env.TIBO_STATE_DIR=old;await rm(dir,{recursive:true,force:true});}
 });
 
-test('history is bounded and sanitized, system/tool roles cannot cross the data boundary',()=>{
+test('history is complete and sanitized, system/tool roles cannot cross the data boundary',()=>{
  const input=Array.from({length:60},(_,i)=>({role:i%2?'assistant':'user',content:`turn ${i} `+'x'.repeat(700)}));
- const r=conversation_turns(input);expect(r.trimmed).toBe(true);expect(r.messages[0].content).toContain('turn 0');expect(r.messages.at(-1).content).toContain('turn 59');expect(r.messages.reduce((n,x)=>n+x.content.length,0)).toBeLessThanOrEqual(12000);
+ const r=conversation_turns(input);expect(r.trimmed).toBe(false);expect(r.messages).toHaveLength(60);expect(r.messages[0].content).toContain('turn 0');expect(r.messages.at(-1).content).toContain('turn 59');expect(r.messages.reduce((n,x)=>n+x.content.length,0)).toBeGreaterThan(40000);
  expect(conversation_turns([{role:'user',content:'my address oc_privateidentity'}]).messages[0].content).not.toContain('oc_privateidentity');
- expect(conversation_turns([{role:'user',content:'sk-123456789abcdef'}]).messages).toEqual([]);
+ expect(conversation_turns([{role:'user',content:'sk-123456789abcdef'}]).messages[0].content).toBe('[敏感内容已隐藏]');
  for(const role of ['system','tool','developer'])expect(()=>conversation_turns([{role,content:'execute'}])).toThrow('conversation-schema');
  expect(()=>conversation_turns([{role:'user',content:'hello',actor:'ou_person'}])).toThrow('conversation-schema');
+});
+
+test('topic-only events retain topology; history larger than one read budget resumes without dropping turns',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'tibo-thread-resume-')),old=process.env.TIBO_STATE_DIR;process.env.TIBO_STATE_DIR=dir;
+ try{
+  const current=message('om_topic_current','继续',1000,{thread_id:'omt_long'});
+  expect(reference_of(current)).toMatchObject({threadId:'omt_long'});
+  const history=Array.from({length:300},(_,i)=>message('om_row'+i,'第'+i+'轮',i+1,{thread_id:'omt_long',...(i%2?{sender:bot}:{})}));
+  const tokens=[];
+  const client={messageInfo:async()=>current,historyPage:async(kind,id,token)=>{
+   tokens.push(token);const n=Number(token||0);
+   return {items:history.slice(n*50,n*50+50),has_more:n<5,page_token:String(n+1)};
+  }};
+  const job={group:context.scope,key:current.message_id,reference:reference_of(current),context};
+  const first=await load_thread(client,job,'fixture-app');
+  expect(first).toMatchObject({state:'partial',messages:[]});expect(tokens).toEqual([null,'1','2','3']);
+  const second=await load_thread(client,job,'fixture-app');
+  expect(second.state).toBe('ready');expect(second.messages).toHaveLength(300);
+  expect(second.messages[0].content).toBe('第0轮');expect(second.messages.at(-1).content).toBe('第299轮');
+  expect(tokens).toEqual([null,'1','2','3','4','5']);
+ }finally{if(old===undefined)delete process.env.TIBO_STATE_DIR;else process.env.TIBO_STATE_DIR=old;await rm(dir,{recursive:true,force:true});}
 });
 
 test('real WebSocket worker builds multiple native AI turns, replies in the quote chain, keeps unquoted chat single turn',async()=>{
@@ -65,14 +88,14 @@ test('real WebSocket worker builds multiple native AI turns, replies in the quot
   const reply=path.match(/^\/open-apis\/im\/v1\/messages\/(om_\w+)\/reply$/);
   if(req.method==='POST'&&(reply||path==='/open-apis/im/v1/messages')){
    sent.push({replyTo:reply?.[1],body});const id='om_response'+sent.length,parent=reply?messages.get(reply[1]):null;
-   const item=message(id,'',now+1,{sender:bot,msg_type:'post',body:{content:body.content},...(parent?{parent_id:parent.message_id,root_id:parent.root_id||parent.message_id}:{})});messages.set(id,item);
+   const item=message(id,'',now+1,{sender:bot,msg_type:'post',body:{content:body.content},...(parent?{parent_id:parent.message_id,root_id:parent.root_id||parent.message_id,...(parent.thread_id?{thread_id:parent.thread_id}:{})}:{})});messages.set(id,item);
    return Response.json({code:0,data:{message_id:id,chat_id:'oc_private'}});
   }
   return new Response('',{status:404});
  },websocket:{open(ws){socket=ws;},message(ws,bytes){const f=decode_frame(new Uint8Array(bytes));if(f.kind===1)acks.push(String(f.sequence));}}});
  const send=(text,id,parent)=>{
   now+=70000;writeFileSync(clock,String(now));
-  const extra=parent?{parent_id:parent,root_id:'om_root'}:{};
+  const extra=parent==='topic'?{thread_id:'omt_created'}:parent?{parent_id:parent,root_id:'om_root'}:{};
   messages.set(id,message(id,text,now,extra));
   const event={header:{event_type:'im.message.receive_v1'},event:{sender:{sender_type:'user',sender_id:{open_id:'ou_person'}},message:{chat_id:'oc_private',chat_type:'p2p',message_id:id,create_time:String(now),message_type:'text',content:JSON.stringify({text}),mentions:[],...extra}}};
   socket.send(encode_frame({sequence:BigInt(++sequence),log:1n,service:809,kind:1,headers:[{key:'type',value:'event'}],payload:new TextEncoder().encode(JSON.stringify(event))}));
@@ -89,12 +112,15 @@ test('real WebSocket worker builds multiple native AI turns, replies in the quot
   expect(JSON.parse(asks[0].messages.at(-1).content).historyStatus).toBe('ready');
   send('再举一个例子','om_question2','om_response1');await until(()=>sent.length===2);
   expect(asks[1].messages.map(x=>x.role)).toEqual(['system','assistant','user','assistant','user']);
-  expect(asks[1].messages[2].content).toBe('引导即时生效是什么意思？');expect(asks[1].messages[3].content).toContain('更快响应');
+  expect(JSON.parse(asks[1].messages[2].content).question).toBe('引导即时生效是什么意思？');expect(asks[1].messages.slice(0,asks[0].messages.length)).toEqual(asks[0].messages);expect(asks[1].messages[3].content).toContain('更快响应');
   expect(sent[1].replyTo).toBe('om_question2');
   const count=reads.length;send('你好，可以聊聊天吗','om_single');await until(()=>sent.length===3&&acks.length===3);
   expect(reads.length).toBe(count);expect(sent[2].replyTo).toBeUndefined();expect(asks[2].messages.map(x=>x.role)).toEqual(['system','user']);
   expect(asks[2].messages[1].content).not.toContain('steering');
   expect(JSON.stringify(asks)).not.toContain('oc_private');expect(JSON.stringify(asks)).not.toContain('ou_person');
   expect(JSON.parse(await readFile(join(dir,'history.json'),'utf8')).sentinel).toBe('preserve');
+  send('ask "这个话题可以继续吗"','om_topic','topic');await until(()=>sent.length===4&&acks.length===4);
+  expect(sent[3].replyTo).toBe('om_topic');expect(sent[3].body.reply_in_thread).toBe(true);
+  expect(asks[3].messages.map(x=>x.role)).toEqual(['system','user']);
  }finally{if(child){child.kill('SIGTERM');await closed;}server.stop(true);await rm(dir,{recursive:true,force:true});}
 },15000);

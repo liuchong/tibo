@@ -92,7 +92,7 @@
               (if (not (get permit :accepted)) (progn (await (suppress job permit))
                 (unless (= (get permit :reason) "repeat-request") (await (maybe-react client job decision (get history :activity)))))
                 (progn
-                  (put job :recentMessages (get history :messages)) (put job :replyPolicy permit)
+                  (put job :replyPolicy permit)
                   (try (await (deliver client (get job :group) id command (get job :titleTime) context nil job))
                     (finally
                       (let ((receipt (await (read-state (delivery-key (get job :group) id)))))

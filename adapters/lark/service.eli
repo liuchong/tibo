@@ -4,6 +4,8 @@
   (import "../../src/platform/host.eli" Error Date RegExp Set Number Map)
   (import "../../src/app/engine.eli" save-report)
   (import "../../src/platform/state.eli" read-state write-state)
+  (import "../../src/platform/transaction.eli" state-transaction)
+  (import "../../src/chat/store.eli" conversation-key commit-turn)
   (import "../../src/commands/index.eli" resolve-query execute-query)
   (import "../../src/ai/runtime.eli" config)
   (import "../../src/prayer/oracle.eli" oracle-trigger?)
@@ -13,7 +15,7 @@
   (import "../../src/prayer/pray.eli" settle-festivals)
   (import "./messages.eli" markdown-post send-report)
   (import "./celebration-delivery.eli" finish-celebration)
-  (import "./thread.eli" load-thread)
+  (import "./thread.eli" load-thread reference-root)
   (import "../../src/subscriptions/schedule.eli" slot-at)
   (import "../../src/platform/util.eli" ms iso clean fail)
   (defun account-key ()
@@ -131,7 +133,13 @@
                          :triggerKind "prayer" :prayerMaterial material :context context :createdAt (iso created) :acceptedAt (iso (Date/now)))))
                   (put audit :reason "chat-not-authorized")
                   (when (allowed-job? job allowed) (put audit :reason "accepted") job)))))))))
-  (defasync deliver (client group key command &optional title-time context prepared job)
+  (defasync finish-chat (key)
+    (let ((ledger (await (read-state key))))
+      (when (and ledger (= (get ledger :state) "sent") (get ledger :chatReceipt) (not (get ledger :chatCommitted)))
+        (await (commit-turn (get ledger :chatReceipt) (get ledger :messageId)))
+        (put ledger :chatCommitted t) (put ledger :chatReceipt nil)
+        (await (write-state key ledger)))))
+  (defasync deliver-once (client group key command &optional title-time context prepared job)
     (setq job (or job (js-object)))
     (let* ((ledger-key (delivery-key group key)) (started (Date/now)) (festival-request nil)
            (latency (js-object :startedAt (iso started) :replyPolicy (get job :replyPolicy)
@@ -147,6 +155,7 @@
       (await (write-state ledger-key (js-object :state "pending" :at (iso (Date/now)) :group group :key key :latency latency)))
       (try
         (let* ((options (js-object :channel group :persist false :titleTime title-time :context context
+                 :conversationMode (not (not (get job :reference)))
                  :prayerMaterial (get job :prayerMaterial)
                  :recentMessages (get job :recentMessages)
                  :completePrayer t :festivalDelivery t
@@ -170,6 +179,7 @@
           (when result (put latency :core (get result :timing)))
           (put latency :sendStartedAt (iso (Date/now)))
           (await (write-state ledger-key (js-object :state "sending" :at (iso (Date/now)) :group group :key key :latency latency
+            :chatReceipt (get response :chatReceipt)
             :festivalRequest festival-request :festivalIds (get response :festivalIds) :festivalMessages (get response :festivalMessages))))
           (let* ((send-start (Date/now)) (metadata (js-object)) (id (await (send-report client group ledger-key text metadata
             (when (and (get job :reference) context (= (get context :authenticated) t) (= (get context :scope) group))
@@ -178,7 +188,9 @@
             (put latency :sendMs (- (Date/now) send-start))
             (put latency :totalMs (- (Date/now) started))
             (await (write-state ledger-key (js-object :state "sent" :messageId id :at (iso (Date/now)) :group group :key key :latency latency
+              :chatReceipt (get response :chatReceipt)
               :festivalRequest festival-request :festivalIds (get response :festivalIds) :festivalMessages (get response :festivalMessages))))
+            (await (finish-chat ledger-key))
             (await (write-state (message-key id) (js-object :messageId id :group (if dm (get metadata :chatId) group) :recipient group
               :appId (get (get process :env) :TIBO_LARK_APP_ID "")
               :text (prayer-material text) :account (account-key) :conversationType (if dm "p2p" (if context (get context :conversationType) "group")) :at (iso (Date/now)))))
@@ -195,4 +207,18 @@
             (when (and festival-request (not (= (get ledger :state) "sent")))
               (await (settle-festivals context festival-request (get (await (read-state ledger-key)) :state)))))
           (throw (new Error "投递未完成；检查本地账本，未知结果不自动重试"))))))
-  (export group-config admin-group-config notify-group-config command-of message-text message-candidate sender-context account-key allowed-job? slot-at delivery-key message-key pending-reaction reaction-job markdown-post send-report deliver))
+  (defasync deliver (client group key command &optional title-time context prepared job)
+    (let ((reference (get (or job (js-object)) :reference)))
+      (if (and reference context (= (get context :authenticated) t) (= (get context :scope) group))
+        (let ((queued (await (state-transaction (str (conversation-key context "intake") "-intake") (async ()
+          ;; Serialize only selector resolution and queue insertion. Generation
+          ;; waits on the per-thread lane outside this brief room intake lock.
+          (when (and (not (get reference :threadId)) (not (get reference :rootId)))
+            (put reference :rootId (await (reference-root client job))))
+          (let ((task (state-transaction (str (conversation-key context (or (get reference :threadId) (get reference :rootId))) "-delivery")
+            (async () (await (deliver-once client group key command title-time context prepared job))))))
+            (js-call task :catch (lambda (error) nil))
+            (js-object :task task)))))))
+          (await (get queued :task)))
+        (await (deliver-once client group key command title-time context prepared job)))))
+  (export group-config admin-group-config notify-group-config command-of message-text message-candidate sender-context account-key allowed-job? slot-at delivery-key message-key pending-reaction reaction-job markdown-post send-report deliver finish-chat))

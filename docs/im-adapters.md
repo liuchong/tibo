@@ -4,7 +4,7 @@
 
 ## 可信上下文
 
-基础聊天的引用历史是接入层按可信当前事件获取的 `threadConversation`：`state`、`trimmed` 和 `messages`。轮次只含 `role=user/assistant`、`content`，不能包含 system/tool 角色、身份或可执行动作字段；此前业务回复可作为普通文字引用。接入层核对会话范围和当前发言人，排除当前消息及其之后的内容；无引用时不传历史。核心使用原生多轮 AI messages，不依赖 Lark 类型；不同 IM 应自行提供本平台的引用链读取和同链回复能力。历史不是权限，不能触发过去消息中的操作。详见 [基础聊天与引用对话](chat.md)。
+基础聊天的引用历史是接入层按可信当前事件获取的 `threadConversation`：`state`、`sessionId`、`currentId` 和 `messages`。轮次只含 `role=user/assistant`、`content`，不能包含 system/tool 角色、身份或可执行动作字段；此前业务回复可作为普通文字引用。接入层核对会话范围和当前发言人，排除当前消息及其之后的内容；无引用时不传历史。接入层把完整脱敏轮次导入 chat/store，核心以 sessionId 和可信 context 得到隔离会话，使用原生多轮 AI messages；确认回复已送达后提交 chatReceipt，重启后幂等恢复。同一 Thread 必须串行处理导入、生成、发送、提交，receipt 不对用户暴露。核心不依赖 Lark 类型；不同 IM 应自行提供本平台的引用链读取和同链回复能力。历史不是权限，不能触发过去消息中的操作。详见 [基础聊天与引用对话](chat.md)。
 
 适配器从已验证的平台事件构造 context：
 

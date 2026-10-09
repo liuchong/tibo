@@ -21,7 +21,7 @@ Lark 是独立的 Eliscript 接入程序，复用核心命令与共享报告。�
 | `im:message.reactions:write_only` | 对弱相关或文字回复预算不足的群消息加轻量表情；固定 OK / SMILE / THUMBSUP 枚举 |
 | `im:chat:read` | 核实旧发送回执对应的单聊/群聊类型，使旧机器人消息也支持私聊表情上香 |
 
-引用聊天复用已有的 `im:message:readonly`、`im:message:send_as_bot` 和群历史读取权限；通过固定消息详情、历史分页和回复接口延续同一引用链，不需要 SDK。能力及裁剪规则见 [基础聊天与引用对话](chat.md)。无引用消息不会因此额外读取聊天历史。
+引用聊天复用已有的 `im:message:readonly`、`im:message:send_as_bot` 和群历史读取权限；通过固定消息详情、历史分页和回复接口延续同一引用链，不需要 SDK。会话持久化、摘要及回复方式见 [基础聊天与引用对话](chat.md)。无引用消息不会因此额外读取聊天历史。
 
 上表权限按完整设计要求配置，`im:message.group_msg` 必需，不能只开通群 @ 权限。事件订阅与 API 权限是两项设置，以下 JSON 可在“权限管理 → 批量导入/导出权限”导入：
 

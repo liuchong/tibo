@@ -40,9 +40,10 @@
                     (enabled (and (not (get options :noAi)) (not (private-question? q)) (js-call (get (config) :features) :includes "answer")))
                     (response (if (not enabled) nil (await (chat-text q lang
                       (js-object :commands (visible-catalog (get options :context) t) :pipes pipe-catalog
-                        :rules "Subscriptions only at Beijing 09:00 and 21:00. Chat cannot operate an account.") reset-context (get options :threadConversation))))))
+                        :rules "Subscriptions only at Beijing 09:00 and 21:00. Chat cannot operate an account.") reset-context (get options :threadConversation) (get options :context))))))
                     (js-object :text (if (and response (get response :value))
                       (str "**" (if (= lang "zh") "AI回答" "AI answer") "**\n" (get (get response :value) :text)) (or reset-context (notice lang "answer")))
+                      :chatReceipt (get (or response (js-object)) :chatReceipt)
                       :ok (or (not (not reset-context)) (not (not (and response (get response :value))))))))
                 (if (js-call (js-array "subscribe" "unsubscribe" "subscription") :includes name)
                   (let ((response (await (subscription-query name args (get options :context)))))
