@@ -8,7 +8,7 @@ Lark 被动群范围默认 `all`，也可使用显式列表或空值。它只决
 
 优先级从高到低：
 
-1. 文字含 Unicode 🙏 或 Lark 原生“双手合十”，直接执行一次上香。点击平台的 🙏 反应同样上香。消息同时提到 tibo / Claude 时仍优先上香，不另外执行查询。
+1. 文字含 Unicode 🙏 或 Lark 原生“双手合十”，记录一次上香；不吞掉同条消息的另一项业务意图。点击平台的 🙏 反应同样上香。
 2. @ 当前机器人，或者文字任意位置包含 tibo（大小写不限），直接进入正常业务/智能处理。开头的 tibo 称呼被去掉；只有称呼时显示帮助。
 3. 私聊消息无需额外关键词。
 
@@ -16,11 +16,17 @@ Lark 被动群范围默认 `all`，也可使用显式列表或空值。它只决
 
 强触发不经过次级相关度，但仍经过群回复预算。上香自己的 15 秒功德冷却与请求去重照常生效；被回复预算抑制时仍记录上香、成就和会话愿力，但不发送回执、不生成 AI 祝词，可私聊或稍后用 pray me 查档案。普通查询正文最多 800 字；含 🙏 的长正文仍可上香，素材独立截断。
 
+同条文字同时包含祈祷和命令、点名问题或相关关键词时，去掉祈祷符号后独立识别正文，例如 `help 🙏`、`🙏 posts 2 |translate ja`、`tibo 预测 🙏`、`Claude编程模型难用 🙏`。明确固定命令无需再 @，其余正文沿用点名、私聊或次级相关度规则。纯祈祷、只有称呼、重复的 `pray` / `上香` 不额外查询；无关群话题只上香。祈祷的完整原消息仍保留为祝词素材。
+
+复合事件先持久记录一次上香，再处理正文和上香回执，各有稳定的分支去重键与投递账本。正文先判断，避免被同条消息自己的祈祷回复压掉；两项回复分别遵守原有预算，最多各一条常规回复，庆典另按原规则处理。祈祷冷却不会阻止正文命令，正文被相关度或预算过滤也不会丢失上香；管理命令仍检查管理员、操作会话与二次确认。重投或重启只处理缺失分支，不重新执行已经有处理记录的命令或重复上香。表情回应仍落在原消息上，匿名上下文也以原消息定位。
+
+点击已有消息的 🙏 反应只记录点击者上香并取原消息作素材，不执行该消息里他人或过去的命令。它不是一次新的正文命令输入。
+
 上香入队后先持久记账，再决定是否回复。集体彩蛋按会话的实际上香次数解锁，限频时保留未展示彩蛋，下次允许回复的上香只展示一次，不补发旧祈祷；具体规则见 [上香](pray-subscriptions.md#集体彩蛋与快速连发)。
 
 ## 二级次级触发
 
-只在群聊没有一级触发时检测。初始关键词和相关度门槛：
+群聊中未点名的正文使用次级检测，包括同时含祈祷的另一项正文意图。初始关键词和相关度门槛：
 
 | 关键词 | 门槛 |
 | --- | --- |
@@ -105,6 +111,6 @@ Lark 使用固定只读 messageInfo 方法，最长等待 1.8 秒；本机器人
 
 关键词扫描在接收阶段本地完成。次级模型过滤在普通 inbox 工作队列执行；先持久化候选再 ACK，不在 WebSocket 回调等待模型。三级只做本地判断。🙏、help 和订阅仍使用快捷队列。
 
-相关度忽略记录 state=filtered、reason、method；回复预算抑制记录 state=suppressed、replyPolicy 和 prayerRecorded。below-threshold、unrelated、filter-unavailable 是相关度原因；room-budget、person-budget、ambient-budget、ambient-spacing、topic-spacing、busy-room、direct-conversation、prayer-spacing 等是独立回复策略原因。账本不记录正文，按已消费事件去重。events.accepted 表示任务入队，不等于机器人发了消息；成功投递的 latency 还记录回复策略与采用的上下文条数。
+相关度忽略记录 state=filtered、reason、method；回复预算抑制记录 state=suppressed、replyPolicy 和 prayerRecorded。复合事件根记录 state=handled，receiptKey 指向祈祷分支，companionReceiptKey 指向正文分支，须读取各分支核对实际结果。below-threshold、unrelated、filter-unavailable 是相关度原因；room-budget、person-budget、ambient-budget、ambient-spacing、topic-spacing、busy-room、direct-conversation、prayer-spacing 等是独立回复策略原因。账本不记录正文，按已消费事件去重。events.accepted 表示任务入队，不等于机器人发了消息；成功投递的 latency 还记录回复策略与采用的上下文条数。
 
 表情成功回执为 reacted；失败或未知为 reaction-unavailable-or-uncertain。它们与文字 sent 分开，不把事件入队当作已经回应。实现：src/im/triggers.eli 负责相关度；reactions.eli 负责轻量表情选择；reply-policy.eli 负责文字和表情预算；context.eli 负责短窗口；serial.eli 负责同会话事务；src/prayer/material.eli 负责祈祷素材。Lark 边界为 service / interaction / inbox / bot。其他 IM 复用这些核心方法，并保留各自的认证、持久收件箱和发送结果确认，不能只复制关键词规则。

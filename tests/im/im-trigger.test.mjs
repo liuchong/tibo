@@ -2,9 +2,21 @@ import {test,expect} from 'bun:test';import {mkdtemp,rm} from 'node:fs/promises'
 import {trigger_candidate,keywords,profiles,local_score,validate_relevance} from '../../dist/src/im/triggers.mjs';
 import {prayer_material} from '../../dist/src/prayer/material.mjs';
 import {message_candidate,message_text} from '../../dist/adapters/lark/service.mjs';
+import {message_intents} from '../../dist/src/im/intents.mjs';
 const root=resolve('dist');
 async function trial(code,features=''){const dir=await mkdtemp(join(tmpdir(),'tibo-trigger-'));try{const r=spawnSync(process.execPath,['--eval',code],{env:{...process.env,TIBO_CONFIG_FILE:'/dev/null',TIBO_STATE_DIR:dir,DEEPSEEK_API_KEY:'fixture-key',TIBO_AI_FEATURES:features,TIBO_LARK_APP_ID:'fixture',TIBO_LARK_DOMAIN:'lark'},encoding:'utf8',timeout:7000});expect(r.status,r.stderr).toBe(0);return JSON.parse(r.stdout);}finally{await rm(dir,{recursive:true,force:true});}}
 const setup=`const {decide_secondary}=await import(${JSON.stringify(root+'/src/im/triggers.mjs')});const ctx={transport:'future-im',account:'private-app',scope:'private-room',actor:'private-user',authenticated:true};`;
+test('one text can carry prayer and a distinct fixed command, direct question or secondary discussion',()=>{
+ for(const text of ['help 🙏','🙏 posts 2 |translate ja','[双手合十] history 2','🙏🏽 subscribe','tibo help 🙏']){
+  const r=message_intents(text,false,false);expect(r.command).toBe('pray');expect(r.companion.level).toBe(1);expect(r.companion.command).not.toMatch(/🙏|双手合十/);
+ }
+ expect(message_intents('Claude编程模型难用 🙏',false,false).companion.kind).toBe('secondary');
+ expect(message_intents('为何还没重置？🙏',true,false).companion.command).toBe('为何还没重置？');
+ expect(message_intents('help 🙏',false,true).companion.command).toBe('help');
+ expect(message_intents('pray me 🙏',false,false).companion.command).toBe('pray me');
+ for(const text of ['🙏','tibo 🙏','🙏 上香','pray 🙏','🙏 今晚吃什么','重置路由器 🙏'])expect(message_intents(text,false,false).companion).toBeUndefined();
+ expect(message_intents('x'.repeat(2000)+'🙏',false,false).companion).toBeUndefined();
+});
 test('strong prayer/name/mention/direct-message triggers are independent of secondary thresholds',()=>{
  expect(trigger_candidate('x'.repeat(2000)+'🙏',false,false).command).toBe('pray');
  expect(trigger_candidate('TIBO help',false,false).command).toBe('help');expect(trigger_candidate('我想问tibo重置概率',false,false).level).toBe(1);
