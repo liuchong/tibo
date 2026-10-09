@@ -81,9 +81,9 @@ test('administrator pipelines reject before proposals or confirmations; malforme
  const r=await trial(`const {write_state,read_state}=await import(${JSON.stringify(resolve('dist/src/platform/state.mjs'))});await write_state('ledger',{sentinel:'keep'});const context={transport:'lark',actor:'ou_fixtureOwner',scope:'oc_fixtureGroup'};const results=[];for(const text of ['clear-history |translate zh','confirm 12345678-1234-1234-1234-123456789abc |original'])results.push(await execute_query(await resolve_query(text,context),{context}));results.push(await execute_query({command:'clear-history',args:{},pipeline:[{name:'execute'}]},{context}));const fs=await import('node:fs/promises');console.log(JSON.stringify({results,ledger:await read_state('ledger'),files:await fs.readdir(process.env.TIBO_STATE_DIR),sent}));`,fake);
  expect(r.results.every(x=>!x.ok)).toBe(true);expect(r.ledger.sentinel).toBe('keep');expect(r.files.some(x=>x.startsWith('confirm-'))).toBe(false);expect(r.sent).toHaveLength(0);
 });
-test('one-shot generic questions use safe capabilities, not a second router or invented current evidence',async()=>{
+test('basic chat uses safe capabilities, not a second router or invented current evidence',async()=>{
  const r=await trial(`const direct=await execute_query({command:'ask',args:{question:'global和banked有什么区别？'}},opts);console.log(JSON.stringify({direct,sent}));`,fake);
- expect(r.sent).toHaveLength(1);expect(r.direct.ok).toBe(true);const payload=JSON.parse(r.sent[0][1].content);expect(payload.responseLanguage).toBe('zh');expect(payload.text).toBe('');expect(payload.capabilities.rules).toContain('unknown without fetched evidence');expect(payload.capabilities.commands.some(c=>c.name==='confirm')).toBe(false);
+ expect(r.sent).toHaveLength(1);expect(r.direct.ok).toBe(true);const payload=JSON.parse(r.sent[0][1].content);expect(payload.language).toBe('zh');expect(payload.verifiedBusinessContext).toBe('');expect(payload.historyStatus).toBe('none');expect(payload.capabilities.commands.some(c=>c.name==='confirm')).toBe(false);
 });
 test('actual CLI pipe tokens and MCP question pipelines use the same core without spawning shell commands',async()=>{
  const dir=await mkdtemp(join(tmpdir(),'tibo-pipe-wire-')),file=join(dir,'snapshot.json');await writeFile(file,JSON.stringify(evidence));

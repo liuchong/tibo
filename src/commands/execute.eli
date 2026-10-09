@@ -13,7 +13,7 @@
   (import "../subscriptions/commands.eli" subscription-query)
   (import "../presentation/language.eli" language detect-language notice)
   (import "../presentation/syntax.eli" pipe-catalog)
-  (import "../presentation/text.eli" answer-text)
+  (import "../presentation/chat.eli" chat-text)
   (import "../platform/util.eli" ms utc days decimal sorted matches)
   (import "./catalog.eli" definition validate-query visible-catalog)
   (import "./help.eli" help-text)
@@ -29,7 +29,7 @@
               (if (get (definition name) :admin) (await (manage name args (get options :context)))
                 (if (= name "help") (js-object :text (help-text (get options :context)) :ok t)
                 (if (= name "ask")
-                  (if (oracle-trigger? (get args :question)) (await (oracle-reply (get args :question) (or (get options :language) (detect-language (get args :question))) (get options :noAi) (get options :context) (get options :recentMessages)))
+                  (if (oracle-trigger? (get args :question)) (await (oracle-reply (get args :question) (or (get options :language) (detect-language (get args :question))) (get options :noAi) (get options :context) (get options :recentMessages) (get options :threadConversation)))
                   (let* ((q (get args :question)) (lang (or (language (get options :language)) (detect-language q)))
                     (reset-question (and (matches "reset|global|weekly|quota|重置|刷新|额度|七天|7天" q)
                       (matches "刚|上次|最近|多久|几天|还剩|到期|今天|今日|现在|next|last|recent|just|ago|already|now|remaining|until|today" q)))
@@ -38,9 +38,9 @@
                         (public-text (str "采集时间：" (utc (get snapshot :now)) "\n最近global：" (event-text (get (get observed :signals) :lastGlobal))
                           "\n" (cycle-text (get observed :cycle)) "\n公开来源可能缓存或漏帖；个人是否生效未知。")))))
                     (enabled (and (not (get options :noAi)) (not (private-question? q)) (js-call (get (config) :features) :includes "answer")))
-                    (response (if (not enabled) nil (await (answer-text q (or reset-context "") lang
+                    (response (if (not enabled) nil (await (chat-text q lang
                       (js-object :commands (visible-catalog (get options :context) t) :pipes pipe-catalog
-                        :rules "Global is a provider-triggered shared reset requiring no manual action, not a fixed recurring personal quota cycle. Banked cards require manual use and never move the global clock, but may fulfill a promise or consume a catalyst and therefore change signal weights. Current events or probabilities are unknown without fetched evidence. Subscriptions only at Beijing 09:00 and 21:00.") nil (get options :context) (get options :recentMessages))))))
+                        :rules "Subscriptions only at Beijing 09:00 and 21:00. Chat cannot operate an account.") reset-context (get options :threadConversation))))))
                     (js-object :text (if (and response (get response :value))
                       (str "**" (if (= lang "zh") "AI回答" "AI answer") "**\n" (get (get response :value) :text)) (or reset-context (notice lang "answer")))
                       :ok (or (not (not reset-context)) (not (not (and response (get response :value))))))))

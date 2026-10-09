@@ -5,12 +5,13 @@
   (import "../platform/state.eli" read-state write-state with-lock)
   (import "../platform/util.eli" iso)
   (import "../platform/privacy.eli" source-free-text)
+  (import "./conversation.eli" conversation-turns)
   (defconst feature-names (js-array "signals" "research" "search" "forecast" "review" "brief" "router" "translate" "answer" "repair" "oracle" "wish" "trigger" "festival"))
   (defconst token-limits (js-object :signals 1100 :research 1400 :search 220 :forecast 500 :review 320 :brief 650 :router 280 :translate 2800 :answer 1200 :repair 400 :oracle 380 :wish 160 :trigger 120 :festival 240))
   (defconst output-policy "2")
   (defun feature-policy (feature)
     (cond ((= feature "festival") "festival-1") ((= feature "trigger") "trigger-1") ((= feature "wish") "wish-3") ((= feature "oracle") "oracle-2") ((= feature "repair") "repair-2") ((= feature "router") "language-3")
-      ((js-call (js-array "translate" "answer") :includes feature) "text-3") (t output-policy)))
+      ((= feature "answer") "chat-1") ((= feature "translate") "text-3") (t output-policy)))
   (defun digest (text) (js-call (js-call (createHash "sha256") :update text) :digest "hex"))
   (defun config ()
     (let* ((env (get process :env)) (key (get env :DEEPSEEK_API_KEY ""))
@@ -48,7 +49,13 @@
       ;; Cache stable evidence, not the ever-changing collection clock. Every hit
       ;; is still revalidated against the current post/window eligibility.
       (digest (JSON/stringify (js-object :publicPolicy "1" :policy (feature-policy feature) :feature feature :instruction (get payload :instruction)
+        :conversation (get (conversation-turns (get payload :conversation)) :messages)
         :evidence (if (js-call (js-array "router" "repair") :includes feature) input (Object/fromEntries (js-call (Object/entries input) :filter (lambda (row) (not (= (get row 0) "now")))))))))))
+  (defun request-messages (payload)
+    (js-call (js-array (js-object :role "system" :content
+      (str (source-free-text (get payload :instruction)) " 不提及第三方重置概率预测网站的名字或链接；完成本次指定任务，涉及当前事件的事实只依据本次公开输入。")))
+      :concat (get (conversation-turns (get payload :conversation)) :messages)
+      (js-array (js-object :role "user" :content (source-free-text (JSON/stringify (get payload :evidence)))))))
   (defun account-usage (state feature usage elapsed)
     (let* ((all (get state :usage (js-object))) (row (get all feature (js-object :calls 0 :promptTokens 0 :completionTokens 0))))
       (put row :calls (+ (get row :calls) 1))
@@ -59,7 +66,7 @@
     (let* ((cfg (config)) (key (get cfg :key)) (contract (feature-policy feature)))
       (cond ((= (get key :length) 0) (js-object :state "disabled" :reason "未配置密钥"))
             ((not (js-call (get cfg :features) :includes feature)) (js-object :state "disabled" :reason "功能未启用"))
-            ((> (get (JSON/stringify (get payload :evidence)) :length) 24000) (js-object :state "skipped" :reason "任务输入超限，保留基础判断"))
+            ((> (+ (get (JSON/stringify (get payload :evidence)) :length) (get (JSON/stringify (get payload :conversation (js-array))) :length)) 24000) (js-object :state "skipped" :reason "任务输入超限，保留基础判断"))
             (t
               (try
                 (await (with-lock "ai-gateway" (async ()
@@ -90,9 +97,7 @@
                                     :signal (AbortSignal/timeout (or timeout 15000))
                                     :body (JSON/stringify (js-object :model (get cfg :model) :stream false
                                     :thinking (js-object :type "disabled") :temperature (cond ((js-call (js-array "wish" "festival") :includes feature) 1.2) ((= feature "oracle") 1) (t 0)) :response_format (js-object :type "json_object") :max_tokens (get token-limits feature 500)
-                                      :messages (js-array (js-object :role "system" :content
-                                        (str (source-free-text (get payload :instruction)) " 不提及第三方重置概率预测网站的名字或链接；完成本次指定任务，涉及当前事件的事实只依据本次公开输入。"))
-                                                         (js-object :role "user" :content (source-free-text (JSON/stringify (get payload :evidence)))))))))))
+                                      :messages (request-messages payload)))))))
                                    (body nil))
                               (setq status (get response :status) retry (retry-delay (js-call (get response :headers) :get "retry-after") now))
                               (when (get response :ok)

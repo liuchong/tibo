@@ -42,6 +42,8 @@ Tibo 是一个独立应用。CLI、MCP 和 IM 共用业务能力，IM 接入放�
 
 CLI、MCP 和 Lark 不维护三份命令实现。IM 身份从平台边界取得，不能由模型或消息正文构造。
 
+`presentation/chat` 承担了解应用背景的基础聊天，`presentation/text` 保留管道文字处理。`ai/conversation` 只接受 user/assistant 文字轮次，限制长度并脱敏；runtime 将历史作为原生 AI messages，并把历史纳入缓存身份。Lark 的 `thread` 模块按需读取平台话题或普通引用链，核对会话和当前发言人，排除无关消息，再由固定 reply API 延续引用关系。没有引用时不取历史；本地不保存整份私聊。详见 [基础聊天与引用对话](chat.md)。
+
 ## 采集与预测
 
 app/engine 组织采集、标准化与判断。evidence 获取公开内容并保留核实等级；forecast 分析完成事件、条件承诺、banked 和历史间隔，结合信息完整度选用可用模型。AI 开启且可用时，ai/enhance 执行受校验的可选任务，再由经验与展示模块记录、输出结果。
