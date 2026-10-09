@@ -1,0 +1,15 @@
+;; Shared ordering for imported, generated and acknowledged dialogue turns.
+;; Only trusted application callbacks resolve identities or perform delivery.
+(module tibo.chat.session
+  (import "../platform/transaction.eli" state-transaction)
+  (import "./store.eli" conversation-key)
+  (defasync with-session (context identify operation)
+    (let ((queued (await (state-transaction (str (conversation-key context "intake") "-intake") (async ()
+      ;; Resolve and enqueue in arrival order. The intake lane is released before
+      ;; waiting for generation, so separate dialogues can progress independently.
+      (let* ((id (await (funcall identify)))
+        (task (state-transaction (str (conversation-key context id) "-delivery") operation)))
+        (js-call task :catch (lambda (error) nil))
+        (js-object :task task)))))))
+      (await (get queued :task))))
+  (export with-session))

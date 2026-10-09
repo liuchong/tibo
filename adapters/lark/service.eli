@@ -4,8 +4,8 @@
   (import "../../src/platform/host.eli" Error Date RegExp Set Number Map)
   (import "../../src/app/engine.eli" save-report)
   (import "../../src/platform/state.eli" read-state write-state)
-  (import "../../src/platform/transaction.eli" state-transaction)
-  (import "../../src/chat/store.eli" conversation-key commit-turn)
+  (import "../../src/chat/session.eli" with-session)
+  (import "../../src/chat/store.eli" commit-turn)
   (import "../../src/commands/index.eli" resolve-query execute-query)
   (import "../../src/ai/runtime.eli" config)
   (import "../../src/prayer/oracle.eli" oracle-trigger?)
@@ -210,15 +210,12 @@
   (defasync deliver (client group key command &optional title-time context prepared job)
     (let ((reference (get (or job (js-object)) :reference)))
       (if (and reference context (= (get context :authenticated) t) (= (get context :scope) group))
-        (let ((queued (await (state-transaction (str (conversation-key context "intake") "-intake") (async ()
-          ;; Serialize only selector resolution and queue insertion. Generation
-          ;; waits on the per-thread lane outside this brief room intake lock.
+        (await (with-session context (async ()
+          ;; Platform selectors are resolved here; the shared core treats the
+          ;; resulting identifier as opaque and owns the ordering mechanics.
           (when (and (not (get reference :threadId)) (not (get reference :rootId)))
             (put reference :rootId (await (reference-root client job))))
-          (let ((task (state-transaction (str (conversation-key context (or (get reference :threadId) (get reference :rootId))) "-delivery")
-            (async () (await (deliver-once client group key command title-time context prepared job))))))
-            (js-call task :catch (lambda (error) nil))
-            (js-object :task task)))))))
-          (await (get queued :task)))
+          (or (get reference :threadId) (get reference :rootId)))
+          (async () (await (deliver-once client group key command title-time context prepared job)))))
         (await (deliver-once client group key command title-time context prepared job)))))
   (export group-config admin-group-config notify-group-config command-of message-text message-candidate sender-context account-key allowed-job? slot-at delivery-key message-key pending-reaction reaction-job markdown-post send-report deliver finish-chat))
