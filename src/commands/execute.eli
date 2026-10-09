@@ -29,7 +29,7 @@
               (if (get (definition name) :admin) (await (manage name args (get options :context)))
                 (if (= name "help") (js-object :text (help-text (get options :context)) :ok t)
                 (if (= name "ask")
-                  (if (oracle-trigger? (get args :question)) (await (oracle-reply (get args :question) (or (get options :language) (detect-language (get args :question))) (get options :noAi) (get options :context) (get options :recentMessages) (get options :threadConversation)))
+                  (if (oracle-trigger? (get args :question)) (await (oracle-reply (get args :question) (or (get options :language) (detect-language (get args :question))) (get options :noAi) (get options :context) (get options :recentMessages) (get options :threadConversation) (get options :oracleForecast)))
                   (let* ((q (get args :question)) (lang (or (language (get options :language)) (detect-language q)))
                     (reset-question (and (matches "reset|global|weekly|quota|重置|刷新|额度|七天|7天" q)
                       (matches "刚|上次|最近|多久|几天|还剩|到期|今天|今日|现在|next|last|recent|just|ago|already|now|remaining|until|today" q)))

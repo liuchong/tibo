@@ -12,6 +12,7 @@
   (import "../../src/im/context.eli" conversation-context group-context?)
   (import "../../src/im/reply-policy.eli" reply-permit settle-reply)
   (import "../../src/im/tasks.eli" run-tasks)
+  (import "../../src/im/plan.eli" interaction-plan)
   (import "./service.eli" delivery-key deliver account-key)
   (defun reply-kind (job)
     (cond ((>= (get job :triggerLevel 0) 2) "ambient")
@@ -100,19 +101,25 @@
                       (let ((receipt (await (read-state (delivery-key (get job :group) id)))))
                         (await (settle-reply context id (get receipt :state))))))))))))))
   (defasync process-interaction (client job)
-    (let ((other (get job :companion)))
-      (if (not other) (await (process-single client job))
-        (let* ((group (get job :group)) (id (get job :key)) (root (delivery-key group id))
-               (prayer (Object/assign (js-object) job (js-object :key (str id ":prayer") :messageId id :sourceEvent id :companion nil)))
-               (content (Object/assign (js-object) job (js-object :key (str id ":content") :messageId id :companion nil
-                 :sourceEvent id :command (get other :command) :triggerLevel (get other :level) :triggerKind (get other :kind) :prayerMaterial "")))
-               (prayer-key (delivery-key group (get prayer :key))) (content-key (delivery-key group (get content :key))))
-          ;; Each branch owns accounting, pacing, execution and immediate send.
-          ;; On replay only the missing branch runs; one failure never cancels
-          ;; a sibling already in flight. No branch waits for the other's I/O.
-          (await (run-tasks (js-array
-            (async () (unless (await (read-state content-key)) (await (process-single client content))))
-            (async () (unless (await (read-state prayer-key)) (await (process-single client prayer)))))))
-          (await (write-state root (js-object :state "handled" :at (iso (Date/now))
-            :receiptKey prayer-key :companionReceiptKey content-key)))))))
+    (let* ((group (get job :group)) (root (delivery-key group (get job :key)))
+      (plan (interaction-plan job (async (leaf)
+        (let* ((key (delivery-key group (get leaf :key))) (receipt (await (read-state key))))
+          (unless receipt
+            (if (get leaf :followupOf)
+              ;; A continuation is part of an already admitted response. It can
+              ;; only follow a confirmed send, never a suppressed/unknown one.
+              (let ((prior (await (read-state (delivery-key group (get leaf :followupOf))))))
+                (when (and (= (get prior :state) "sent") (not (= (get prior :businessOk) false)))
+                  (put leaf :replyPolicy (get (get prior :latency (js-object)) :replyPolicy))
+                  (await (deliver client group (get leaf :key) (get leaf :command) (get leaf :titleTime)
+                    (get leaf :context) nil leaf))))
+              (await (process-single client leaf))))
+          (let ((saved (await (read-state key))))
+            (and (= (get saved :state) "sent") (not (= (get saved :businessOk) false)))))))))
+      (await (run-tasks (get plan :tree)))
+      (when (get plan :composed)
+        (await (write-state root (js-object :state "handled" :at (iso (Date/now))
+          :receiptKey (delivery-key group (or (get plan :prayerId) (get plan :contentId)))
+          :companionReceiptKey (delivery-key group (get plan :contentId))
+          :forecastReceiptKey (when (get plan :forecastId) (delivery-key group (get plan :forecastId)))))))))
   (export reply-kind process-interaction))

@@ -14,7 +14,7 @@
 | `src/presentation/` | language 语言与提示、syntax 管道定义/解析、text 一次性文字处理、chat 基础聊天、pipeline 顺序执行、business 业务展示、forecast-evidence 参考筛选、report 固定简洁报告；index 提供共用文字接口 |
 | `src/prayer/` | 祈祷档案、festivals 会话次数彩蛋与展示确认、celebration 六级随机大场面、wish 吉祥话、oracle 神谕、时事素材、oracle-context 话题/资料匹配、oracle-memory 会话避重与 material 祈祷素材 |
 | `src/subscriptions/` | registry 本人订阅、schedule 固定定点、bulletin 共享报告 |
-| `src/im/` | 多级触发与相关度、reactions 本地表情选择、文字与表情的独立预算、匿名近期上下文和同会话事务 |
+| `src/im/` | 多级触发与相关度、plan 共享意图组合、tasks 嵌套并发组与顺序链、reactions 本地表情选择、文字与表情的独立预算、匿名近期上下文和同会话事务 |
 | `src/platform/` | 宿主、工具函数、配置、原子状态、transaction 同进程排队与跨进程锁等待、公开文本保护与本地安装管理 |
 | `adapters/lark/` | Lark API、WebSocket、inbox-store 磁盘事件队列、inbox 有限缓存与并发工作任务、广播与投递 |
 | `tests/` | 按职责组织的测试；共用 fixture 与协议入口在 helpers |
