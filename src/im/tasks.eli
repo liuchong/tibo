@@ -1,0 +1,11 @@
+;; Application-owned callbacks include execution and delivery; no result buffer.
+(module tibo.im.tasks
+  (import "../platform/host.eli" Promise)
+  (defasync run-tasks (operations)
+    (let* ((results (await (Promise/allSettled
+      (js-call operations :map (async (operation) (await (funcall operation)))))))
+      (failure (js-call results :find (lambda (result) (= (get result :status) "rejected")))))
+      ;; Wait only to settle the durable parent. Successful siblings have already
+      ;; delivered, even when another task fails or is still generating.
+      (when failure (throw (get failure :reason))) results))
+  (export run-tasks))

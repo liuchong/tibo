@@ -53,6 +53,8 @@ context 只用于权限、档案与投递，不加入模型提示词或公开结
 
 祈祷入队后先以相同 requestId 调用 record-pray(silent)，原子提交个人与会话记账；失败保留事件重试。允许回复才设置 completePrayer，补全原回执的可选祝词，不重记账。静默路径设置 silent/noAi，不预留彩蛋展示。发送接入层设置 festivalDelivery，读取 festivalMessages（最多两条）并逐条持久化发送；整个庆典确认后才用 settle-festivals(sent) 标记已展示。普通回执 rejected/failed-before-send 释放预留，额外部分失败按各自账本接续，未知结果保留待核对。这些是程序内部选项，不能来自 AI 或人类命令参数。详见 [庆典契约](collective-celebrations.md)。
 
+复合输入使用核心 `im/tasks.run-tasks`，传入程序定义的任务回调；每个回调完整负责自身执行与投递，完成即发送。核心并行启动全部回调，等待所有分支结算后才向接入层返回；失败不会取消已启动的其他回调。适配器负责持久根事件、分支回执与重启时跳过已处理分支。`reply-permit` 可附加可信原事件 `origin`，存储其摘要；同源上香不会触发正文的 direct-conversation 抑制，群与个人总量仍包括两个分支。origin 不能来自用户参数或模型。上香没有持久聊天轮次，不进入对话生成队列；仍由适配器保持同链回复，普通聊天分支继续使用 `chat/session.with-session`。
+
 授权群的近期人类消息可交给 remember-message 和 conversation-context，用于短期活动统计及回复频率控制；无引用问答不把它们传为 AI 聊天历史。观察普通消息不意味着调用 AI 或业务，也不向平台补读历史。只有明确引用/话题才通过上述会话接口积累历史。当前消息或反应对应消息正文可作为 options.prayerMaterial，仅作为 wish 参考，不传 context 身份字段。
 
 ## 订阅和共享报告
