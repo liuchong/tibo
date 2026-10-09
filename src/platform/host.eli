@@ -17,6 +17,7 @@
   (defconst TextDecoder (js* "globalThis.TextDecoder"))
   (defconst WebSocket (js* "globalThis.WebSocket"))
   (defconst URL (js* "globalThis.URL"))
+  (defconst URLSearchParams (js* "globalThis.URLSearchParams"))
   (defconst encodeURIComponent (js* "globalThis.encodeURIComponent"))
   (defconst parseInt (js* "globalThis.parseInt"))
-  (export Error Date Promise RegExp Map Set Number Intl fetch AbortSignal AbortController BigInt Uint8Array TextEncoder TextDecoder WebSocket URL encodeURIComponent parseInt))
+  (export Error Date Promise RegExp Map Set Number Intl fetch AbortSignal AbortController BigInt Uint8Array TextEncoder TextDecoder WebSocket URL URLSearchParams encodeURIComponent parseInt))

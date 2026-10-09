@@ -31,7 +31,7 @@
       (js-object :name "subscribe" :aliases (js-array "订阅") :purpose "任何会话默认订阅本人私聊报告，每天北京时间09:00/21:00；target=personal默认；target=group仅管理员在操作群/私聊申请群订阅并二次确认，操作群可省略chatId指当前群，私聊需指定chatId；不能代他人或自定义时间" :params subscription-params :positionals (js-array "target" "chatId"))
       (js-object :name "unsubscribe" :aliases (js-array "退订" "取消订阅") :purpose "任何会话默认取消本人私聊订阅；target=group取消指定群订阅，仅管理员在操作群/私聊申请并二次确认，省略chatId规则同subscribe" :params subscription-params :positionals (js-array "target" "chatId"))
       (js-object :name "subscription" :aliases (js-array "订阅状态") :purpose "任何会话默认查看本人私聊订阅；target=group仅管理员在操作群/私聊查看群订阅，省略chatId规则同subscribe" :params subscription-params :positionals (js-array "target" "chatId"))
-      (js-object :name "ask" :aliases (js-array "问答") :purpose "一次性AI文字问答，可解释Tibo概念、处理文字或常识问答；不能执行命令或操作账户，不提供未抓取的新事件事实"
+      (js-object :name "ask" :aliases (js-array "问答") :purpose "了解Tibo背景的基础聊天、概念解释、文字处理或常识问答；引用时延续同一对话Thread，未引用时单轮；不能执行命令或操作账户，不提供未抓取的新事件事实"
         :params (js-object :question (js-object :type "string" :maxLength 800 :required t)) :positionals (js-array "question"))
       (js-object :name "clear-history" :aliases (js-array "清空历史" "重置历史") :purpose "危险写操作：申请清空本地历史缓存，需要管理员及二次确认" :admin t :params (js-object) :positionals (js-array))
       (js-object :name "clear-experience" :aliases (js-array "清空经验") :purpose "危险写操作：申请清空预测经验，需要管理员及二次确认" :admin t :params (js-object) :positionals (js-array))

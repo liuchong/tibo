@@ -1,5 +1,6 @@
 (module tibo.lark.bot
   (import "./api.eli" create-client)
+  (import "./thread.eli" reference-of)
   (import "./socket.eli" open-socket)
   (import "./inbox.eli" create-inbox)
   (import "./broadcast.eli" create-broadcaster)
@@ -76,7 +77,7 @@
                             (when candidate
                               (await (js-call inbox :accept (js-object :group (get message :chat_id) :key id :command (get candidate :command)
                                 :triggerLevel (get candidate :level) :triggerKind (get candidate :kind) :prayerMaterial (get candidate :material)
-                                :companion (get candidate :companion)
+                                :companion (get candidate :companion) :reference (reference-of message)
                                 :context context :createdAt (iso created) :acceptedAt (iso (Date/now)))))
                               (setq accepted t)))))
                       (finally

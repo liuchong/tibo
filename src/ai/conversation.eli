@@ -1,0 +1,25 @@
+;; Only data roles can cross the AI boundary. No transport IDs or executable
+;; actions belong to conversation turns.
+(module tibo.ai.conversation
+  (import "../platform/privacy.eli" public-text private-question?)
+  (import "../platform/util.eli" fail)
+  (defun conversation-turns (input)
+    (when (and input (not (Array/isArray input))) (fail "conversation-schema"))
+    (let ((rows (js-array)) (size 0) (trimmed false))
+      (js-call (or input (js-array)) :forEach (lambda (turn)
+        (unless (and turn (js-call (js-array "user" "assistant") :includes (get turn :role))
+          (= (value-type (get turn :content)) "string")
+          (js-call (Object/keys turn) :every (lambda (k) (js-call (js-array "role" "content") :includes k))))
+          (fail "conversation-schema"))
+        (unless (private-question? (get turn :content))
+          (let ((text (public-text (get turn :content) 4000)))
+            (when (> (get (get turn :content) :length) 4000) (setq trimmed t))
+            (when (> (get (js-call text :trim) :length) 0)
+              (js-call rows :push (js-object :role (get turn :role) :content text))
+              (setq size (+ size (get text :length)))
+              ;; Retain the origin and the most recent conversational turns.
+              (while (and (> (get rows :length) 1) (or (> (get rows :length) 40) (> size 12000)))
+                (let ((removed (get (js-call rows :splice 1 1) 0)))
+                  (setq size (- size (get (get removed :content) :length)) trimmed t))))))))
+      (js-object :messages rows :trimmed trimmed)))
+  (export conversation-turns))

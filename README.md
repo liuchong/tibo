@@ -36,6 +36,7 @@ bun run start -- forecast --no-ai
 | 从源码运行、打包、第一次查询 | [快速开始](docs/getting-started.md) |
 | 查询概率、发言、历史与帮助 | [命令参考](docs/commands.md) |
 | 查看原文、翻译、连续处理输出 | [语言与管道](docs/language-pipelines.md) |
+| 自然聊天、引用回复与连续追问 | [基础聊天与引用对话](docs/chat.md) |
 | 上香、查看档案、订阅私聊报告 | [上香与订阅](docs/pray-subscriptions.md) |
 | 设置 AI、状态目录与接入凭据 | [配置参考](docs/configuration.md) |
 | 安装、重装、重启后台服务 | [安装与运维](docs/operations.md) |
