@@ -30,7 +30,7 @@ Lark 被动群范围默认 `all`，也可使用显式列表或空值。它只决
 
 ## 二级次级触发
 
-群聊中未点名的正文使用次级检测，包括同时含祈祷的另一项正文意图。初始关键词和相关度门槛：
+群聊中未命中一级强触发的正文使用次级检测，包括同时含祈祷的普通讨论；已识别的请求重置祈祷走前述直接触发。初始关键词和相关度门槛：
 
 | 关键词 | 门槛 |
 | --- | --- |
@@ -113,6 +113,6 @@ Lark 使用固定只读 messageInfo 方法，最长等待 1.8 秒；本机器人
 
 关键词扫描在接收阶段本地完成。次级模型过滤在普通 inbox 工作队列执行；先持久化候选再 ACK，不在 WebSocket 回调等待模型。三级只做本地判断。🙏、help 和订阅仍使用快捷队列。
 
-相关度忽略记录 state=filtered、reason、method；回复预算抑制记录 state=suppressed、replyPolicy 和 prayerRecorded。复合事件根记录 state=handled，receiptKey 指向祈祷分支，companionReceiptKey 指向正文分支，须读取各分支核对实际结果。below-threshold、unrelated、filter-unavailable 是相关度原因；room-budget、person-budget、ambient-budget、ambient-spacing、topic-spacing、busy-room、direct-conversation、prayer-spacing 等是独立回复策略原因。账本不记录正文，按已消费事件去重。events.accepted 表示任务入队，不等于机器人发了消息；成功投递的 latency 还记录回复策略与采用的上下文条数。
+相关度忽略记录 state=filtered、reason、method；回复预算抑制记录 state=suppressed、replyPolicy 和 prayerRecorded。复合事件根记录 state=handled，receiptKey 指向祈祷分支，没有祈祷时指向正文；companionReceiptKey 指向正文，forecastReceiptKey 在计划有附属预测时指向其回执。根事件完成不代表各项都发送成功，须逐项核对。分身回执必须为 sent 且 businessOk 不为 false 才接续预测；前置被过滤、限频、失败或结果不明时，预测可能没有回执，表示尚未启动。below-threshold、unrelated、filter-unavailable 是相关度原因；room-budget、person-budget、ambient-budget、ambient-spacing、topic-spacing、busy-room、direct-conversation、prayer-spacing 等是独立回复策略原因。账本不记录正文，按已消费事件去重。events.accepted 表示任务入队，不等于机器人发了消息；成功投递的 latency 还记录回复策略与采用的上下文条数。
 
 表情成功回执为 reacted；失败或未知为 reaction-unavailable-or-uncertain。它们与文字 sent 分开，不把事件入队当作已经回应。实现：src/im/triggers.eli 负责相关度；reactions.eli 负责轻量表情选择；reply-policy.eli 负责文字和表情预算；context.eli 负责短窗口；serial.eli 负责同会话事务；src/prayer/material.eli 负责祈祷素材。Lark 边界为 service / interaction / inbox / bot。其他 IM 复用这些核心方法，并保留各自的认证、持久收件箱和发送结果确认，不能只复制关键词规则。

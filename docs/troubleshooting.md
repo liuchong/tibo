@@ -105,4 +105,8 @@ launchd 会自动恢复被 kill 的服务；需要停机调试用 service uninst
 
 快速🙏可能只回一条，这是群回复限频，不代表漏计。用 pray me 查询个人次数，pray stats 查询当前会话次数、功德和彩蛋；state=suppressed 且 prayerRecorded=true 表示已记档但静默。集体彩蛋现在按实际上香次数解锁，个人功德仍有15秒冷却。达到门槛但被限频时，彩蛋留到下一次允许回复的上香展示；统计命令也能查看。发送未知结果需核对聊天，不删除账本强制重发。
 
+“求重置＋🙏”只有上香时，读取根事件的 companionReceiptKey 核对分身分支：filtered/below-threshold 表示本地相关度或可选 AI 判断未通过，suppressed 表示回复预算阻止，失败或未知发送状态也会停止链。当前版本已支持“请给我一次重置吧！🙏”和原生双手合十，不要求补写 Codex/token；意图仍依赖本地规则，未覆盖的措辞可能遗漏。分身 sent 且 businessOk 不为 false 后才查看 forecastReceiptKey，预测回执缺失可能表示前置未满足或尚未启动。不能把根 handled 或上香 sent 当作三项都已发送。
+
+重复预测查看本地 diagnostics 的 reuse：cached 表示复用原采集时刻，ttlMs 为两分钟，ageMs 为快照年龄，generationTiming 保留原生成耗时。命中时 timing 的采集与分析耗时为 0，但排队、发送或后续翻译仍可能耗时。已取得的新证据、经验、相关配置变化会使缓存提前失效；离线、指定快照和定点报告绕过交互缓存。
+
 投递账本的 latency 区分 platformMs（平台产生到程序收到）、queueMs（已接受到开始执行）、routeMs、executeMs、sendMs；预测还细分 collectionMs、analysisMs。totalMs 是开始执行到发送完成，不能误当成包含前面两项的端到端耗时。不同查询及缓存命中会有差异，不应保证所有请求同一时间完成。源码修改后按运维步骤同时重装核心和 Lark，不能只重启旧二进制。
