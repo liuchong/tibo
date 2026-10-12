@@ -73,7 +73,7 @@ test('native HTTP/WebSocket bot receives, persists before ACK, replies, enforces
   sockets.at(-1).close();await until(()=>socketCount===2,4000);send('help','om_reconnected',{},'ou_other');await until(()=>posts.length===7);expect(text(6)).not.toContain('clear-experience');
   expect(requests.filter(x=>x.path.includes('tenant_access_token'))).toHaveLength(1);expect(requests.find(x=>x.path==='/open-apis/bot/v3/info').auth).toBe('Bearer local-tenant');
   send('🙏🏽🙏','om_pray',{mentions:[],content:JSON.stringify({text:'🙏🏽🙏'})});await until(()=>posts.length===8);
-  expect(text(7)).toContain('累计🙏 1');expect(text(7)).toContain('第一炷');
+  expect(text(7)).toContain('累计🙏 1');expect(text(7)).toContain('🪄');expect(text(7)).not.toContain('暂不提供 SLA');
   await until(async()=>{try{return !!JSON.parse(await readFile(join(dir,message_key('om_reply8')+'.json'),'utf8'));}catch{return false;}});
   react();await until(()=>posts.length===9);expect(text(8)).toContain('累计🙏 2');
   const ackStart=acks.length;

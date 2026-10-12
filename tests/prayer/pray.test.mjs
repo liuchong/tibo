@@ -13,7 +13,7 @@ test('pray shares genuine personal identity across conversations, cooldown, dedu
  try{
   expect(fixed_query('🙏🏽 🙏')).toEqual({command:'pray',args:{action:'offer',limit:10}});
   expect(fixed_query('pray board 2').args).toEqual({action:'board',limit:2});
-  const first=await offer('one');expect(first.text).toContain('第一炷');
+  const first=await offer('one');expect(first.text).toContain('累计🙏 1｜功德 1');expect(first.text).not.toContain('暂不提供 SLA');
   expect((await offer('one')).text).toBe(first.text);
   expect((await offer('two')).text).toContain('冷却');
   let state=await conversation();expect(state.offers).toBe(2);expect(state.merit).toBe(1);

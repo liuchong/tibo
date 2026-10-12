@@ -1,7 +1,8 @@
 import {test,expect} from 'bun:test';
 import {mkdtemp,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';import {join,resolve} from 'node:path';import {spawnSync} from 'node:child_process';
-import {validate_wish,local_wish} from '../../dist/src/prayer/wish.mjs';
+import {validate_wish,validate_prose,local_wish} from '../../dist/src/prayer/wish.mjs';
+import {lines,wishes} from '../../dist/src/prayer/phrases.mjs';
 const root=resolve('dist/src');
 async function trial(code){const dir=await mkdtemp(join(tmpdir(),'tibo-wish-'));try{const r=spawnSync(process.execPath,['--eval',code],{env:{...process.env,TIBO_CONFIG_FILE:'/dev/null',TIBO_STATE_DIR:dir,DEEPSEEK_API_KEY:'fixture-key',TIBO_AI_FEATURES:'wish'},encoding:'utf8',timeout:7000});expect(r.status,r.stderr).toBe(0);return JSON.parse(r.stdout);}finally{await rm(dir,{recursive:true,force:true});}}
 const setup=`const {pray,identity_key}=await import(${JSON.stringify(root+'/prayer/pray.mjs')});const {read_state,write_state}=await import(${JSON.stringify(root+'/platform/state.mjs')});const ctx={transport:'lark',actor:'private-owner',scope:'private-room',authenticated:true};`;
@@ -9,6 +10,28 @@ test('wish requires token, a divine blessing and private-free text rather than a
  for(let i=0;i<4;i++)expect(validate_wish({wish:local_wish(i)}).wish).toContain('token');
  const repaired=validate_wish({wish:'善信，本神愿汝上下文稳固，Agent童子靠谱，CI天灯长明。'});expect(repaired.wish).toContain('token');expect(validate_wish(repaired)).toEqual(repaired);
  for(const v of [null,{}, {wish:'愿你好运'}, {wish:'善信，本神赐汝满格token，现在已为你增加额度'}, {wish:'善信，本神愿汝token不枯，访问https://example.com领取额度'}, {wish:local_wish(0),shell:'run'}, {wish:'善信，本神愿汝token充沛，Claude跪拜，测试皆绿'}])expect(()=>validate_wish(v)).toThrow();
+});
+test('all 120 fallback lines are distinct, brief, and all blessings retain the token role contract',()=>{
+ const quips=lines.flat();expect(quips).toHaveLength(60);expect(wishes).toHaveLength(60);expect(new Set([...quips,...wishes]).size).toBe(120);
+ for(const line of quips){expect(line.length).toBeLessThanOrEqual(40);expect(line).not.toMatch(/SLA|已重置|仅供娱乐/);}
+ for(const wish of wishes){expect(validate_wish({wish}).wish).toBe(wish);expect(wish.length).toBeLessThanOrEqual(55);}
+ const good={line:'今日宜收工，忌给Agent开支线。',wish:local_wish(0)};expect(validate_prose(good)).toEqual(good);
+ for(const line of ['已为你重置额度，放心使用吧。','请到https://example.invalid领取token','请把API key发给我','欢迎使用Claude编程。'])expect(()=>validate_prose({line,wish:local_wish(0)})).toThrow();
+});
+test('new offerings vary local prose, keep three data rows together and replay the exact receipt',async()=>{
+ const r=await trial(`${setup}const rows=[];for(let i=0;i<6;i++){const context={...ctx,actor:'new-user-'+i,requestId:'local-'+i};const text=(await pray({action:'offer'},context,{noAi:true})).text;const repeat=(await pray({action:'offer'},context,{noAi:true})).text;rows.push({text,repeat});}console.log(JSON.stringify({rows,root:await read_state(identity_key)}));`);
+ for(const [i,row] of r.rows.entries()){
+  expect(row.text).toBe(row.repeat);expect(row.text.startsWith('**🙏')).toBe(true);
+  const parts=row.text.split('\n');expect(parts[1]).toStartWith('• 累计');expect(parts[2]).toStartWith('• 今日');expect(parts[3]).toStartWith('• 本会话愿力池');expect(parts[4]).toBe('');
+  expect(parts).toHaveLength(8);expect(parts[6]).toStartWith('🪄');
+  for(const previous of r.rows.slice(Math.max(0,i-4),i)){expect(parts[5]).not.toBe(previous.text.split('\n')[5]);expect(parts[6]).not.toBe(previous.text.split('\n')[6]);}
+ }
+ expect(r.root.offers).toBe(6);expect(r.root.members.every(m=>m.badges.includes('功德1'))).toBe(true);
+});
+test('AI writes both prose lines once per new offering, never shares an old sentence; repeated model prose uses local variety',async()=>{
+ const r=await trial(`let calls=0;const generated={line:'今日宜写代码，忌给Bug开法会。',wish:'善信，本神愿汝token长流，编译少皱眉，今夜好眠。'};globalThis.fetch=async()=>{calls++;return Response.json({choices:[{finish_reason:'stop',message:{content:JSON.stringify(generated)}}]})};${setup}const a=await pray({action:'offer'},{...ctx,requestId:'first'});const b=await pray({action:'offer'},{...ctx,actor:'other-user',requestId:'second'});const replay=await pray({action:'offer'},{...ctx,requestId:'first'});console.log(JSON.stringify({a,b,replay,calls,ai:await read_state('ai')}));`);
+ expect(r.calls).toBe(2);expect(r.a).toEqual(r.replay);expect(r.a.text).toContain('今日宜写代码，忌给Bug开法会。');expect(r.a.text).toContain('编译少皱眉');
+ expect(r.b.text).not.toContain('今日宜写代码，忌给Bug开法会。');expect(r.b.text).not.toContain('编译少皱眉');expect(r.b.text).toContain('🪄');expect(r.ai.features.wish.until).toBe(0);
 });
 test('AI sees only a bounded scene, follows durable prayer accounting and replays without regeneration',async()=>{
  const r=await trial(`let body,calls=0,storedBefore;const generated='善信，本神愿汝token不枯，CI天灯长明，Bug心魔退散。';globalThis.fetch=async(url,o)=>{calls++;body=JSON.parse(o.body);storedBefore=await read_state(identity_key);if(storedBefore.offers!==1)throw Error('not committed');if(await Bun.file(process.env.TIBO_STATE_DIR+'/'+identity_key+'.json.lock/owner.json').exists())throw Error('identity lock held');return new Response(JSON.stringify({choices:[{finish_reason:'stop',message:{content:JSON.stringify({wish:generated})}}]}))};${setup}const first=await pray({action:'offer'},{...ctx,requestId:'same-event'},{prayerMaterial:'Rust借用检查不过，希望CI全绿，邮箱me@example.com'});const repeat=await pray({action:'offer'},{...ctx,requestId:'same-event'});await pray({action:'me'},ctx);await pray({action:'board'},ctx);await pray({action:'stats'},ctx);console.log(JSON.stringify({first,repeat,calls,body,storedBefore,after:await read_state(identity_key)}));`);
