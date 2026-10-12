@@ -26,6 +26,22 @@ test('strong prayer/name/mention/direct-message triggers are independent of seco
  expect(keywords('Claude与OpenAI的GPT模型').map(x=>x.name)).toEqual(['claude','gpt','openai']);
  expect(profiles.find(x=>x.name==='claude').threshold).toBeLessThan(profiles.find(x=>x.name==='gpt').threshold);
 });
+test('bare prayer keywords and subcommands strongly trigger without matching other English words',()=>{
+ for(const text of ['pray','pray me','pray board 2','pray stats','祈祷','上香','祈祷 stats','上香 board','pray stats |translate en','请帮我上香','祈祷明天额度够用']){
+  expect(message_intents(text,false,false)).toEqual({level:1,kind:'direct',command:text});
+ }
+ expect(message_intents('PRAY STATS',false,false).command).toBe('pray stats');
+ expect(message_intents('PrAy BoArD 2',false,false).command).toBe('pray board 2');
+ for(const text of ['spray','prayer','praying','spray board','今晚吃什么'])expect(message_intents(text,false,false)).toBeNull();
+ expect(message_intents('上香 stats 🙏',false,false).companion.command).toBe('上香 stats');
+ for(const text of ['pray 🙏','祈祷 🙏','上香 🙏'])expect(message_intents(text,false,false).companion).toBeUndefined();
+});
+test('unmentioned Lark prayer commands pass reception, queue, execution and delivery without classifier AI',async()=>{
+ const r=await trial(`const{message_candidate,sender_context,delivery_key}=await import(${JSON.stringify(root+'/adapters/lark/service.mjs')});const{create_inbox}=await import(${JSON.stringify(root+'/adapters/lark/inbox.mjs')});const{read_state}=await import(${JSON.stringify(root+'/src/platform/state.mjs')});let calls=0;globalThis.fetch=async()=>{calls++;throw new Error('unexpected network')};const replies=[];const inbox=await create_inbox({send:async body=>{replies.push(JSON.parse(body.content).zh_cn.content[0][0].text);return{code:0,data:{message_id:'om_reply'+replies.length}}}},['all']);const commands=['pray me','pray board','PRAY STATS','pray','祈祷','上香'];const receipts=[];for(let i=0;i<commands.length;i++){const event={sender:{sender_type:'user',sender_id:{open_id:'ou_user'+i}},message:{message_id:'om_input'+i,chat_id:'oc_room',chat_type:'group',message_type:'text',content:JSON.stringify({text:commands[i]}),mentions:[]}};const c=message_candidate(event,['all'],'ou_bot');if(!c)throw new Error('missing candidate');const job={group:'oc_room',key:'om_input'+i,command:c.command,triggerLevel:c.level,triggerKind:c.kind,context:sender_context(event)};receipts.push(delivery_key(job.group,job.key));await inbox.accept(job);}for(let i=0;i<300&&inbox.status().pending;i++)await new Promise(r=>setTimeout(r,5));await inbox.stop();const state=await read_state('pray-identities');console.log(JSON.stringify({replies,calls,status:inbox.status(),offers:state.offers,members:state.members.length,receipts:await Promise.all(receipts.map(read_state))}));`);
+ expect(r.calls).toBe(0);expect(r.status.pending).toBe(0);expect(r.replies).toHaveLength(6);expect(r.offers).toBe(3);expect(r.members).toBe(3);
+ expect(r.replies.some(x=>x.includes('我的香客档案'))).toBe(true);expect(r.replies.some(x=>x.includes('本会话功德榜'))).toBe(true);expect(r.replies.some(x=>x.includes('本会话愿力池'))).toBe(true);
+ expect(r.receipts.every(x=>x.state==='sent'&&x.businessOk)).toBe(true);
+});
 test('rich text prayer material is optional sanitized reference and bounded independently from the command',()=>{
  const message={chat_id:'oc_allowed',chat_type:'group',message_type:'post',content:JSON.stringify({content:[[{tag:'text',text:'🙏 Rust编译卡住了'},{tag:'at',user_id:'ou_secret'},{tag:'text',text:'希望CI全绿'}]]})};
  const candidate=message_candidate({sender:{sender_type:'user'},message},['oc_allowed'],'ou_bot');expect(candidate.command).toBe('pray');expect(candidate.material).toContain('Rust编译');expect(candidate.material).not.toContain('ou_secret');
