@@ -23,7 +23,7 @@ Tibo 是一个独立应用。CLI、MCP 和 IM 共用业务能力，IM 接入放�
 - platform 提供宿主、配置、状态、隐私与通用工具，不依赖上层业务。
 - evidence 依赖 platform，负责发现、获取与证据判定。reset-text 是采集与信号分析共用的原文判定规则，不包含预测模型。
 - forecast 依赖 platform 和 evidence，进行历史统计、信号分析与概率计算。它不依赖 AI、入口、命令、展示或 IM；experience 通过固定状态接口保存历史成绩。
-- ai 依赖 platform、evidence 与 forecast，提供可选的结构化任务及调整。证据校验与算法保持可独立运行。
+- ai 依赖 platform、evidence 与 forecast，提供可选的结构化提取和解释任务，数值调整由 forecast 独立计算。证据校验与算法保持可独立运行。
 - chat 只依赖 chat、ai 和 platform，提供跨接入方式的会话隔离、导入去重、追加提交、容量摘要与串行处理。它不解析平台原始事件，不读取平台 API，不生成平台回复参数。
 - presentation 负责输出与文字处理；prayer 负责档案、角色和吉祥话；subscriptions 负责订阅、定点与共享报告。需要编排多个能力时，通过明确模块调用完成。
 - commands 组合业务能力，并分离目录、固定解析、语义路由、执行和管理确认。app 负责进程入口和预测编排。
@@ -59,7 +59,9 @@ evidence/post-context 提取有期限的条件计划、合并已见 Day 标签�
 
 evidence/x-page 解析官方主页及单帖页面，区分引用文章与自身正文，不执行脚本；evidence/post-body 从官方单帖页补取长帖全文，核对作者、ID 与官方截断片段后保留原文等级。forecast/cycle 区分统一完成时钟、从公告起算的 7 天参考与未知的个人刷新日期；forecast/journal 保存每份真实报告的复盘，experience 仍单独保存不重叠训练样本。im/reactions 决定是否适合轻量表情，reply-policy 统一预留预算，Lark 的固定 react 方法完成发送；核心不依赖 Lark API。
 
-没有模型服务或部分资料获取失败时，自有算法仍可运行；证据不足时明确返回未知，不填造概率。重组目录不改变概率规则、状态格式、固定推送时间、权限或模型能力。详细算法见 [判断约定](decision-contract.md)，可选任务见 [AI 资料与任务](ai-research.md)。
+没有模型服务或部分资料获取失败时，自有算法仍可运行；证据不足时明确返回未知，不填造概率。重组目录不改变概率规则、状态格式、固定推送时间、权限或模型能力。evidence/post-features 校验断言，ai/post-features 负责逐帖提取和缓存；forecast/features 管理状态与未知值，feature-model 计算有门槛的风险调整，feature-log 保存独立前瞻日志。没有经过审计的负窗口不训练，当前没有启用特征系数。详见 [结构化特征](structured-features.md)。
+
+详细算法见 [判断约定](decision-contract.md)，可选任务见 [AI 资料与任务](ai-research.md)。
 
 presentation/forecast-evidence 选择公开参考与必要理由，presentation/report 渲染唯一固定模板，business 复用此模板。CLI、MCP 和订阅生成不维护各自的报告版本；完整数据仍保留在本地 JSON 中。evidence/public-posts 为受限搜索核实固定官方 X 账户的补充原帖，不引入任意抓取或系统执行能力。报告约定见 [预测报告格式](forecast-report.md)。
 

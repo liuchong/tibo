@@ -29,9 +29,9 @@
 | 变量 | 默认与范围 | 用途 |
 | --- | --- | --- |
 | `DEEPSEEK_API_KEY` | 空 | 官方 HTTP API 凭据 |
-| `TIBO_AI_FEATURES` | 未设置时无功能；安装时只在该键不存在时补全十四项 | 逗号分隔的独立功能开关 |
+| `TIBO_AI_FEATURES` | 未设置时无功能；安装时只在该键不存在时补全十二项 | 逗号分隔的独立功能开关 |
 | `TIBO_CHAT_CONTEXT_TOKENS` | 900000；有效整数 8192..900000 | 引用对话的输入预算，接近后单独摘要；无引用不积累会话 |
-| `TIBO_AI_WEIGHT` | 0.2；有效数值限于 0..0.35 | AI 概率建议的融合权重，不控制其他文字功能 |
+| `TIBO_AI_WEIGHT` | 已停用，实际权重为 0 | 旧配置兼容；不发起概率建议、不影响数值 |
 
 当前模型为 `deepseek-flash`，端点为 `https://api.deepseek.com/chat/completions`。这是应用当前实现配置，不能在普通 IM 查询中索取或泄露。程序不依赖模型 SDK。
 
@@ -39,8 +39,7 @@
 
 ```dotenv
 DEEPSEEK_API_KEY=在此填入自己的密钥
-TIBO_AI_FEATURES=signals,search,research,forecast,review,brief,router,translate,answer,repair,oracle,wish,trigger,festival
-TIBO_AI_WEIGHT=0.2
+TIBO_AI_FEATURES=signals,search,research,brief,router,translate,answer,repair,oracle,wish,trigger,festival
 ```
 
 不使用 AI：
@@ -49,7 +48,7 @@ TIBO_AI_WEIGHT=0.2
 TIBO_AI_FEATURES=
 ```
 
-文件中不要填 shell 表达式。`TIBO_AI_WEIGHT=0` 只让 AI 概率不改变最终数值，仍可能发起已启用的分析调用；彻底关闭调用用功能开关。功能、预算和失败冷却见 [AI 任务](ai-research.md)。
+文件中不要填 shell 表达式。旧 `forecast`、`review` 功能名及 `TIBO_AI_WEIGHT` 被忽略，无需修改已有凭据。关闭所有 AI 调用用空功能列表；结构化缓存、预算与失败冷却见 [AI 任务](ai-research.md) 和 [结构化特征](structured-features.md)。
 
 `forecast --no-ai` 禁止该次预测 AI；真实人工输入中的 `--no-ai` 同时阻止语义路由、修复和后续文字 AI。固定命令仍可使用。`--offline` / `--snapshot` 禁止该次采集和预测 AI，但不是所有文字任务的全局开关；隔离实验时显式清空 `TIBO_AI_FEATURES`。
 

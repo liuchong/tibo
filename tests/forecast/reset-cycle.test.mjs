@@ -38,7 +38,7 @@ test('optional expansion outage keeps original; full or unrelated short posts ne
 });
 test('known completion restarts clock, retains precise time, consumes old hints and ignores routine events even when mislabeled global',()=>{
  const p=expanded_body(excerpt,body),s=snapshot({now,posts:[...snapshot().posts,p],events:[...snapshot().events,...events_from_posts([p])]});
- const r=judge(s);expect(r.signals.lastGlobal.at).toBe(at);expect(r.cycle).toMatchObject({justReset:true,announcementVerified:true,sevenDayReferenceAt:'2026-10-14T03:35:09.157Z',accountNextAutomaticAt:null,automaticWeeklyCountsAsGlobal:false});expect(r.forecast.policyVersion).toBe('5');expect(r.forecast.information.clockReliable).toBe(true);
+ const r=judge(s);expect(r.signals.lastGlobal.at).toBe(at);expect(r.cycle).toMatchObject({justReset:true,announcementVerified:true,sevenDayReferenceAt:'2026-10-14T03:35:09.157Z',accountNextAutomaticAt:null,automaticWeeklyCountsAsGlobal:false});expect(r.forecast.policyVersion).toBe('6');expect(r.forecast.information.clockReliable).toBe(true);
  const automatic=post(25,'Your weekly usage has been reset automatically.',{id:'routine',at:'2026-10-07T03:45:00Z'});
  const other=judge({...s,posts:[...s.posts,automatic],events:[...s.events,{...event(25),id:'routine',at:automatic.at}]});
  expect(other.signals.lastGlobal.at).toBe(at);expect(other.forecast.p24).toBe(r.forecast.p24);expect(other.history.count).toBe(r.history.count);

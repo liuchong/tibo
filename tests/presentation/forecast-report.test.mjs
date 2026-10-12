@@ -45,8 +45,7 @@ test('banked timed promises and expired global promises cannot read like a fresh
  s.posts.at(-1).text='Global reset landing today 1am PST for all paid accounts.';
  expect(render_report(judge(s))).toContain('预告时间已过');
 });
-test('only a used bounded AI reason with selected validated citations can enter the fixed reasons; arbitrary brief remains hidden',()=>{
- const r=judge(input());r.forecast.mode='ai-blend';r.ai={weight:.2,features:{forecast:{value:{reason:'计划仍留有重置机会，但没有新的具体日期承诺。',citations:[{postId:planId}]}},brief:{value:{summary:'EXTRA_BLOCK'}}}};
- expect(render_report(r)).toContain(r.ai.features.forecast.value.reason);expect(render_report(r)).not.toContain('EXTRA_BLOCK');
- r.ai.features.forecast.value.citations=[{postId:'invented'}];expect(render_report(r)).not.toContain(r.ai.features.forecast.value.reason);
+test('legacy AI probability explanations cannot enter the fixed report',()=>{
+ const r=judge(input());r.forecast.mode='ai-blend';r.ai={weight:.2,features:{forecast:{value:{reason:'UNTRUSTED_REASON',citations:[{postId:planId}]}},brief:{value:{summary:'EXTRA_BLOCK'}}}};
+ expect(render_report(r)).not.toContain('UNTRUSTED_REASON');expect(render_report(r)).not.toContain('EXTRA_BLOCK');
 });

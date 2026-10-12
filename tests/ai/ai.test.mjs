@@ -1,6 +1,6 @@
 import {test,expect} from 'bun:test';
 import {spawnSync} from 'node:child_process';import {mkdtemp,rm,writeFile,mkdir} from 'node:fs/promises';import {tmpdir} from 'node:os';import {join,resolve} from 'node:path';
-import {validate_signals,validate_forecast,validate_brief,effective_weight,evidence} from '../../dist/src/ai/enhance.mjs';
+import {validate_brief,evidence} from '../../dist/src/ai/enhance.mjs';
 import {failure_policy,retry_delay} from '../../dist/src/ai/runtime.mjs';import {judge} from '../../dist/src/app/engine.mjs';import {accuracy} from '../../dist/src/forecast/experience.mjs';import {snapshot,post} from '../helpers/fixture.mjs';
 const gateway=resolve('dist/src/ai/runtime.mjs'),state=resolve('dist/src/platform/state.mjs');
 async function trial(code){const dir=await mkdtemp(join(tmpdir(),'tibo-ai-'));try{const r=spawnSync(process.execPath,['--eval',code],{env:{...process.env,DEEPSEEK_API_KEY:'fixture-key',TIBO_AI_FEATURES:'signals,forecast,brief',TIBO_STATE_DIR:dir},encoding:'utf8',timeout:6000});expect(r.stderr).toBe('');expect(r.status).toBe(0);return JSON.parse(r.stdout);}finally{await rm(dir,{recursive:true,force:true});}}
@@ -45,37 +45,21 @@ test('credential change releases old auth block; disabled capabilities make no H
 });
 test('AI deadline and corrupt optional state preserve the core forecast',async()=>{
  const r=await trial(`globalThis.fetch=async(url,o)=>new Promise((resolve,reject)=>o.signal.addEventListener('abort',()=>reject(new Error('deadline'))));const {ai_call}=await import(${JSON.stringify(gateway)});const a=await ai_call('signals',{instruction:'JSON',evidence:{}},v=>v,10);const fs=await import('node:fs/promises');await fs.writeFile(process.env.TIBO_STATE_DIR+'/ai.json','bad');const {judge}=await import(${JSON.stringify(resolve('dist/src/app/engine.mjs'))});const {enhance}=await import(${JSON.stringify(resolve('dist/src/ai/enhance.mjs'))});const result=judge(${JSON.stringify(snapshot())}),base={p24:result.forecast.p24,p48:result.forecast.p48};await enhance(result);console.log(JSON.stringify({a,base,p24:result.forecast.p24,p48:result.forecast.p48,features:result.ai.features}));`);
- expect(r.a.state).toBe('fallback');expect(r.p24).toBe(r.base.p24);expect(r.p48).toBe(r.base.p48);expect(r.features.signals.state).toBe('fallback');expect(r.features.forecast.state).toBe('skipped');expect(r.features.brief.state).toBe('skipped');
+ expect(r.a.state).toBe('fallback');expect(r.p24).toBe(r.base.p24);expect(r.p48).toBe(r.base.p48);expect(r.features.signals.state).toBe('fallback');expect(r.features.forecast.state).toBe('retired');expect(r.features.brief.state).toBe('skipped');
 });
-test('semantic references and probability proposals reject invented or consumed evidence',()=>{
- const i=evidence(judge(snapshot({posts:[post(24,'Reset all propagated.',{id:'event-24'}),post(25,'Global reset landing tomorrow for all users.')]})));
- expect(validate_signals({items:[{postId:'event-24',quote:'Reset all propagated.',kind:'global-promise',summary:'完成'}]},i).items[0].kind).toBe('completion');
- expect(()=>validate_signals({items:[{postId:'unknown',quote:'fake',kind:'other',summary:'fake'}]},i)).toThrow();
- const proposal={p24:90,p48:95,reason:'新承诺',citations:[{postId:'post-25',quote:'Global reset landing tomorrow for all users.'}]};expect(validate_forecast(proposal,i).p24).toBe(90);
- expect(()=>validate_forecast({...proposal,citations:[]},i)).toThrow();expect(()=>validate_forecast({...proposal,citations:[{postId:'event-24',quote:'Reset all propagated.'}]},i)).toThrow();expect(()=>validate_forecast({...proposal,p48:50},i)).toThrow();
- expect(()=>validate_brief({summary:'text',followups:['one','two'],citations:[]},i)).toThrow();
-});
-test('live citation failures: normalize HTML whitespace, allow historical context, but never consume conditional plans as certain promises',()=>{
- const old={id:'last-global',at:'2026-09-24T00:00:00Z',text:'Reset all propagated.  Enjoy.',provenance:'primary'};
- const input={posts:[{id:'mail',at:'2026-09-25T00:00:00Z',text:'What it did    - delete all categories of email',provenance:'primary'},
-   {id:'plan',at:'2026-09-25T00:00:00Z',text:'Each day we’ll either ship an improvement or ship a full reset.',provenance:'primary'}],lastGlobal:old,baseline:{p24:17,p48:31}};
- expect(validate_signals({items:[{postId:'mail',quote:'What it did - delete all categories',kind:'other',summary:'使用案例'}]},input).items).toHaveLength(1);
- expect(validate_signals({items:[{postId:'plan',quote:'ship a full reset',kind:'global-promise',summary:'二选一'}]},input).items[0].kind).toBe('conditional-promise');
- expect(validate_brief({summary:'等待时钟以此前完成重置为起点',followups:['观察新公告','观察改进交付'],citations:[{postId:old.id,quote:'Reset all propagated. Enjoy.'}]},input).citations[0].quote).toBe('Reset all propagated. Enjoy.');
- expect(()=>validate_brief({summary:'无事实',followups:['观察','观察'],citations:[{postId:old.id,quote:'Reset is coming tomorrow.'}]},input)).toThrow();
- expect(()=>validate_forecast({p24:90,p48:95,reason:'旧完成不支持新概率',citations:[{postId:old.id,quote:'Reset all propagated.'}]},input)).toThrow();
+test('brief references still reject invented text and require source citations',()=>{
+ const input=evidence(judge(snapshot()));
+ expect(()=>validate_brief({summary:'text',followups:['one','two'],citations:[]},input)).toThrow();
+ expect(()=>validate_brief({summary:'text',followups:['one','two'],citations:[{postId:'event-24',quote:'Invented reset'}]},input)).toThrow();
+ expect(validate_brief({summary:'完成公告',followups:['观察新公告','观察进展'],citations:[{postId:'event-24',quote:'We have reset usage'}]},input).citations).toHaveLength(1);
 });
 test('output-contract upgrade releases obsolete schema circuits, preserves usage, and records bounded diagnostic stages',async()=>{
  const r=await trial(`${prefix}globalThis.fetch=async()=>{calls++;return ${response}};const {config,ai_call,ai_status}=await import(${JSON.stringify(gateway)});const {write_state}=await import(${JSON.stringify(state)});await write_state('ai',{identity:config().identity,provider:{failures:0,until:0},features:{signals:{status:-2,failures:7,until:Date.now()+900000,reason:'输出未通过校验'}},cache:[],usage:{signals:{calls:13,promptTokens:100,completionTokens:20}}});const recovered=await ai_call('signals',payload,valid);globalThis.fetch=async()=>new Response(JSON.stringify({choices:[{finish_reason:'stop',message:{content:'{"fixture":false}'}}]}));const rejected=await ai_call('brief',payload,()=>{throw new Error('fixture-key secret upstream body')});console.log(JSON.stringify({recovered,rejected,calls,status:await ai_status()}));`);
  expect(r.recovered.state).toBe('ok');expect(r.status.usage.signals.calls).toBe(14);expect(r.status.lastAttempts.signals.stage).toBe('validated');
  expect(r.status.lastAttempts.brief.stage).toBe('schema');expect(JSON.stringify(r)).not.toContain('fixture-key');
 });
-test('AI calibration only reduces configured weight after 30 prospective resolved windows',()=>{
- const rows=Array.from({length:30},()=>({p24:30,p48:40,baselinePrediction:{p24:10,p48:20},aiPrediction:{p24:90,p48:95},outcome:{y24:0,y48:0},models:[]}));const stats=accuracy(rows);
- expect(stats.aiCalibration.n).toBe(30);expect(effective_weight(.2,stats)).toBeLessThan(.2);expect(effective_weight(.2,{aiCalibration:{...stats.aiCalibration,n:29}})).toBe(.2);
-});
-test('optional forecast enhancement is capped, blends probabilities, and cannot move the global clock',async()=>{
+test('legacy probability configuration cannot make requests, change numbers or move the clock',async()=>{
  const input=snapshot({posts:[post(25,'Global reset landing tomorrow for all users.')]});
- const r=await trial(`process.env.TIBO_AI_FEATURES='forecast';process.env.TIBO_AI_WEIGHT='0.99';globalThis.fetch=async()=>new Response(JSON.stringify({choices:[{finish_reason:'stop',message:{content:JSON.stringify({p24:90,p48:95,reason:'待兑现承诺',citations:[{postId:'post-25',quote:'Global reset landing tomorrow for all users.'}]})}}]}));const {judge}=await import(${JSON.stringify(resolve('dist/src/app/engine.mjs'))});const {enhance}=await import(${JSON.stringify(resolve('dist/src/ai/enhance.mjs'))});const r=judge(${JSON.stringify(input)}),base={p24:r.forecast.p24,p48:r.forecast.p48},clock=r.signals.lastGlobal.at;await enhance(r);console.log(JSON.stringify({base,p24:r.forecast.p24,p48:r.forecast.p48,clock,newClock:r.signals.lastGlobal.at,ai:r.ai}));`);
- expect(r.ai.weight).toBe(.35);expect(r.p24).toBe(Math.round(.65*r.base.p24+.35*90));expect(r.p48).toBe(Math.round(.65*r.base.p48+.35*95));expect(r.newClock).toBe(r.clock);expect(r.ai.features.signals.state).toBe('disabled');expect(r.ai.features.brief.state).toBe('disabled');
+ const r=await trial(`process.env.TIBO_AI_FEATURES='forecast,review';process.env.TIBO_AI_WEIGHT='0.99';let calls=0;globalThis.fetch=async()=>{calls++;throw Error('Must not request probability')};const {judge}=await import(${JSON.stringify(resolve('dist/src/app/engine.mjs'))});const {enhance}=await import(${JSON.stringify(resolve('dist/src/ai/enhance.mjs'))});const r=judge(${JSON.stringify(input)}),base={p24:r.forecast.p24,p48:r.forecast.p48},clock=r.signals.lastGlobal.at;await enhance(r);console.log(JSON.stringify({calls,base,p24:r.forecast.p24,p48:r.forecast.p48,clock,newClock:r.signals.lastGlobal.at,ai:r.ai}));`);
+ expect(r.calls).toBe(0);expect(r.ai.weight).toBe(0);expect(r.p24).toBe(r.base.p24);expect(r.p48).toBe(r.base.p48);expect(r.newClock).toBe(r.clock);expect(r.ai.features.forecast.state).toBe('retired');
 });

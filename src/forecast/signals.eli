@@ -44,7 +44,7 @@
                     (put copy :global false) (put copy :banked t))
                   (when (and (not (completed? text)) (matches "landing tomorrow|will reset|reset tomorrow|reset next week" text))
                     (put copy :global false)))
-                (put copy :verified (not (not (and post (completed? text)))))
+                (put copy :verified (not (not (and post (not (get post :truncated)) (completed? text)))))
                 (when post (put copy :provenance (get post :provenance)))
                 (put copy :verifiedBanked (not (not (and post (matches "banked|reset card" text)))))
                 (put copy :text text)

@@ -1,7 +1,7 @@
 import {test,expect} from 'bun:test';
 import {active_programme,post_context} from '../../dist/src/evidence/post-context.mjs';
 import {judge} from '../../dist/src/app/engine.mjs';
-import {evidence,task_input,validate_forecast,validate_signals} from '../../dist/src/ai/enhance.mjs';
+import {evidence,task_input} from '../../dist/src/ai/enhance.mjs';
 import {public_forecast} from '../../dist/src/presentation/business.mjs';
 import {validate_research} from '../../dist/src/evidence/research.mjs';
 import {snapshot,post} from '../helpers/fixture.mjs';
@@ -43,11 +43,9 @@ test('programme and Or both are weak conditional signals, not timed promises; of
  expect(r.signals.hints.some(h=>h.postId==='programme')).toBe(true);
  expect(r.forecast.signal).toBe('条件性重置计划');
  expect([r.forecast.p24,r.forecast.p48]).toEqual([baseline.forecast.p24,baseline.forecast.p48]);
- const i=evidence(r),task=task_input('forecast',{...i,signals:{items:[{postId:'intent',kind:'reset-hint',summary:'作者意向，不是承诺'}]}});
- expect(task.programme.observedDays).toEqual([1,2]);expect(task.signals[0].summary).toBe('作者意向，不是承诺');
+ const i=evidence(r),task=task_input('research',i);
+ expect(task.programme.observedDays).toEqual([1,2]);
  expect(i.posts.find(p=>p.id==='programme').text).toBe(plan.text);
- expect(validate_signals({items:[{postId:'intent',quote:intent.text,kind:'reset-hint',summary:'意向'}]},i).items[0].kind).toBe('reset-hint');
- expect(validate_forecast({p24:25,p48:40,reason:'期限内弱证据，未校准',citations:[{postId:'programme',quote:'or ship a full reset'}]},i).p24).toBe(25);
 });
 
 test('a later global consumes old programme evidence without erasing its calendar context or shifting the clock with a banked card',()=>{
@@ -55,7 +53,6 @@ test('a later global consumes old programme evidence without erasing its calenda
  const s=input();s.posts.push(completion);s.events.push({id:completion.id,at:completion.at,global:true,banked:false,observed:false});
  const r=judge(s);expect(r.signals.programme.consumedByGlobal).toBe(true);
  expect(r.signals.hints).toEqual([]);expect(r.signals.lastGlobal.at).toBe(completion.at);
- expect(()=>validate_forecast({p24:90,p48:95,reason:'不可重复',citations:[{postId:'programme',quote:'or ship a full reset'}]},evidence(r))).toThrow();
  const banked=input();banked.posts.push(post(27,'A banked reset card is available.',{id:'banked'}));banked.events.push({id:'banked',at:'2026-09-27T00:00:00Z',global:false,banked:true,observed:false});
  expect(judge(banked).signals.programme.consumedByGlobal).toBe(false);
 });

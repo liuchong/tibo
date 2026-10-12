@@ -3,7 +3,6 @@ import {mkdtemp,rm,writeFile} from 'node:fs/promises';import {tmpdir} from 'node
 import {snapshot,event,post} from '../helpers/fixture.mjs';
 import {available_judgment,judge,run_report} from '../../dist/src/app/engine.mjs';
 import {public_forecast} from '../../dist/src/commands/index.mjs';
-import {signal_experience} from '../../dist/src/forecast/signal-model.mjs';
 import {record_prediction} from '../../dist/src/forecast/experience.mjs';
 import {read_state,write_state} from '../../dist/src/platform/state.mjs';
 import {spawnSync} from 'node:child_process';import {resolve} from 'node:path';
@@ -26,14 +25,13 @@ test('insufficient history degrades to evidence rather than fabricated probabili
   }
  }finally{if(old===undefined)delete process.env.TIBO_STATE_DIR;else process.env.TIBO_STATE_DIR=old;await rm(dir,{recursive:true,force:true});}
 });
-test('signal learning needs real resolved samples and improves on chronological holdout; adverse validation and future outcomes reject',()=>{
- const rows=Array.from({length:30},(_,i)=>({at:new Date(Date.UTC(2026,0,1+i*2)).toISOString(),signal:'重置暗示',historicalPrediction:{p24:10,p48:20},outcome:{y24:1,y48:1,scoredAt:'2026-04-01T00:00:00Z'}}));
- expect(signal_experience(rows.slice(0,29),'重置暗示',10,20).applied).toBe(false);
- const positive=signal_experience(rows,'重置暗示',10,20,'2026-05-01T00:00:00Z');expect(positive.applied).toBe(true);expect(positive.validationN).toBe(10);expect(positive.p24).toBe(28);expect(positive.p48).toBe(36);
- const adverse=rows.map((x,i)=>({...x,outcome:{...x.outcome,y24:i<20?1:0,y48:i<20?1:0}}));
- expect(signal_experience(adverse,'重置暗示',10,20).applied).toBe(false);
- expect(signal_experience(rows,'重置暗示',10,20,'2026-02-01T00:00:00Z').n).toBe(0);
- expect(signal_experience(rows,'条件性重置计划',10,20).n).toBe(0);
+test('legacy positive-only signal rows cannot revive the retired numeric adjustment',()=>{
+ const s=snapshot({posts:[...snapshot().posts,post(25,'I do like giving resets')]});
+ const base=judge(s);
+ const rows=Array.from({length:50},(_,i)=>({at:new Date(Date.UTC(2026,0,1+i*2)).toISOString(),signalBucket:base.forecast.signalBucket,signal:'重置暗示',historicalPrediction:{p24:10,p48:20},outcome:{y24:1,y48:1,scoredAt:'2026-09-01T00:00:00Z'}}));
+ const result=judge({...s,predictionExperience:rows});
+ expect(result.forecast.p24).toBe(base.forecast.p24);expect(result.forecast.p48).toBe(base.forecast.p48);
+ expect(result.forecast.signalExperience.applied).toBe(false);
 });
 test('failed history ingestion does not turn unresolved windows into negative experience; recovery can settle them',async()=>{
  const dir=await mkdtemp(join(tmpdir(),'tibo-experience-health-')),old=process.env.TIBO_STATE_DIR;process.env.TIBO_STATE_DIR=dir;
