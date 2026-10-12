@@ -16,21 +16,21 @@ import {snapshot,post,event} from '../helpers/fixture.mjs';
 const at='2026-10-07T03:35:09.157Z',now='2026-10-07T04:00:00Z',id='2107676072871600470';
 const excerpt={id,at,text:'We shipped four things, but the vote is clear. Therefore ... the reset has been… https://t.co/example',author:'thsottiaux',provenance:'primary',truncated:true};
 const full='We shipped four things, but the vote is clear. Therefore ... the reset has been processed. Enjoy!';
-const body={tweet:{id,author:{screen_name:'thsottiaux'},text:full}};
+const body={id,author:'thsottiaux',text:full,provenance:'primary',truncated:false};
 test('processed completion is recognized; future, negated, conditional, banked and automatic weekly resets are excluded',()=>{
  expect(completed(full)).toBe(true);
  for(const t of ['The reset has not been processed.','The reset will be processed tomorrow.','If the reset has been processed, enjoy!','A banked reset has been processed.','My automatic weekly reset has been processed.','Your weekly usage has been reset automatically.'])expect(completed(t)).toBe(false);
  expect(completed('We have reset weekly limits for all paid accounts.')).toBe(true);
  expect(routine_reset('Your next automatic reset is in seven days.')).toBe(true);
 });
-test('long-note expansion verifies author, ID and official prefix; archive grade persists and truncated copies cannot erase it',()=>{
- const p=expanded_body(excerpt,body);expect(p).toMatchObject({text:full,provenance:'archive',truncated:false,expandedFromPrimary:true,primaryExcerpt:excerpt.text});
- expect(()=>expanded_body(excerpt,{tweet:{...body.tweet,id:'wrong'}})).toThrow();
- expect(()=>expanded_body(excerpt,{tweet:{...body.tweet,author:{screen_name:'wrong'}}})).toThrow();
- expect(()=>expanded_body(excerpt,{tweet:{...body.tweet,text:'Unrelated complete text that must never replace this verified excerpt.'}})).toThrow();
+test('official full text verifies author, ID and official prefix; primary grade persists and truncated copies cannot erase it',()=>{
+ const p=expanded_body(excerpt,body);expect(p).toMatchObject({text:full,provenance:'primary',truncated:false,expandedFromPrimary:true,primaryExcerpt:excerpt.text});
+ expect(()=>expanded_body(excerpt,{...body,id:'wrong'})).toThrow();
+ expect(()=>expanded_body(excerpt,{...body,author:'wrong'})).toThrow();
+ expect(()=>expanded_body(excerpt,{...body,text:'Unrelated complete text that must never replace this verified excerpt.'})).toThrow();
  expect(merge_posts([p],[excerpt])[0].text).toBe(full);
  expect(merge_posts([p],[{...excerpt,provenance:'archive'}])[0].text).toBe(full);
- expect(events_from_posts([p])[0]).toMatchObject({global:true,provenance:'archive',at});
+ expect(events_from_posts([p])[0]).toMatchObject({global:true,provenance:'primary',at});
 });
 test('optional expansion outage keeps original; full or unrelated short posts never need the extra fetch',async()=>{
  const code=`let calls=0;globalThis.fetch=async()=>{calls++;throw new Error('unavailable')};const {expand_post}=await import(${JSON.stringify(resolve('dist/src/evidence/post-body.mjs'))});const a=await expand_post(${JSON.stringify(excerpt)}),b=await expand_post(${JSON.stringify({...excerpt,truncated:false})});console.log(JSON.stringify({a,b,calls}));`;

@@ -80,3 +80,7 @@ TIBO_CONFIG_FILE=/dev/null TIBO_STATE_DIR=.tibo/example-state TIBO_AI_FEATURES='
 快照需含 `schemaVersion: 1`、`now`、`events`、`posts`、`sources`、`unknowns`。`now` 是证据时钟；事件带 `id/at/global/banked`，帖子带 `id/at/text/author`，作者必须为 `thsottiaux`。快照和离线运行不积累前瞻预测经验，但报告状态仍可保存；实验时使用独立的 `TIBO_STATE_DIR`，避免改变日常报告比较基准。
 
 上述离线约束针对采集和预测。显式翻译、文字问答和语义路由有各自的 AI 开关；需要完全隔离模型调用时同时设 `TIBO_AI_FEATURES=''`。
+
+## 官方原帖采集
+
+当前直接读取 X 官方主页、单帖页面和 oEmbed，不需要开发者账号或 X API 凭据。公开页面可能漏掉回复帖或旧帖，失败时保留本地证据并标明其日期，不编造最新消息。新安装没有完整历史时，预测先展示公告并明确暂无法估计；已有历史会继续保留。正式账号 API 的开发者账号与凭据要求见 [故障排查](troubleshooting.md)。

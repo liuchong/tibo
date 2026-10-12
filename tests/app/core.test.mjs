@@ -3,7 +3,7 @@ import {conditional,intervals,banked_lags} from '../../dist/src/forecast/history
 import {target_time,normalize_events,analyze_signals,completed_QMARK_} from '../../dist/src/forecast/signals.mjs';
 import {judge,observe,reset_status,validate_snapshot} from '../../dist/src/app/engine.mjs';
 import {render_report} from '../../dist/src/presentation/report.mjs';
-import {parse_archive,parse_primary} from '../../dist/src/evidence/sources.mjs';
+import {parse_primary} from '../../dist/src/evidence/sources.mjs';
 import {at,event,post,snapshot} from '../helpers/fixture.mjs';
 const day=86400000;
 test('even a timed either-improvement-or-reset statement stays a conditional hint, without changing the clock or base probability',()=>{
@@ -75,11 +75,6 @@ test('public forecast has the fixed concise sections; full model data stays in t
 });
 test('completion detection rejects negation and banked',()=>{
  expect(completed_QMARK_('Reset all propagated. Enjoy.')).toBe(true);expect(completed_QMARK_("We have not reset accounts.")).toBe(false);expect(completed_QMARK_('We have reset banked cards.')).toBe(false);
-});
-test('archive parser verifies full history count and never executes embedded scripts',()=>{
- const article=(id,date,kind)=>`<article class="cr-event" id="${id}"><time datetime="${date}"></time><div class="cr-event-labels">${kind}</div><h3>Recorded</h3></article>`;
- const html=`<body>2 matching announcements${article('a',at(1),'Global reset')}${article('b',at(3),'Banked reset')}<script>throw new Error('never execute')</script></body>`;
- expect(parse_archive(html,at(25)).events).toHaveLength(2);expect(()=>parse_archive(html.replace('2 matching','3 matching'),at(25))).toThrow('不完整');
 });
 test('empty login pages never count as a fetched primary feed',()=>{
  expect(()=>parse_primary('<html>Log in</html>',at(25))).toThrow();

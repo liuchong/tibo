@@ -54,7 +54,7 @@
         :evidence (if (js-call (js-array "router" "repair") :includes feature) input (Object/fromEntries (js-call (Object/entries input) :filter (lambda (row) (not (= (get row 0) "now")))))))))))
   (defun request-messages (payload)
     (js-call (js-array (js-object :role "system" :content
-      (str (source-free-text (get payload :instruction)) " 不提及外部重置概率预测网站的名字或链接；完成本次指定任务，涉及当前事件的事实只依据本次公开输入。")))
+      (str (source-free-text (get payload :instruction)) " 不提及其他重置概率预测网站的名字或链接；完成本次指定任务，涉及当前事件的事实只依据本次公开输入。")))
       :concat (get (conversation-turns (get payload :conversation)) :messages)
       (js-array (js-object :role "user" :content (source-free-text (JSON/stringify (get payload :evidence)))))))
   (defun account-usage (state feature usage elapsed)

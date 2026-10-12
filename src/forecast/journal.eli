@@ -47,7 +47,7 @@
       (let* ((existing (or (await (read-state "forecast-journal")) (js-object)))
         (rows (get existing :reports (js-array))) (now (get (get result :snapshot) :now))
         (prob (get result :forecast (js-object :available false :information (js-object
-          :historyFresh (js-call (get (get result :snapshot) :sources (js-array)) :some (lambda (s) (and (= (get s :name) "archive") (get s :ok)))))))))
+          :historyFresh (js-call (get (get result :snapshot) :sources (js-array)) :some (lambda (s) (and (get s :historyFresh) (get s :ok)))))))))
         (unless (Array/isArray rows) (fail "不可读的预测报告记录"))
         (unless (get existing :savedScheduleImported)
           (let ((receipt (saved-receipt (await (read-state "report-schedule"))

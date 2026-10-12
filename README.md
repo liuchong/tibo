@@ -2,7 +2,7 @@
 
 Tibo 根据 Tibo（[@thsottiaux](https://x.com/thsottiaux)）的公开发言和历史公告，观察 Codex global 重置，并估计未来 24h / 48h 的重置概率。
 
-它是独立应用：业务使用 Eliscript，运行与打包使用 Bun。CLI 和 MCP 直接调用核心，Lark 是独立的 IM 接入层。核心不需要 API key，不加载外部运行库；构建需要 Eliscript 工具链。AI 辅助和 Lark 接入各自可选，直接调用 HTTP API，不使用供应商 SDK。
+它是独立应用：业务使用 Eliscript，运行与打包使用 Bun。CLI 和 MCP 直接调用核心，Lark 是独立的 IM 接入层。核心通过官方公开页面采集，不需要 API key，不加载外部运行库；构建需要 Eliscript 工具链。AI 辅助和 Lark 接入各自可选，直接调用 HTTP API，不使用供应商 SDK。
 
 ## 开始使用
 

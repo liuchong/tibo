@@ -3,11 +3,14 @@ import {mkdtemp,rm,writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';import {join,resolve} from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {source_free_text} from '../../dist/src/platform/privacy.mjs';
-import {reference_url} from '../../dist/src/evidence/reference.mjs';
 import {snapshot} from '../helpers/fixture.mjs';
 
-const hidden=[reference_url,'https://retired-history.invalid/retired-reset','https://retired-signal.invalid'];
+const hidden=['https://forecast.example.invalid','https://history.example.invalid','https://signals.example.invalid'];
 const hosts=hidden.map(x=>new URL(x).hostname);
+const previous=process.env.TIBO_HIDDEN_SOURCE_HOSTS;
+process.env.TIBO_HIDDEN_SOURCE_HOSTS=hosts.join(",");
+import {afterAll} from "bun:test";
+afterAll(()=>{if(previous===undefined)delete process.env.TIBO_HIDDEN_SOURCE_HOSTS;else process.env.TIBO_HIDDEN_SOURCE_HOSTS=previous;});
 function clean(text){for(const host of hosts)expect(text.toLowerCase()).not.toContain(host);}
 
 test('display filter hides plain names and links, preserves X evidence and numbers, and keeps nested JSON valid',()=>{

@@ -1,18 +1,23 @@
 (module tibo.evidence.post-body
-  (import "../platform/util.eli" canonical-text matches fail)
-  (import "./transport.eli" request-json)
-  ;; Optional long-note archive, bound to the independently verified official excerpt.
+  (import "../platform/util.eli" canonical-text fail)
+  (import "./transport.eli" request)
+  (import "./x-page.eli" parse-primary)
+  (import "../platform/host.eli" Date)
+  ;; Full official post pages can contain more text than the embedded excerpt.
   (defun expanded-body (post data)
-    (let* ((tweet (get data :tweet)) (text (canonical-text (get tweet :text "")))
+    (let* ((text (canonical-text (get data :text "")))
       (prefix (js-call (get (js-call (get post :text) :split "…") 0) :trim)))
       (unless (and (= (get post :provenance) "primary") (get post :truncated)
-        (= (get tweet :id) (get post :id)) (= (get (get tweet :author) :screen_name) "thsottiaux")
+        (= (get data :provenance) "primary") (not (get data :truncated))
+        (= (get data :id) (get post :id)) (= (get data :author) "thsottiaux")
         (>= (get prefix :length) 40) (> (get text :length) (get prefix :length)) (<= (get text :length) 20000)
         (js-call text :startsWith (canonical-text prefix))) (fail "扩展正文无法与官方片段核对"))
-      (Object/assign (js-object) post (js-object :text text :provenance "archive" :truncated false
-        :via "matched-long-note" :primaryExcerpt (get post :text) :expandedFromPrimary t))))
+      (Object/assign (js-object) post (js-object :text text :provenance "primary" :truncated false
+        :via "official-post-page" :primaryExcerpt (get post :text) :expandedFromPrimary t))))
   (defasync expand-post (post)
-    (if (not (and (get post :truncated) (matches "reset" (get post :text)))) post
-      (try (expanded-body post (await (request-json (str "https://api.retired-body.invalid/thsottiaux/status/" (get post :id)) nil 4000)))
+    (if (not (get post :truncated)) post
+      (try (expanded-body post (js-call (parse-primary
+        (await (request (str "https://x.com/thsottiaux/status/" (get post :id)) nil 6000))
+        (js-call (new Date) :toISOString)) :find (lambda (p) (= (get p :id) (get post :id)))))
         (catch error post))))
   (export expanded-body expand-post))

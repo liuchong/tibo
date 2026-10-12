@@ -17,6 +17,7 @@
 | `TIBO_CONFIG_FILE` | `~/.config/tibo/config.env` | 私有配置路径；由启动环境指定 |
 | `TIBO_STATE_DIR` | 未设置或为空时为当前目录 `.tibo`；安装默认 `~/.local/state/tibo` | 历史、报告、档案、缓存和投递状态目录 |
 | `TIBO_DAEMON_INTERVAL` | 900；整数 60..86400 秒 | 每轮采集结束后等待多久开始下一轮 |
+| `TIBO_HIDDEN_SOURCE_HOSTS` | 空；逗号分隔的域名 | 本地公开输出脱敏规则，只隐藏指定来源字样，不请求这些地址 |
 | `TIBO_LOCAL_ADMIN_UID` | 源码运行未设置；安装时补当前 UID | 本地危险操作管理员白名单 |
 | `TIBO_SNAPSHOT` | 未设置 | MCP 测试快照；Lark 实际投递拒绝此设置 |
 | `ELISCRIPT_HOME` | 构建时为 `node_modules/eliscript` | 编译器路径，构建用，不是应用私有配置项 |
