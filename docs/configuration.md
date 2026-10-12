@@ -76,7 +76,9 @@ TIBO_AI_FEATURES=
 
 | 文件或前缀 | 内容 |
 | --- | --- |
-| `ledger.json` | 累积历史公告和帖子，旧证据不是本次采集成功证明 |
+| `ledger.json` | 累积历史公告与永久原文，无自动过期；旧证据不是本次采集成功证明 |
+| `source-cache.json` | 共享最新公开资料，两分钟有效；主页发现失败时 15 秒，协调并发采集 |
+| `forecast-cache-ai.json` / `forecast-cache-native.json` | 两分钟交互预测结果缓存，共用公开资料输入但区分 AI 和非 AI 结果 |
 | `experience.json` | 不重叠的前瞻预测窗口、标签与成绩 |
 | `forecast-journal.json` | 最多 400 份真实报告回执和逐窗口复盘；不作为独立训练样本 |
 | `report-*.json` / `evidence-*.json` | 各报告通道上次概率与证据，用于趋势比较 |

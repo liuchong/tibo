@@ -40,10 +40,12 @@ tibo diagnose
 
 - latestPost 的时间、出处、verifiedAt 与 truncated。
 - archiveCachedAt 是旧快照的兼容字段；当前官方采集为 null。本地旧帖子不代表本轮新发现。
-- sources 的 ok / fetched，以及 oembed 的 attempted / verified。
+- sources 的 ok / fetched / cached 与原始 at，以及 oembed 的 attempted / verified / reused。缓存命中不重新核实，不能将 reused 当本次请求量。
 - 最近预测的 AI postIds 与 selection 是否包含目标帖子；最多 8 条按证据价值选取并保留最新帖，有声明期限的计划可超过 48h。programme 记录期限、已见 Day 与旧线索是否已消耗；超期或未被规则识别的旧帖不会无限保留。
 
-帖子发现使用官方主页。页面 HTTP 200 不代表解析成功，要看 primary.ok；当前同时兼容旧 tweetText/time 与新的服务器渲染正文结构。长帖通过官方单帖页补全，匹配作者、帖子 ID 和官方摘录前缀，失败保留截断原文。网页脚本不会执行。主页失败时 oEmbed 仍可核实本地已知链接，但它不能发现未知新帖。公开页面覆盖有限，不把主页成功当成完整历史或确定没有重置；扩大查询范围也不能消除漏帖。
+帖子发现使用官方主页。页面 HTTP 200 不代表解析成功，要看 primary.ok；当前同时兼容旧 tweetText/time 与新的服务器渲染正文结构。长帖通过官方单帖页补全，匹配作者、帖子 ID 和官方摘录前缀，失败保留截断原文。网页脚本不会执行。主页失败时仍保留完整核实原文；oEmbed 可核实本地尚未完整核实的链接，但不能发现未知新帖。公开页面覆盖有限，不把主页成功当成完整历史或确定没有重置；扩大查询范围也不能消除漏帖。
+
+公开资料有两分钟共享缓存，短时间查询看到同一最新帖是预期行为；主页失败结果只共享 15 秒。完整原文永久保存，刷新列表不再重复请求已核实完整的单帖。查看 `collectionReuse.collectedAt` 与来源 at 判断资料时间，勿只看当前观察时间；规则见 [公开资料与原文缓存](evidence-cache.md)。
 
 本次实际公开主页与单帖页面访问不要求 API 凭据。若接入 `GET /2/users/{id}/tweets` 等正式 API，则需要开发者账号、应用及 Bearer Token；当前没有启用该接口。流程见 [X 官方接入指南](https://docs.x.com/x-api/getting-started/getting-access)。
 

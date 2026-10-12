@@ -35,7 +35,7 @@
       (enabled (js-call features :filter (lambda (name) (js-call (get cfg :features) :includes name))))
       (circuit (lambda (row) (js-object :blocked (> (get row :until 0) now)
         :until (get row :until 0) :status (get row :status) :outputPolicy (get row :outputPolicy)))))
-      (digest (js-object :policy "forecast-cache-2" :noAi no-ai
+      (digest (js-object :policy "forecast-cache-3" :noAi no-ai
         :revision (await (invalidation))
         :ledger (js-object :events (get ledger :events (js-array)) :posts (get ledger :posts (js-array)))
         :accuracy (get experience :accuracy) :cases (cases (get journal :reports (js-array)))
