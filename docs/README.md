@@ -24,6 +24,8 @@
 ## 原理与开发
 
 - [判断算法与证据约定](decision-contract.md)：global/banked、条件样本、四个候选模型、自适应权重与局限。
+- [结构化消息特征设计](feature-forecast-design.md)：待实施的 AI 提取、自有风险模型、样本门槛与降级路径。
+- [历史消息关联研究](research/message-reset-study-2026-10-12.md)：有限历史样本、实际提取试验、官方原文核对及误分类发现。
 - [公开资料与原文缓存](evidence-cache.md)：永久原文、两分钟最新资料、跨进程合并及预测复用。
 - [AI 任务与预算](ai-research.md)：任务开关、引用校验、搜索、缓存、熔断和隐私。
 - [重置之神实现约定](oracle.md)：分身回应、品牌彩蛋、官方时事与祈祷吉祥话。
