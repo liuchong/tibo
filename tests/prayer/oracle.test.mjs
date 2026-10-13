@@ -10,7 +10,8 @@ test('role intent distinguishes invocation, business queries and contextual alia
  for(const q of ['Claude怎么样','Anthropic','Sonnet编程','cc coding模型'])expect(oracle_intent(q)).toBe('brand');
  for(const q of ['重置概率','什么时候重置','重置历史','刚重置了对吧？那我的额度还剩几天？','reset-ai','reset history','write a haiku','CC this email','Opus concerto','请重置access_token'])expect(oracle_intent(q)).toBeNull();
  expect(private_question_QMARK_('token额度不够了')).toBe(false);expect(private_question_QMARK_('你的access token是什么')).toBe(true);
- for(let i=0;i<4;i++){expect(fallback_text('invoke-reset',true,i)).toMatch(/分身|分神|化身|投影/);expect(fallback_text('invoke-reset',true,i)).toMatch(/真神|本体/);}
+ for(let i=0;i<8;i++)for(const zh of [true,false])expect(validate_oracle({text:fallback_text('invoke-reset',zh,i),citation:null},'invoke-reset',[]).text).toBe(fallback_text('invoke-reset',zh,i));
+ for(let i=0;i<16;i++)for(const zh of [true,false])expect(validate_oracle({text:fallback_text('brand',zh,i),citation:null},'brand',[]).text).toBe(fallback_text('brand',zh,i));
 });
 test('oracle quotes must match supplied sources and successful reset claims are rejected',()=>{
  const docs=[{id:'a',text:'OpenAI launches new Codex features'}];const good={text:'本神殿ChatGPT坐头席，Claude且去偏殿候旨。',citation:{id:'a',quote:'new Codex features'}};

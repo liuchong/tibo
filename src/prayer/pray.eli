@@ -19,11 +19,11 @@
     "✨ 解锁「三连诚心」。"
     "✨ 解锁「额度守望者」，领一张虚拟免焦虑券。"
     "✨ 晋升「异步祈祷工程师」。"
-    "✨ 晋升「天庭 SRE」，香炉高可用交给你了。"
+    "✨ 晋升「天庭 SRE」，窗边给老朋友留了盏灯。"
     "✨ 解锁「百次回向」，虚拟金香炉就位。"
-    "✨ 233 笑到功德溢出，天庭日志切换哈哈级。"
+    "✨ 233，笑声攒满一桌，今晚有你的位置。"
     "✨ 晋升「赛博方丈」，法会主持就位。"
-    "✨ 解锁「功德编译器」，愿望编译通过。"))
+    "✨ 解锁「功德编译器」，这份坚持值得好好记住。"))
   (defun fresh-variant (generator seed receipts)
     (let ((variant seed) (attempts 0) (recent (js-call receipts :slice -4)))
       (while (and (< attempts 60) (js-call recent :some (lambda (r)

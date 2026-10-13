@@ -41,7 +41,8 @@ test('pray shares genuine personal identity across conversations, cooldown, dedu
   // Exercise a high milestone with preserved historical counters.
   const root=await read_state(identity_key);const m=root.members[0];m.merit=232;m.offers=240;root.merit=232+root.members[1].merit;root.offers=240+root.members[1].offers;
   await write_state(identity_key,root);now+=16000;
-  expect((await offer('233')).text).toContain('233 笑到功德溢出');
+  expect((await offer('233')).text).toContain('功德 233（本次+1）');
+  expect((await read_state(identity_key)).members[0].badges).toContain('功德233');
   const files=await readdir(dir);expect(files.every(x=>x.startsWith('pray-'))).toBe(true);
   const raw=await readFile(join(dir,identity_key+'.json'),'utf8');expect(raw).not.toMatch(/private-user|room-one/);
   expect((await execute_query({command:'pray',args:{action:'offer'}})).ok).toBe(false);

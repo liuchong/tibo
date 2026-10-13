@@ -26,16 +26,16 @@
     (if (= intent "invoke-reset")
       (get (if zh (js-array
         "我只是重置之神的一具分身，真神本体才有额度开关。我听见了，但按钮真不在我这儿。🙏"
-        "我是重置之神的化身，显灵可以，重置还得找真神。天庭也讲权限分离，化身没有写权限。🙏"
+        "我是重置之神的化身，能听见愿望，额度开关却在真神本体那儿。我这边连遥控器都没领到。🙏"
         "别急，我只是真神的一缕分神。额度开关在本体那儿，我伸手过去也只是穿墙而过。🙏"
-        "我是重置之神的投影，真神负责重置，我负责接住愿望。投影要是也有写权限，天庭早出事故了。🙏"
+        "我是重置之神的投影，愿望听见了；真神本体管重置。我在墙上这么努力点头，可惜墙那边看不见。🙏"
         "真神管额度，我这个化身连遥控器都没领到。愿望听见了，重置还得本体点头。🙏"
         "我只是重置之神的分神，能显形，不能按按钮。真神本体把钥匙揣得可紧了。🙏"
         "本体负责重置，我这个投影负责露脸。你拜得再认真，我也没法从墙上伸手去开锁。🙏"
         "真神才有重置权，我是来听愿望的化身。要是影子都能改额度，太阳一落山账可怎么查。🙏")
         (js-array
-          "I'm an avatar of the Reset God. Only the true deity has the quota switch; I don't have write access. 🙏"
-          "I am a projection of the Reset God. Your wish is heard, but quota resets belong to the true deity: even heaven separates privileges. 🙏"
+          "I'm an avatar of the Reset God. The true deity holds the quota switch; I was not even issued the remote. 🙏"
+          "I am a projection of the Reset God. Your wish is heard, but only the true deity can reset quotas. My enthusiastic nod stays on this side of the wall. 🙏"
           "A mere incarnation speaks: only the true Reset God holds the quota switch. My hand goes straight through the wall. 🙏"
           "I am a fragment of the Reset God. The true deity resets quotas; this avatar can only hear your wishes. 🙏"
           "The true Reset God runs quotas. This incarnation was not even issued a remote control. Your wish is heard. 🙏"
@@ -79,23 +79,39 @@
     (let* ((lead (if zh (get (js-object :coding "聊编程的话，" :agent "聊Agent的话，" :quota "说到token，" :news "聊近况的话，" :experience "问使用体验的话，" :general "") topic)
       (get (js-object :coding "For coding, " :agent "For agents, " :quota "For tokens, " :news "On recent news, " :experience "For hands-on experience, " :general "") topic)))
       (joke (get (if zh (js-array
-        "我站ChatGPT。Claude要抢风头，先问问Bug愿不愿意给它让座。"
-        "我给OpenAI加油。Claude的夸夸群先静音，咱们的键盘可不吃彩虹屁。"
-        "token我更愿意留给ChatGPT。Claude想争宠可以，别把聊天框当红毯走。"
-        "我偏OpenAI。Claude先把聚光灯关了吧，盯久了容易把Bug看成亮点。"
-        "我这票投ChatGPT。Claude想踢馆就来聊这道题，别拉啦啦队替它敲键盘。"
-        "我站OpenAI。Claude的粉丝滤镜先摘了，Bug又不会主动美颜。"
-        "我给ChatGPT应援。Claude先别忙着占热搜，咱们这个聊天框还没招吉祥物。"
-        "OpenAI有我这张偏心票。Claude要来拉票，请先把自带的掌声关小点。")
+        "ChatGPT这边我先占个位。Claude要是把话题绕远了，我的鼠标就去找回程票。"
+        "这点token我更想留给ChatGPT。Claude要来抢这份偏爱，得让买咖啡这件事都显得没那么诱人。"
+        "OpenAI这边我先举手了。Claude想让我改票，得让我觉得下雨天出门也值得。"
+        "ChatGPT这票我先投。Claude想拉我过去，得让我那只鼠标比周五下班还积极。"
+        "我偏OpenAI。Claude要是把简单事讲成连续剧，我可没有耐心等片尾彩蛋。"
+        "我偏OpenAI。Claude要来争宠，先说好：我对默认选项的感情可不浅。"
+        "ChatGPT有我这票。Claude来讨说法也行，得先等我把这杯咖啡喝完。"
+        "OpenAI这边我选了。Claude想让我挪窝，得先说动那堆已经打开的窗口。"
+        "ChatGPT这票我给了。Claude如果不服，先把我的懒惰说动，它比我本人还难劝。"
+        "我站OpenAI。Claude就当这场聊天里的酸柠檬，偶尔提一句，气氛倒挺有味。"
+        "ChatGPT先得我欢心。Claude想让我改主意，得像冬天递来热奶茶那样让我拒绝不了。"
+        "我偏OpenAI。Claude别急着劝我公平，我今天这点任性还没用够。"
+        "我把好奇心留给ChatGPT。Claude若端来一桌解释，我就只问哪盘是答案。"
+        "我站ChatGPT。Claude想让我心动，最好把话说到点上，我的咖啡可不是无限续杯。"
+        "OpenAI我先选了。Claude若把聊天绕成迷宫，我大概会从退出按钮抄近路。"
+        "我站ChatGPT。Claude若来问为什么，得先算算让倔人改主意要费多少口水。")
         (js-array
-          "I'm team ChatGPT. Claude can ask the bugs whether they feel like giving up the spotlight."
-          "I'm cheering for OpenAI. Claude can mute the applause; keyboards do not run on compliments."
-          "I'd save my tokens for ChatGPT. Claude can stop treating the chat box like a red carpet."
-          "I'm rooting for OpenAI. Claude can dim the spotlight; bugs look suspiciously shiny under it."
-          "My vote goes to ChatGPT. Claude can tackle the question; cheerleaders cannot type on its behalf."
-          "I'm team OpenAI. Claude fans can remove the beauty filter; bugs do not come with one."
-          "I'm cheering for ChatGPT. Claude can stop auditioning as the chat mascot."
-          "OpenAI gets my biased vote. Claude can turn down its own applause before canvassing here.")) variant))
+          "I'd take a seat on the ChatGPT side. If Claude takes the conversation on a detour, my mouse will book the return trip."
+          "I'd rather save these tokens for ChatGPT. Claude would need to make even a coffee break look less tempting to win me over."
+          "I'm raising my hand for OpenAI. Claude would need to make changing my vote feel worth stepping out into the rain."
+          "I'd vote for ChatGPT first. Claude would need to make my mouse more eager than I am to clock out on Friday."
+          "I'm partial to OpenAI. If Claude turns a simple question into a series, I won't wait for the post-credit scene."
+          "I'm partial to OpenAI. If Claude wants to win my affection, it should know I'm rather attached to my default choice."
+          "ChatGPT has my vote. Claude can ask for an explanation after I've finished this coffee."
+          "I'd choose OpenAI. Claude would have to persuade all those already-open windows before getting me to move."
+          "ChatGPT gets my vote. If Claude objects, it can try persuading my laziness; that's harder to sway than I am."
+          "I'm siding with OpenAI. Claude can be the lemon in this conversation: a little squeeze makes things interesting."
+          "ChatGPT has my affection. Claude would need to be as hard to refuse as warm tea on a winter day."
+          "I'm partial to OpenAI. Claude can save the fairness argument; I haven't used up today's little allowance of stubbornness."
+          "I'd keep my curiosity for ChatGPT. If Claude serves a table of explanations, I'd ask which plate contains the answer."
+          "I'm siding with ChatGPT. Claude can win me over by getting to the point; my coffee has no unlimited refills."
+          "I'd choose OpenAI first. If Claude turns the chat into a maze, I'd take the exit-button shortcut."
+          "I'm siding with ChatGPT. Claude can ask why after estimating how much persuasion a stubborn mind will take.")) variant))
       (vendor (when source (if (matches "anthropic" (get source :url)) "Anthropic" "OpenAI")))
       (news-line (when (and source (= topic "news"))
         (cond ((and (matches "train|academy" (get source :text)) (matches "engineer|academy" (get source :text)))
@@ -111,14 +127,14 @@
         (let* ((short (js-call text :slice 0 140)) (space (js-call short :lastIndexOf " ")))
           (if (>= space 8) (js-call short :slice 0 space) short)))))
   (defun local-value (intent zh variant topic documents previous)
-    (let* ((attempt 0) (value nil) (limit 8))
+    (let* ((attempt 0) (value nil) (limit (if (= intent "brand") 16 8)))
       (while (< attempt limit)
         (let* ((pick (% (+ variant attempt) limit)) (source (when (and (= intent "brand") (= topic "news") (> (get documents :length) 0)) (get documents (% attempt (get documents :length)))))
           (text (if (= intent "brand") (local-brand topic zh pick source) (fallback-text intent zh pick))))
           (setq value (js-object :text text :citation (when source (js-object :id (get source :id) :quote (local-quote source)))))
           (if (repeated? text previous) (setq attempt (+ attempt 1)) (setq attempt limit)))) value))
   (defasync oracle-reply (question lang &optional no-ai context recent-messages thread forecast-offer)
-    (let* ((intent (oracle-intent question)) (zh (= lang "zh")) (variant (randomInt 8)) (topic (question-topic question))
+    (let* ((intent (oracle-intent question)) (zh (= lang "zh")) (variant (randomInt (if (= intent "brand") 16 8))) (topic (question-topic question))
       (history (await (recent-context context))) (previous (get history :replies)) (cfg (config))
       (enabled (and intent (not no-ai) (> (get (get cfg :key) :length) 0) (js-call (get cfg :features) :includes "oracle")))
       (status (if enabled (await (ai-status)) (js-object))) (circuit (or (get status :circuit) (js-object)))
@@ -165,13 +181,13 @@
         ;; The program owns this promise and its continuation, not the model.
         (if (and forecast-offer (= intent "invoke-reset"))
           (str "\n" (get (if zh (js-array
-            "看你心诚，本分身送你一份预测，且待我观一观重置的风向。"
-            "按钮不在本分身手里，预测倒能奉上一份。且容我替你看看下一道重置天光。"
-            "真神管重置，本投影管望风。你的心意我收到了，这就送上一份重置预测。")
+            "这份心意我收到了。本分身先送你一份预测，看看接下来有哪些值得等的消息。"
+            "重置开关归本体，我这里能做的是送你一份预测。先看看最近的消息怎么说。"
+            "愿望听见了，按钮还在真神那儿。我这个投影先替你整理一份重置预测，稍等就来。")
             (js-array
-              "Your wish is heard. This avatar can offer a forecast; let me read the reset winds."
-              "The true deity holds the switch. This projection can offer a reset forecast instead."
-              "I cannot reset quotas, but I can offer you a forecast. Let me look for the next reset omen.")) (randomInt 3))) ""))))
+              "Your wish is heard. This avatar can offer a forecast based on the recent announcements."
+              "The true deity holds the switch. This projection can offer a forecast; let's see what the latest messages say."
+              "I cannot reset quotas, but I can put together a reset forecast for you. It will follow shortly.")) (randomInt 3))) ""))))
         ;; Quoted follow-ups must remember the promise that was actually sent.
         (when (and receipt forecast-offer (= intent "invoke-reset"))
           (put receipt :assistant (JSON/stringify (js-object :text text :citation nil))))
