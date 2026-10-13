@@ -15,7 +15,7 @@
   (import "../../src/prayer/pray.eli" settle-festivals)
   (import "./messages.eli" markdown-post send-report)
   (import "./celebration-delivery.eli" finish-celebration)
-  (import "./thread.eli" load-thread reference-root)
+  (import "./thread.eli" load-thread reference-root reply-target-of message-id? thread-id?)
   (import "../../src/subscriptions/schedule.eli" slot-at)
   (import "../../src/platform/util.eli" ms iso clean fail)
   (defun account-key ()
@@ -114,7 +114,8 @@
             (put audit :reason "message-not-readable")
             ;; Resolve any reacted message through a fixed read-only API. Known
             ;; own replies use sanitized cached text and avoid a network hop.
-            (when (and client (= (value-type (get client :messageInfo)) "function") (or (not own) (not (Object/hasOwn sent "text"))))
+            (when (and client (= (value-type (get client :messageInfo)) "function")
+              (or (not own) (not (Object/hasOwn sent "text")) (not (Object/hasOwn sent "replyTarget"))))
               (setq info (await (cached-message client id))))
             (when (or own (and info (= (get info :message_id) id)))
               (let* ((group (if own (get sent :group) (get info :chat_id)))
@@ -126,11 +127,15 @@
                 (when own
                   (put sent :conversationType (if (js-call allowed :includes group) "group" kind))
                   (put sent :account account)
-                  (when (and info (= (get info :chat_id) group)) (put sent :text material)) (await (write-state (message-key id) sent)))
+                  (when (and info (= (get info :chat_id) group))
+                    (put sent :text material) (put sent :replyTarget (reply-target-of info)))
+                  (await (write-state (message-key id) sent)))
                 (let* ((context (js-object :transport "lark" :actor actor :scope group :authenticated t
                           :account account :conversationType (if (js-call allowed :includes group) "group" kind)))
                        (job (js-object :group group :key (str "reaction-" (message-key (str actor ":" id ":" (or event-id created)))) :command "pray"
-                         :triggerKind "prayer" :prayerMaterial material :context context :createdAt (iso created) :acceptedAt (iso (Date/now)))))
+                         :triggerKind "prayer" :prayerMaterial material :context context :messageId id
+                         :replyTarget (if (and info (= (get info :chat_id) group)) (reply-target-of info) (when own (get sent :replyTarget)))
+                         :createdAt (iso created) :acceptedAt (iso (Date/now)))))
                   (put audit :reason "chat-not-authorized")
                   (when (allowed-job? job allowed) (put audit :reason "accepted") job)))))))))
   (defasync finish-chat (key)
@@ -139,9 +144,18 @@
         (await (commit-turn (get ledger :chatReceipt) (get ledger :messageId)))
         (put ledger :chatCommitted t) (put ledger :chatReceipt nil)
         (await (write-state key ledger)))))
+  (defun reply-target (job context group)
+    (when (and context (= (get context :authenticated) t) (= (get context :transport) "lark") (= (get context :scope) group))
+      (let* ((target (or (get job :replyTarget)
+                 (when (get job :reference) (js-object :messageId (get job :messageId (get job :key))
+                   :threadId (get (get job :reference) :threadId)))))
+             (id (get (or target (js-object)) :messageId)))
+        (when (message-id? id)
+          (js-object :messageId id :threadId (when (thread-id? (get target :threadId)) (get target :threadId)))))))
   (defasync deliver-once (client group key command &optional title-time context prepared job)
     (setq job (or job (js-object)))
     (let* ((ledger-key (delivery-key group key)) (started (Date/now)) (festival-request nil)
+           (target (reply-target job context group))
            (latency (js-object :startedAt (iso started) :replyPolicy (get job :replyPolicy)
              :contextMessages (get (get job :recentMessages (js-array)) :length))))
       (when (get job :acceptedAt)
@@ -152,7 +166,7 @@
       (when context (setq context (Object/assign (js-object) context (js-object :requestId ledger-key))))
       (when (await (read-state ledger-key)) (fail "投递已有记录，禁止自动重复发送"))
       ;; Reserve BEFORE invoking external I/O. Unknown send outcomes stay auditable.
-      (await (write-state ledger-key (js-object :state "pending" :at (iso (Date/now)) :group group :key key :latency latency)))
+      (await (write-state ledger-key (js-object :state "pending" :at (iso (Date/now)) :group group :key key :latency latency :replyTarget target)))
       (try
         (let* ((options (js-object :channel group :persist false :titleTime title-time :context context
                  :conversationMode (not (not (get job :reference)))
@@ -180,20 +194,22 @@
           (when result (put latency :core (get result :timing)))
           (put latency :sendStartedAt (iso (Date/now)))
           (await (write-state ledger-key (js-object :state "sending" :at (iso (Date/now)) :group group :key key :latency latency
+            :replyTarget target
             :chatReceipt (get response :chatReceipt)
             :festivalRequest festival-request :festivalIds (get response :festivalIds) :festivalMessages (get response :festivalMessages))))
-          (let* ((send-start (Date/now)) (metadata (js-object)) (id (await (send-report client group ledger-key text metadata
-            (when (and (get job :reference) context (= (get context :authenticated) t) (= (get context :scope) group))
-              (js-object :messageId (get job :messageId (get job :key)) :threadId (get (get job :reference) :threadId))))))
+          (let* ((send-start (Date/now)) (metadata (js-object)) (id (await (send-report client group ledger-key text metadata target)))
                  (dm (js-call group :startsWith "ou_")))
             (put latency :sendMs (- (Date/now) send-start))
             (put latency :totalMs (- (Date/now) started))
             (await (write-state ledger-key (js-object :state "sent" :messageId id :at (iso (Date/now)) :group group :key key :latency latency :businessOk (get response :ok)
+              :replyTarget target
               :chatReceipt (get response :chatReceipt)
               :festivalRequest festival-request :festivalIds (get response :festivalIds) :festivalMessages (get response :festivalMessages))))
             (await (finish-chat ledger-key))
             (await (write-state (message-key id) (js-object :messageId id :group (if dm (get metadata :chatId) group) :recipient group
               :appId (get (get process :env) :TIBO_LARK_APP_ID "")
+              :replyTarget (or (reply-target-of (js-object :message_id id :thread_id (get metadata :threadId)))
+                (when target (Object/assign (js-object) target (js-object :messageId id))))
               :text (prayer-material text) :account (account-key) :conversationType (if dm "p2p" (if context (get context :conversationType) "group")) :at (iso (Date/now)))))
             ;; The prior forecast is updated only AFTER confirmed successful report delivery.
             (when (and result (get response :ok)) (await (save-report group result)))

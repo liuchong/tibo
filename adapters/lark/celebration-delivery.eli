@@ -27,7 +27,7 @@
                       (let ((attempts (+ 1 (get (or part (js-object)) :attempts 0))))
                         (await (write-state part-key (js-object :state "sending" :attempts attempts :at (iso (Date/now)) :parent key :index index)))
                         (try
-                          (let ((id (await (send-report client (get ledger :group) part-key (get messages index)))))
+                          (let ((id (await (send-report client (get ledger :group) part-key (get messages index) nil (get ledger :replyTarget)))))
                             (await (write-state part-key (js-object :state "sent" :attempts attempts :messageId id :at (iso (Date/now)) :parent key :index index))))
                           (catch error
                             ;; A confirmed rejection is safe to retry with the same

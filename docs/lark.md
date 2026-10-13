@@ -167,6 +167,12 @@ API 成功证据还需结合客户端消息核对实际可见性。不要删除�
 
 `tibo-lark status` 的 events 包含当前进程接收/接受的计数、最近接收时间，以及最近表情 accepted/reason；只记录诊断标签，不存消息正文或身份。反应 reason=queued-for-resolution 只表示原事件已落盘，尚未证明会话核实、计数或发送；not-prayer-or-stale 表示本地不接受该反应。核实结果查投递账本，原反应记录以 receiptKey 指向实际会话的业务回执；message-permanently-unavailable、chat-not-authorized 等是过滤原因。inbox 状态分别报告 pending、cached、workers 和 paused，快照按分钟更新。无新表情事件时先核对事件订阅，不能把“未收到”当“生成慢”。次级候选入队不等于发送，规则见 [IM 触发过滤](im-triggers.md)。完整执行能力边界见 [执行边界](execution-boundary.md)。
 
+## 业务回复的位置
+
+在话题内上香时，香客信息和额外庆典消息都使用话题内回复。点击原生双手合十 🙏 时，适配器从被点击消息的元数据识别回复位置；点击机器人消息可复用已保存的元数据，旧回执首次读取后补齐。help、查询与错误提示也保持来源话题，普通引用仍使用引用回复，无引用的普通会话保持普通发送。回复失败不会改发到群主会话。
+
+回复目标保存在本地投递回执中，与 AI 对话历史独立；祈祷和固定业务回复不读取聊天历史。庆典拒收后重试或重启续发都沿用同一目标。话题标识与平台选择器不发送给模型。平台字段与回复参数见 [Lark 话题说明](https://open.larksuite.com/document/uAjLw4CM/ukTMukTMukTM/reference/im-v1/message/thread-introduction)。
+
 ## 实时预警与已重置确认
 
 核心 daemon 每五分钟监测，生成一次平台无关通知。Lark 每十秒检查持久化通知队列，将同一 Markdown 正文发给有效个人私聊与群订阅；不受被动交互群的 all 配置影响。投递回执、订阅版本和游标保留，重启不重复发送，单个目标失败不阻断其他目标。明确结果未知时不盲目重发。预警阈值和完成核实条件见 [实时通知](realtime-alerts.md)。

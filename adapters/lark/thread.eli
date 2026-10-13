@@ -12,6 +12,11 @@
     (when (or (thread-id? (get message :thread_id)) (and (message-id? (get message :parent_id)) (not (= (get message :parent_id) (get message :message_id))))
               (and (message-id? (get message :root_id)) (not (= (get message :root_id) (get message :message_id)))))
       (js-object :parentId (get message :parent_id) :rootId (get message :root_id) :threadId (get message :thread_id))))
+  ;; Placement is transport metadata, independent of conversational history.
+  (defun reply-target-of (message)
+    (when (and (message-id? (get message :message_id)) (reference-of message))
+      (js-object :messageId (get message :message_id)
+        :threadId (when (thread-id? (get message :thread_id)) (get message :thread_id)))))
   (defun body-text (message)
     (try
       (let* ((body (JSON/parse (get (get message :body (js-object)) :content "{}"))) (kind (get message :msg_type)))
@@ -121,4 +126,4 @@
                     (js-object :state "ready" :sessionId session :currentId id
                       :messages (session-messages (await (read-session key)))))))))
           (catch error (js-object :state "unavailable" :messages (js-array)))))))
-  (export reference-of body-text load-thread reference-root))
+  (export reference-of reply-target-of message-id? thread-id? body-text load-thread reference-root))

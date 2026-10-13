@@ -18,6 +18,8 @@
           (when (Number/isInteger (get response :code)) (put error :larkCode (get response :code)))
           (throw error)))
       (unless (get (get response :data (js-object)) :message_id) (fail "Lark 返回缺少 message_id"))
-      (when metadata (put metadata :chatId (get (get response :data) :chat_id)))
+      (when metadata
+        (put metadata :chatId (get (get response :data) :chat_id))
+        (put metadata :threadId (get (get response :data) :thread_id)))
       (get (get response :data) :message_id)))
   (export markdown-post send-report))
