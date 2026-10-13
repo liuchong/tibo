@@ -16,13 +16,13 @@
 | --- | --- | --- |
 | `TIBO_CONFIG_FILE` | `~/.config/tibo/config.env` | 私有配置路径；由启动环境指定 |
 | `TIBO_STATE_DIR` | 未设置或为空时为当前目录 `.tibo`；安装默认 `~/.local/state/tibo` | 历史、报告、档案、缓存和投递状态目录 |
-| `TIBO_DAEMON_INTERVAL` | 900；整数 60..86400 秒 | 每轮采集结束后等待多久开始下一轮 |
+| `TIBO_DAEMON_INTERVAL` | 900；整数 60..86400 秒 | 无新原帖时重新计算报告的维护间隔；五分钟监测独立进行 |
 | `TIBO_HIDDEN_SOURCE_HOSTS` | 空；逗号分隔的域名 | 本地公开输出脱敏规则，只隐藏指定来源字样，不请求这些地址 |
 | `TIBO_LOCAL_ADMIN_UID` | 源码运行未设置；安装时补当前 UID | 本地危险操作管理员白名单 |
 | `TIBO_SNAPSHOT` | 未设置 | MCP 测试快照；Lark 实际投递拒绝此设置 |
 | `ELISCRIPT_HOME` | 构建时为 `node_modules/eliscript` | 编译器路径，构建用，不是应用私有配置项 |
 
-周期采集与定点推送是两个机制：`TIBO_DAEMON_INTERVAL` 不会改变北京时间 09:00 / 21:00 的推送时间。
+五分钟监测、报告维护与定点推送是独立机制：`TIBO_DAEMON_INTERVAL` 不会改变北京时间 09:00 / 21:00 的定点。实时预警与已重置确认由新证据触发，见 [实时通知](realtime-alerts.md)。
 
 ## 可选 AI
 
@@ -76,6 +76,8 @@ TIBO_AI_FEATURES=
 | 文件或前缀 | 内容 |
 | --- | --- |
 | `ledger.json` | 累积历史公告与永久原文，无自动过期；旧证据不是本次采集成功证明 |
+| `realtime-monitor.json` / `x-request-budget.json` | 五分钟监测游标、通知去重与共享 X 限流退避 |
+| `alert-feed.json` / `alert-*.json` / `lark-alert-*.json` | 平台无关实时通知、共享正文与接入层投递计划 |
 | `source-cache.json` | 共享最新公开资料，两分钟有效；主页发现失败时 15 秒，协调并发采集 |
 | `forecast-cache-ai.json` / `forecast-cache-native.json` | 两分钟交互预测结果缓存，共用公开资料输入但区分 AI 和非 AI 结果 |
 | `experience.json` | 不重叠的前瞻预测窗口、标签与成绩 |

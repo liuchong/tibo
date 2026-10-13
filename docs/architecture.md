@@ -25,7 +25,7 @@ Tibo 是一个独立应用。CLI、MCP 和 IM 共用业务能力，IM 接入放�
 - forecast 依赖 platform 和 evidence，进行历史统计、信号分析与概率计算。它不依赖 AI、入口、命令、展示或 IM；experience 通过固定状态接口保存历史成绩。
 - ai 依赖 platform、evidence 与 forecast，提供可选的结构化提取和解释任务，数值调整由 forecast 独立计算。证据校验与算法保持可独立运行。
 - chat 只依赖 chat、ai 和 platform，提供跨接入方式的会话隔离、导入去重、追加提交、容量摘要与串行处理。它不解析平台原始事件，不读取平台 API，不生成平台回复参数。
-- presentation 负责输出与文字处理；prayer 负责档案、角色和吉祥话；subscriptions 负责订阅、定点与共享报告。需要编排多个能力时，通过明确模块调用完成。
+- presentation 负责输出与文字处理；prayer 负责档案、角色和吉祥话；subscriptions 负责订阅、定点、共享报告及平台无关的实时通知。需要编排多个能力时，通过明确模块调用完成。
 - commands 组合业务能力，并分离目录、固定解析、语义路由、执行和管理确认。app 负责进程入口和预测编排。
 - im 提供跨平台触发规则；adapters/lark 实现平台身份认证、事件读取与投递。src 内的模块不能导入具体适配器。
 

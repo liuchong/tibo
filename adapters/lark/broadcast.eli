@@ -70,4 +70,4 @@
           :processed (get (or progress (js-object)) :cursor 0) :recipients (get (get (or progress (js-object :targets (js-array))) :targets) :length)))
         :halt (lambda () (setq stopped t))
         :stop (async () (setq stopped t) (when active (await active))))))
-  (export create-broadcaster plan-key))
+  (export create-broadcaster plan-key send-target))

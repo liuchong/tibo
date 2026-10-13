@@ -52,10 +52,10 @@ test('clearing or updating history invalidates discovery cache; corrupt cache an
  const r=await trial(`await collect();await write_state('ledger',{posts:[],events:[]});await collect();const cleared=calls.length;await write_state('source-cache',{schemaVersion:1,expiresAt:now+10000,snapshot:null});await collect();const corrupt=calls.length;await collect_sources(new Date(now).toISOString(),true);console.log(JSON.stringify({cleared,corrupt,final:calls.length}));`);
  expect(r.cleared).toBe(8);expect(r.corrupt).toBe(11);expect(r.final).toBe(11);
 });
-test('discovery failure is shared briefly and retries in 15s while preserving permanent originals',async()=>{
- const r=await trial(`await collect();now+=120001;broken=true;const failed=await collect();const count=calls.length;await collect();const reusedCount=calls.length;now+=15001;const retried=await collect();console.log(JSON.stringify({failed,count,reusedCount,retried,calls}));`);
+test('discovery failure shares its 15s cache and respects the longer X transport cooldown while preserving originals',async()=>{
+ const r=await trial(`await collect();now+=120001;broken=true;const failed=await collect();const count=calls.length;await collect();const reusedCount=calls.length;now+=15001;const cooling=await collect();const duringCooldown=calls.length;now+=15001;const retried=await collect();console.log(JSON.stringify({failed,count,reusedCount,duringCooldown,retried,calls}));`);
  expect(r.failed.collectionReuse.ttlMs).toBe(15000);expect(r.count).toBe(r.reusedCount);
- expect(r.calls).toHaveLength(r.count+3);expect(r.retried.posts[0].text).toBe('Reset all propagated. Enjoy.');
+ expect(r.duringCooldown).toBe(r.count+2);expect(r.calls).toHaveLength(r.count+5);expect(r.retried.posts[0].text).toBe('Reset all propagated. Enjoy.');
  expect(r.retried.sources.find(x=>x.name==='primary').ok).toBe(false);
 });
 test('forecast and posts commands share the same public collection',async()=>{

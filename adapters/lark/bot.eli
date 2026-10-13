@@ -4,6 +4,7 @@
   (import "./socket.eli" open-socket)
   (import "./inbox.eli" create-inbox)
   (import "./broadcast.eli" create-broadcaster)
+  (import "./alerts.eli" create-alert-delivery)
   (import "../../src/platform/config.eli" load-config)
   (import "node:process" :default process)
   (import "node:timers" setTimeout clearTimeout)
@@ -41,7 +42,7 @@
   (defasync start-lark ()
     (let ((config (await (lark-config))))
       (await (with-lock "lark-instance" (async ()
-        (let ((controller (new AbortController)) (ws nil) (inbox nil) (broadcaster nil) (timer nil) (stopping false) (resolve-stop nil)
+        (let ((controller (new AbortController)) (ws nil) (inbox nil) (broadcaster nil) (alerts nil) (timer nil) (stopping false) (resolve-stop nil)
               (client (create-client (get config :appId) (get config :secret) (get config :domain)))
               (stopped nil) (stop nil)
               (events (js-object :received 0 :accepted 0 :reactions 0 :acceptedReactions 0)))
@@ -49,6 +50,7 @@
           (setq stop (lambda ()
             (setq stopping t) (clearTimeout timer) (js-call controller :abort)
             (when broadcaster (js-call broadcaster :halt))
+            (when alerts (js-call alerts :halt))
             (when ws (js-call ws :close)) (funcall resolve-stop nil)))
           (js-call process :once "SIGINT" stop) (js-call process :once "SIGTERM" stop)
           (try
@@ -58,6 +60,7 @@
                 (await (sync-group-subscriptions "lark" (account-key) (get config :notifyGroups)))
                 (setq inbox (await (create-inbox client groups)))
                 (setq broadcaster (create-broadcaster client (get config :notifyGroups)))
+                (setq alerts (create-alert-delivery client (get config :notifyGroups)))
                 (setq ws (await (open-socket client (async (event header)
                   (let ((reaction (= (get header :event_type) "im.message.reaction.created_v1"))
                         (audit (js-object :reason "filtered")) (accepted false))
@@ -94,22 +97,27 @@
                   (unless stopping
                     (try
                       (let ((slot (slot-at (iso (Date/now)))))
-                        (when slot (await (js-call broadcaster :tick slot))))
+                        (when slot (js-call (js-call broadcaster :tick slot) :catch
+                          (lambda (error) (console/error "tibo-lark: 定点分发暂时失败")))))
+                      (js-call (js-call alerts :tick) :catch
+                        (lambda (error) (console/error "tibo-lark: 实时通知暂时失败")))
                       (await (write-state "lark-runtime" (js-object :state "running" :pid (get process :pid)
-                        :at (iso (Date/now)) :connection (js-call ws :status) :inbox (js-call inbox :status) :broadcast (js-call broadcaster :status))))
+                        :at (iso (Date/now)) :connection (js-call ws :status) :inbox (js-call inbox :status)
+                        :broadcast (js-call broadcaster :status) :alerts (js-call alerts :status))))
                       (catch error (console/error "tibo-lark: 定时任务或状态更新失败"))
                       (finally
                         (unless stopping
                           (setq timer (setTimeout (lambda () (js-call (funcall tick) :catch (lambda (error) (console/error "tibo-lark: 定时任务失败"))))
-                            (- 60000 (% (Date/now) 60000))))))))))
+                            (- 10000 (% (Date/now) 10000))))))))))
                   (js-call inbox :resume)
                   (await (funcall tick)))
-                (console/error "tibo-lark: 已启动；相关度与群回复预算独立控制，🙏限频时仍记档；订阅者只在北京时间09:00/21:00收私聊")
+                (console/error "tibo-lark: 已启动；订阅者接收早晚定点、实时预警和已重置确认")
                 (await stopped)))
             (finally
               (funcall stop)
               (js-call process :removeListener "SIGINT" stop) (js-call process :removeListener "SIGTERM" stop)
               (when inbox (await (js-call inbox :stop)))
               (when broadcaster (await (js-call broadcaster :stop)))
+              (when alerts (await (js-call alerts :stop)))
               (await (write-state "lark-runtime" (js-object :state "stopped" :pid (get process :pid) :at (iso (Date/now)))))))))))))
   (export lark-config check-lark start-lark))

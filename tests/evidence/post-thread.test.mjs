@@ -30,14 +30,14 @@ test('official detail page discovers the self-reply missing from the homepage an
  expect(r.calls.every(u=>['x.com','publish.x.com','status.openai.com','openai.com'].includes(new URL(u).hostname))).toBe(true);
 });
 test('thread discovery is bounded, refreshes conversations and degrades without losing cached originals',async()=>{
- const code=`let calls=0,healthy=false;globalThis.fetch=async()=>{calls++;if(!healthy)throw Error('offline');return new Response(${JSON.stringify(article(root,'Day 8/ Reset')+article(child,body))})};
+ const code=`let clock=Date.now();Date.now=()=>clock;let calls=0,healthy=false;globalThis.fetch=async()=>{calls++;if(!healthy)throw Error('offline');return new Response(${JSON.stringify(article(root,'Day 8/ Reset')+article(child,body))})};
  const {collect_threads}=await import(${JSON.stringify(resolve('dist/src/evidence/post-thread.mjs'))});
  const roots=['2109812216212099456','2109812216212099457','2109812216212099458'].map(id=>({id,author:'thsottiaux',at:'2026-10-13T01:03:25Z',text:'Day 8/ Reset'}));
  const failed=await collect_threads(roots,[],'${now}');
  const consumed=await collect_threads(roots,[{global:true,at:'2026-10-13T02:00:00Z'}],'${now}');
- healthy=true;
+ healthy=true;clock+=30001;
  const a=await collect_threads(roots.slice(0,1),[],'${now}');const b=await collect_threads(roots.slice(0,1),[],'${now}');
  console.log(JSON.stringify({failed,consumed,a,b,calls}));`;
  const r=await trial(code);expect(r.failed.source).toMatchObject({ok:false,attempted:2});expect(r.failed.posts).toEqual([]);
- expect(r.consumed.source.attempted).toBe(0);expect(r.a.posts).toHaveLength(2);expect(r.b.posts).toHaveLength(2);expect(r.calls).toBe(4);
+ expect(r.consumed.source.attempted).toBe(0);expect(r.a.posts).toHaveLength(2);expect(r.b.posts).toHaveLength(2);expect(r.calls).toBe(3);
 });

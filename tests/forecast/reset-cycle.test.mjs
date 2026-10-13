@@ -34,7 +34,9 @@ test('official full text verifies author, ID and official prefix; primary grade 
 });
 test('optional expansion outage keeps original; full or unrelated short posts never need the extra fetch',async()=>{
  const code=`let calls=0;globalThis.fetch=async()=>{calls++;throw new Error('unavailable')};const {expand_post}=await import(${JSON.stringify(resolve('dist/src/evidence/post-body.mjs'))});const a=await expand_post(${JSON.stringify(excerpt)}),b=await expand_post(${JSON.stringify({...excerpt,truncated:false})});console.log(JSON.stringify({a,b,calls}));`;
- const r=spawnSync(process.execPath,['--eval',code],{encoding:'utf8',timeout:5000});expect(r.status).toBe(0);const v=JSON.parse(r.stdout);expect(v.a).toEqual(excerpt);expect(v.b.truncated).toBe(false);expect(v.calls).toBe(1);
+ const dir=await mkdtemp(join(tmpdir(),'tibo-expansion-outage-'));
+ try{const r=spawnSync(process.execPath,['--eval',code],{env:{...process.env,TIBO_STATE_DIR:dir,TIBO_CONFIG_FILE:'/dev/null'},encoding:'utf8',timeout:5000});expect(r.status).toBe(0);const v=JSON.parse(r.stdout);expect(v.a).toEqual(excerpt);expect(v.b.truncated).toBe(false);expect(v.calls).toBe(1);}
+ finally{await rm(dir,{recursive:true,force:true});}
 });
 test('known completion restarts clock, retains precise time, consumes old hints and ignores routine events even when mislabeled global',()=>{
  const p=expanded_body(excerpt,body),s=snapshot({now,posts:[...snapshot().posts,p],events:[...snapshot().events,...events_from_posts([p])]});

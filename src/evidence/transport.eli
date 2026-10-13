@@ -1,5 +1,6 @@
 (module tibo.evidence.transport
   (import "../platform/host.eli" fetch AbortSignal)
+  (import "./x-transport.eli" x-url? guarded-fetch)
   (import "../platform/util.eli" fail)
   (defasync request (url &optional options timeout)
     (setq options (or options (js-object)))
@@ -7,7 +8,7 @@
                        (js-object :signal (if (get options :signal)
                          (AbortSignal/any (js-array (get options :signal) (AbortSignal/timeout (or timeout 25000))))
                          (AbortSignal/timeout (or timeout 25000))))))
-           (response (await (fetch url settings))))
+           (response (if (x-url? url) (await (guarded-fetch url settings)) (await (fetch url settings)))))
       (unless (get response :ok) (fail (str "HTTP " (get response :status))))
       (let ((text (await (js-call response :text))))
         (when (> (get text :length) 2000000) (fail "Source exceeds 2 MB limit"))
