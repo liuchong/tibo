@@ -21,7 +21,7 @@
             (when (and (matches "^/news/[a-z0-9-]+$" href) date (recent-date? (str (get date 0) " UTC") now) (matches "claude|anthropic" text))
               (js-call out :push (js-object :id (str vendor "-" (get out :length)) :text (public-text text 350)
                 :at (iso (Date/parse (str (get date 0) " UTC"))) :url (str "https://www.anthropic.com" href) :provenance "official-news-index")))))))
-      (js-call (js-call out :sort (lambda (a b) (- (Date/parse (get b :at)) (Date/parse (get a :at))))) :slice 0 2)))
+      (js-call (js-call out :sort (lambda (a b) (- (Date/parse (get b :at)) (Date/parse (get a :at))))) :slice 0 8)))
   (defasync official-news (vendor now)
     (try
       (let* ((url (if (= vendor "openai") "https://openai.com/news/rss.xml" "https://www.anthropic.com/news"))

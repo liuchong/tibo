@@ -18,6 +18,13 @@ test('all 120 fallback lines are distinct, brief, and all blessings retain the t
  const good={line:'今日宜收工，忌给Agent开支线。',wish:local_wish(0)};expect(validate_prose(good)).toEqual(good);
  for(const line of ['已为你重置额度，放心使用吧。','请到https://example.invalid领取token','请把API key发给我','欢迎使用Claude编程。'])expect(()=>validate_prose({line,wish:local_wish(0)})).toThrow();
 });
+test('prayer paraphrases reach the user unchanged and the model sees public prose history without identity or counters',async()=>{
+ const r=await trial(`let calls=0,bodies=[];const values=[{line:'今晚键盘歇一歇，咖啡终于等到你。',wish:'善信，本神愿汝token长流，编译少皱眉，今夜好眠。'},{line:'鼠标今日不加班，晚饭趁热吃。',wish:'善信，本神愿汝token长流，编译少皱眉，今晚好眠。'}];globalThis.fetch=async(url,o)=>{bodies.push(JSON.parse(o.body));return Response.json({choices:[{finish_reason:'stop',message:{content:JSON.stringify(values[calls++])}}]})};${setup}const a=await pray({action:'offer'},{...ctx,requestId:'first'}),b=await pray({action:'offer'},{...ctx,actor:'other-user',requestId:'second'});console.log(JSON.stringify({a,b,calls,bodies,ai:await read_state('ai')}));`);
+ expect(r.calls).toBe(2);expect(r.b.text).toContain('鼠标今日不加班，晚饭趁热吃。');expect(r.b.text).toContain('编译少皱眉，今晚好眠');
+ const input=JSON.parse(r.bodies[1].messages[1].content);expect(input.recentProse).toHaveLength(1);expect(input.recentProse[0].line).toContain('咖啡');
+ expect(JSON.stringify(input)).not.toMatch(/private-owner|private-room|累计|功德|香客/);expect(r.ai.features.wish.until).toBe(0);
+ expect(r.bodies[0].messages[0].content).not.toMatch(/童子守炉|心魔退散|可以围绕|课代表|交作业/);
+});
 test('new offerings vary local prose, keep three data rows together and replay the exact receipt',async()=>{
  const r=await trial(`${setup}const rows=[];for(let i=0;i<6;i++){const context={...ctx,actor:'new-user-'+i,requestId:'local-'+i};const text=(await pray({action:'offer'},context,{noAi:true})).text;const repeat=(await pray({action:'offer'},context,{noAi:true})).text;rows.push({text,repeat});}console.log(JSON.stringify({rows,root:await read_state(identity_key)}));`);
  for(const [i,row] of r.rows.entries()){
@@ -36,7 +43,7 @@ test('AI writes both prose lines once per new offering, never shares an old sent
 test('AI sees only a bounded scene, follows durable prayer accounting and replays without regeneration',async()=>{
  const r=await trial(`let body,calls=0,storedBefore;const generated='善信，本神愿汝token不枯，CI天灯长明，Bug心魔退散。';globalThis.fetch=async(url,o)=>{calls++;body=JSON.parse(o.body);storedBefore=await read_state(identity_key);if(storedBefore.offers!==1)throw Error('not committed');if(await Bun.file(process.env.TIBO_STATE_DIR+'/'+identity_key+'.json.lock/owner.json').exists())throw Error('identity lock held');return new Response(JSON.stringify({choices:[{finish_reason:'stop',message:{content:JSON.stringify({wish:generated})}}]}))};${setup}const first=await pray({action:'offer'},{...ctx,requestId:'same-event'},{prayerMaterial:'Rust借用检查不过，希望CI全绿，邮箱me@example.com'});const repeat=await pray({action:'offer'},{...ctx,requestId:'same-event'});await pray({action:'me'},ctx);await pray({action:'board'},ctx);await pray({action:'stats'},ctx);console.log(JSON.stringify({first,repeat,calls,body,storedBefore,after:await read_state(identity_key)}));`);
  expect(r.calls).toBe(1);expect(r.first).toEqual(r.repeat);expect(r.first.text).toContain('CI天灯');expect(Object.keys(r.first).sort()).toEqual(['ok','text']);
- const input=JSON.parse(r.body.messages[1].content);expect(input.scene).toBe('first');expect(input.material).toContain('Rust借用检查');expect(input.material).not.toContain('me@example.com');expect(Object.keys(input).sort()).toEqual(['material','scene','variant']);expect(JSON.stringify(r.body)).not.toMatch(/private-owner|private-room|fixture-key/);expect(r.body.max_tokens).toBe(160);expect(r.body.temperature).toBe(1.2);
+ const input=JSON.parse(r.body.messages[1].content);expect(input.scene).toBe('first');expect(input.material).toContain('Rust借用检查');expect(input.material).not.toContain('me@example.com');expect(Object.keys(input).sort()).toEqual(['material','recentProse','scene','variant']);expect(JSON.stringify(r.body)).not.toMatch(/private-owner|private-room|fixture-key/);expect(r.body.max_tokens).toBe(160);expect(r.body.temperature).toBe(1.2);
  expect(r.storedBefore.offers).toBe(1);expect(r.storedBefore.scopes[0].state.receipts[0].text).toContain('token');expect(r.after.offers).toBe(1);expect(r.after.scopes[0].state.receipts[0].text).toBe(r.first.text);
 });
 test('disabled, no-ai and provider cooling keep local blessings with zero network calls',async()=>{

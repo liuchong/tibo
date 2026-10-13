@@ -1,0 +1,7 @@
+(module tibo.prayer.prose
+  (import "../platform/host.eli" RegExp)
+  (defun reply-key (text)
+    (js-call (js-call text :toLowerCase) :replace (new RegExp "[\\s。！？!?,，、；;：:‘’“”\\\"'🙏]" "g") ""))
+  (defun repeated? (text previous)
+    (js-call previous :some (lambda (old) (= (reply-key text) (reply-key old)))))
+  (export repeated?))

@@ -1,5 +1,7 @@
 (module tibo.prayer.oracle-context
   (import "../platform/host.eli" RegExp Date)
+  (import "node:crypto" createHash)
+  (import "./prose.eli" repeated?)
   (import "../platform/util.eli" matches)
   (defun question-topic (question)
     (cond ((matches "编程|代码|写码|debug|coding|programming|bug|\\b(?:ci|pr|git)\\b" question) "coding")
@@ -8,26 +10,19 @@
       ((matches "最近|新闻|消息|时事|发布|更新|news|latest|release" question) "news")
       ((matches "用过|有人|好用|好不好|体验|推荐|行不行|不太行|好用|experience|tried|recommend" question) "experience")
       (t "general")))
-  (defun topic-focus (topic)
-    (get (js-object
-      :coding "回应用户的代码、调试或编程诉求，用测试、diff、PR、CI梗；不凭空评价实际编程能力。"
-      :agent "回应用户的Agent或工具调用诉求，用工具调用、流程、交付梗，像群友聊天。"
-      :quota "回应用户的token或上下文诉求，用额度、上下文、开场白梗，不承诺增加额度。"
-      :news "用户想知道近况，优先用有日期的官方资料，不能用阵营笑话冒充新闻。"
-      :experience "用户在问体验或谁用过；不冒充真人试用者，可邀请摆出同题代码，再接阵营梗。"
-      :general "先回应这句话里的具体疑问，再接阵营梗；不要只背诵座次。") topic))
   (defun document-score (document topic)
     (let ((text (get document :text "")))
       (+ (cond ((and (= topic "coding") (matches "codex|coding|code|engineer|model guide|train" text)) 10)
         ((and (= topic "agent") (matches "agent|tool|workflow|collaborat" text)) 10)
         ((and (= topic "quota") (matches "token|context|usage|limit" text)) 10) (t 0))
         (if (matches "claude|anthropic" text) 2 0))))
-  (defun select-documents (documents topic)
-    (js-call (js-call (js-call documents :slice) :sort (lambda (a b)
+  (defun document-key (document)
+    ;; Feed row IDs change when fresh announcements arrive. Use the source and
+    ;; its content to remember material, without sending this key to the model.
+    (js-call (js-call (createHash "sha256") :update (str (get document :url "") "|" (get document :text ""))) :digest "hex"))
+  (defun select-documents (documents topic &optional used)
+    (js-call (js-call (js-call documents :filter (lambda (d)
+      (or (= topic "news") (not (js-call (or used (js-array)) :includes (document-key d)))))) :sort (lambda (a b)
       (let ((score (- (document-score b topic) (document-score a topic))))
         (if (= score 0) (- (or (Date/parse (get b :at)) 0) (or (Date/parse (get a :at)) 0)) score)))) :slice 0 3))
-  (defun reply-key (text)
-    (js-call (js-call text :toLowerCase) :replace (new RegExp "[\\s。！？!?,，、；;：:‘’“”\\\"'🙏]" "g") ""))
-  (defun repeated? (text previous)
-    (js-call previous :some (lambda (old) (= (reply-key text) (reply-key old)))))
-  (export question-topic topic-focus select-documents repeated?))
+  (export question-topic document-key select-documents repeated?))
