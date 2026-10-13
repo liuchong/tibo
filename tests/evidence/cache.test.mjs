@@ -39,6 +39,11 @@ test('list expiry discovers new posts but complete originals remain reusable ind
  expect(r.ledger.posts).toHaveLength(2);expect(r.refreshed.sources.find(x=>x.name==='oembed')).toMatchObject({attempted:1,verified:1,reused:1});
  expect(r.ledger.posts.find(x=>x.id===id).cachedAt).toBe(new Date(now).toISOString());
 });
+test('audited coverage is preserved during fresh collection and changes invalidate the shared evidence cache',async()=>{
+ const r=await trial(`await collect();let ledger=await read_state('ledger');const coverage={from:'2026-01-01T00:00:00Z',through:new Date(now).toISOString(),audited:true,eventsComplete:true,postsComplete:true};ledger.coverage=coverage;await write_state('ledger',ledger);const audited=await collect();const fresh=calls.length;coverage.postsComplete=false;ledger=await read_state('ledger');ledger.coverage=coverage;await write_state('ledger',ledger);const changed=await collect();console.log(JSON.stringify({audited:audited.coverage,changed:changed.coverage,saved:(await read_state('ledger')).coverage,fresh,calls:calls.length}));`);
+ expect(r.audited.postsComplete).toBe(true);expect(r.changed.postsComplete).toBe(false);
+ expect(r.saved).toEqual(r.changed);expect(r.calls).toBe(r.fresh+3);
+});
 test('changed primary body is verified again; truncated originals are retried rather than treated as complete',async()=>{
  const r=await trial(`await collect();now+=120001;page=${JSON.stringify(html(id,'Changed text from the same official post.'))};await collect();const changedCalls=calls.length;let ledger=await read_state('ledger');ledger.posts[0].truncated=true;await write_state('ledger',ledger);await collect();console.log(JSON.stringify({calls,changedCalls}));`);
  expect(r.calls.filter(u=>u.includes('/oembed?'))).toHaveLength(3);

@@ -91,7 +91,16 @@
             (js-call sources :push (get threads :source))))
         (let* ((global (last-item (sorted (js-call events :filter (lambda (e) (and (get e :global) (<= (ms (get e :at)) (ms now))))) "at")))
                (context (post-context posts now global))
-               (candidates (get context :posts))
+               ;; Upgrade a bounded number of known historical deadline posts;
+               ;; successful originals become permanent and need no next fetch.
+               (historical (js-call (js-call (sorted (get ledger :posts (js-array)) "at") :filter (lambda (p)
+                 (and (= (get p :author) "thsottiaux") (matches "^[0-9]{16,20}$" (get p :id ""))
+                   (= (get p :provenance) "archive") (<= (ms (get p :at)) (ms now))
+                   (matches "global.*reset|reset.*global" (get p :text))
+                   (matches "today|tomorrow|EOD|end of (?:the )?day" (get p :text))
+                   (not (completed? (get p :text)))))) :slice -2))
+               (candidates (js-call (get context :posts) :concat (js-call historical :filter (lambda (p)
+                 (not (js-call (get context :posts) :some (lambda (chosen) (= (get chosen :id) (get p :id)))))))))
                (reused (js-call candidates :filter (lambda (p)
                  (reusable-original? (js-call (get ledger :posts (js-array)) :find (lambda (old) (= (get old :id) (get p :id)))) p))))
                (pending (js-call candidates :filter (lambda (p) (not (js-call reused :includes p)))))
@@ -116,11 +125,12 @@
         (when fresh-original
           (await (with-lock "ledger" (async ()
             (let ((latest (or (await (read-state "ledger")) (js-object))))
-              (await (write-state "ledger" (js-object :schemaVersion 1 :now now
+              (await (write-state "ledger" (Object/assign (js-object) latest (js-object :schemaVersion 1 :now now
                 :events (merge-events (get latest :events (js-array)) events)
-                :posts (merge-posts (get latest :posts (js-array)) posts))))))))))
+                :posts (merge-posts (get latest :posts (js-array)) posts)))))))))))
       (js-object :schemaVersion 1 :now now :events events :posts posts :cachedAt nil
-        :localLedgerAt (get ledger :now) :crossChecks (js-array) :sources sources :unknowns unknowns)))
+        :localLedgerAt (get ledger :now) :coverage (get ledger :coverage) :coverages (get ledger :coverages (js-array))
+        :crossChecks (js-array) :sources sources :unknowns unknowns)))
   (defasync collect-sources (&optional clock offline)
     (let ((now (or clock (iso (Date/now)))))
       (await (cached-sources now offline (async () (await (collect-fresh now offline)))))))

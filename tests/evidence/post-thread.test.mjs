@@ -25,7 +25,7 @@ test('official detail page discovers the self-reply missing from the homepage an
  console.log(JSON.stringify({s,forecast:r.forecast,calls}));`;
  const r=await trial(code);
  expect(r.s.posts.map(p=>p.id)).toEqual([root,child]);expect(r.s.posts[1]).toMatchObject({text:body,provenance:'primary',truncated:false});
- expect(r.forecast).toMatchObject({p24:90,p48:90});expect(r.s.events).toHaveLength(0);
+ expect(r.forecast).toMatchObject({available:false,promisePolicy:{applied:false,reason:'clock-unverified'}});expect(r.s.events).toHaveLength(0);
  expect(r.calls.filter(u=>u===`https://x.com/thsottiaux/status/${root}`)).toHaveLength(1);
  expect(r.calls.every(u=>['x.com','publish.x.com','status.openai.com','openai.com'].includes(new URL(u).hostname))).toBe(true);
 });

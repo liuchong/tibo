@@ -37,6 +37,10 @@ test('failed generation and corrupt optional cache cannot poison later requests;
  const r=await trial(`let failed=false;try{await cached_forecast({},async()=>{throw Error('failed generation')})}catch{failed=true}await write_state('forecast-cache-ai',{schemaVersion:1,expiresAt:now+ttl_ms,result:{forecast:{},snapshot:{now:'invalid'}}});const a=await cached_forecast({},generate);await invalidate_forecast();const long=async()=>{calls++;const r=result();now+=ttl_ms+1;return r};const b=await cached_forecast({},long);const c=await cached_forecast({},generate);console.log(JSON.stringify({failed,calls,states:[a.reuse.state,b.reuse.state,c.reuse.state]}));`);
  expect(r.failed).toBe(true);expect(r.calls).toBe(3);expect(r.states).toEqual(['fresh','fresh','fresh']);
 });
+test('audit coverage changes invalidate a previously generated promise estimate',async()=>{
+ const r=await trial(`await write_state('ledger',{events:[],posts:[]});await cached_forecast({noAi:true},generate);let ledger=await read_state('ledger');ledger.coverages=[{from:'2026-01-01T00:00:00Z',through:new Date(now).toISOString(),audited:true,eventsComplete:true,postsComplete:true}];await write_state('ledger',ledger);const a=await cached_forecast({noAi:true},generate);const b=await cached_forecast({noAi:true},generate);console.log(JSON.stringify({calls,a:a.reuse.state,b:b.reuse.state}));`);
+ expect(r.calls).toBe(2);expect(r.a).toBe('fresh');expect(r.b).toBe('cached');
+});
 test('administrator or configuration changes during generation prevent a stale cache write',async()=>{
  const r=await trial(`await cached_forecast({},async()=>{calls++;await invalidate_forecast();return result()});const first=await read_state('forecast-cache-ai');await cached_forecast({},generate);await invalidate_forecast();await cached_forecast({},async()=>{calls++;process.env.TIBO_AI_FEATURES='signals';return result()});const after=await cached_forecast({},generate);console.log(JSON.stringify({calls,first,after:after.reuse.state}));`);
  expect(r.first).toBeNull();expect(r.calls).toBe(4);expect(r.after).toBe('fresh');

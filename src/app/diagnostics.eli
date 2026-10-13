@@ -23,5 +23,6 @@
           :mode (get (get result :forecast) :mode) :signal (get (get result :forecast) :signal)
           :information (get (get result :forecast) :information) :featureAdjustment (get (get result :forecast) :featureAdjustment)
           :promisePolicy (get (get result :forecast) :promisePolicy)
+          :promiseHistory (get (get result :forecast) :promiseHistory)
           :signalExperience (get (get result :forecast) :signalExperience)))))
   (export diagnostics))
