@@ -24,5 +24,6 @@
           :information (get (get result :forecast) :information) :featureAdjustment (get (get result :forecast) :featureAdjustment)
           :promisePolicy (get (get result :forecast) :promisePolicy)
           :promiseHistory (get (get result :forecast) :promiseHistory)
+          :timingAssessment (get (get result :forecast) :timingAssessment)
           :signalExperience (get (get result :forecast) :signalExperience)))))
   (export diagnostics))

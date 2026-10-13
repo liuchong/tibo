@@ -12,7 +12,7 @@
 6. 只有存在符合当前提取版本、资料质量和样本/验证门槛的模型产物时，才允许特征调整历史风险；否则保持基线。
 7. 对完整官方限时 global 承诺建立去重历史，按当前等待阶段估计 24h / 48h 兑现情况；样本和覆盖不足则不调整数值。此路径不依赖 AI 或特征拟合权重。
 
-AI 的 `completion` 分类不能写入事件历史或移动时钟。完成公告核实使用固定原文规则；规则按句识别，支持明确相邻句衔接，不让无关的将来时结束语否定完成公告。截断帖不能取得完成核实等级。
+AI 的 `completion` 分类不能写入事件历史或移动时钟。完成公告核实使用固定原文规则；规则按句识别，支持明确相邻句衔接，不让无关的将来时结束语否定完成公告。明确 reset 对象后紧邻的 “It’s done” 等代词完成句可核实，条件、否定、banked、周周期及中间换话题不能凭这种衔接取得完成等级。截断帖不能取得完成核实等级。
 
 ## 提取记录
 
@@ -26,11 +26,28 @@ AI 输出 `rows[{postId, claims[]}]`。每个 claim 只允许以下字段：
 | `statement` | future、completed、conditional、negated、unknown |
 | `quote` | 本帖正文的连续原文，校验上限 220 字符 |
 | `timeText` | 原文时间词或 null；不允许模型直接填写 UTC |
+| `timing` | 时间预期 `{stance,window,amount,zone}` 或 null；与 `timeText` 和原文引用绑定 |
 | `contextMissing` | 是否缺少解释所需对象或父帖 |
 
 程序补 `claimIndex`、引用位置、来源等级、提取版本和 `knownAt`，再增加 `targetAt`、`timePrecision`、`expiresAt`、`status`、`episodeId`。时间必须与同一断言引用对应；`by EOD PST/PDT/PT` 及 end-of-day 表达解析为当地次日零点这个上限，`timePrecision=deadline`；EOD 未明示时区仍保留 unresolved。PST/PDT 使用明确固定偏移对应的发帖日期，PT 按旧金山夏令时。关系只使用程序已知的父帖、计划和明确 `fulfilledPromiseId`；AI 资料关联仅供解释，不自行兑现承诺。
 
-初版数值候选为 promise、hint、incident、programme 四个二值特征。progress、banked、release 保留在结构中，暂不添加独立系数。同周期同类线索只表示特征存在，不按帖子数量累计加分。没有完整消息覆盖或有未提取、截断行时，缺失特征是 null，不能当成零。
+数值候选为 promise、hint、incident、programme、timingExpectation 五个特征。progress、banked、release 保留在结构中，暂不添加独立系数。同周期同类线索只表示特征存在，不按帖子数量累计加分。没有完整消息覆盖或有未提取、截断行时，缺失特征是 null，不能当成零。
+
+### 语义化时间预期
+
+提取契约为 `post-claims-2`。同一次逐帖 AI 调用理解作者的态度、时间范围、转折和指代，不增加另一轮概率请求。`stance` 区分 commitment（明确承诺）、expectation（预计）、intention（希望或打算）、possibility（可能）、conditional（二选一等条件计划）、negated、unknown。预计、打算和可能归为 hint，日期本身不能将其升级为明确承诺。规则层也防止把带 probably、should、hope 等明显不确定措辞的期限预告写入确定承诺历史。直接、无条件的 global/full reset 落地公告保持 commitment；AI 和缓存不能仅因将来时态将其降为 expectation。
+
+`window` 为 within-hours、within-days、today、tomorrow、soon、this-week、next-week 或 unspecified。`timeText` 必须逐字包含在本帖引用中；“午饭前”等模糊表达可以保留原文和 unspecified。`amount` 仅显式数字小时/天可用，最多 720 小时或 30 天；猜测的数字清空。`zone` 仅接受原文写出的 PST/PDT/PT/UTC，否则 unknown。模型不填写 UTC，不补默认时区。
+
+程序解析可核实的相对窗口、明确时区的当地日期窗口或已支持的精确时间；保存在 `expectedWindow.from/through/resolution`，并与正式承诺的 `targetAt` 区分。预计时间过去记为 expectation-passed，不冒充确定承诺违约。soon、无时区的 tomorrow、下周、午饭前等仍是 unresolved，进入引用和解释，不给定量窗口。其存在不能作为精确时间特征的已知值。
+
+无主语的短回复只有在快照中存在同作者、已核实、早于回复的直接父帖时，才提供这份上下文；未核实父帖、引用别人的文字或缺失对象不能推定 global。选择阶段优先保留相关自回复，仍限最多八条输入。明确相对期限可保留到对应期间结束；this-week/next-week 背景最多保留 7/14 天，这只是上下文保留期限，不是 UTC 截止时间或重置保证。后续 global 消耗一次性预期。
+
+`timingExpectation` 仅针对完整官方原文、对象属于额度、global/unknown 范围的有效非确定时间预期。未解析的预期令该维度为 null；已解析的窗口只在与六小时风险段相交时启用。不按帖子数量累计。系数仍须通过下述审计、样本和独立时间验证门槛；没有合格模型时，只补充证据和理由，数值不加分。AI 关闭或失败时，有限规则提取仍保留可识别的时间预期，其余明确未知。
+
+`forecast.timingAssessment` 记录有效预期及是否真正用于数值调整，前瞻观察日志保存相同特征，供后续对照实际完成结果。旧契约缓存及模型不会悄悄复用为新语义；新契约解除旧格式错误造成的功能冷却，认证及限流冷却仍保留。
+
+2026-10-13 实际供应商探针使用四条人工构造文本，分别核对小时内预计、明天意向、带精确时间的 probably 预期、已核实父帖下的模糊时间短回复；它们不是 Tibo 的真实发言。实际 CLI 同时核对 AI 与 `--no-ai` 路径：新完成公告已被官方原文规则识别，先前 EOD 预告成为 consumed，报告只预测下一次重置。当前没有通过验证的时间预期模型，因此本轮未启用该维度的数值权重。
 
 ## 概率与模型启用
 
@@ -38,7 +55,7 @@ AI 输出 `rows[{postId, claims[]}]`。每个 claim 只允许以下字段：
 
 `feature-model.json` 是本地、经过审阅的模型产物接口，不是模型服务返回值。运行时要求：
 
-- 契约和提取质量 profile 匹配；最多四个有限系数，所需特征不能未知。
+- 契约和提取质量 profile 匹配；最多五个有限系数，所需特征不能未知。
 - 至少 30 个经过审计的不同周期；每个使用的特征至少在 10 个周期出现、10 个周期不出现，且有可核实的正负窗口。
 - 按整个周期和事件簇做时间留出，训练结束至验证开始至少隔离 48h，时间不能在预测时点之后。
 - 验证至少 10 个周期，两个窗口的 Brier 与 log loss 均改善，并记录跨阶段稳定性和按周期评估的不确定性。

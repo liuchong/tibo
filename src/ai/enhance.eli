@@ -3,6 +3,7 @@
   (import "./runtime.eli" ai-call config)
   (import "./post-features.eli" extract-post-features)
   (import "../forecast/features.eli" feature-state)
+  (import "../forecast/reset-timing.eli" timing-assessment)
   (import "../forecast/feature-model.eli" adjusted-risk)
   (import "../forecast/promise-policy.eli" apply-promise-policy)
   (import "../forecast/models.eli" baseline-curve)
@@ -52,6 +53,7 @@
       :claims (js-call (get (get input :structuredFeatures (js-object)) :claims (js-array)) :map (lambda (c)
         (js-object :postId (get c :postId) :kind (get c :kind) :subject (get c :subject) :scope (get c :scope)
           :statement (get c :statement) :quote (get c :quote) :status (get c :status) :targetAt (get c :targetAt)
+          :timeText (get c :timeText) :timing (get c :timing) :expectedWindow (get c :expectedWindow)
           :contextMissing (get c :contextMissing)))))))
       (cond ((= name "search") (js-object :posts (js-call (active-posts input) :map (lambda (p)
         (js-object :id (get p :id) :text (public-text (canonical-text (get p :text)) 1200))))
@@ -84,6 +86,7 @@
       ;; Reapply only a supported empirical estimate after optional model work.
       ;; Insufficient history leaves the available algorithm unchanged.
       (apply-promise-policy prob (get result :signals) (get result :snapshot))
+      (put prob :timingAssessment (timing-assessment structured (get prob :featureAdjustment (js-object))))
       (put input :final (js-object :p24 (get prob :p24) :p48 (get prob :p48)))
       (let ((index 0) (names (js-array "search" "research" "brief")))
         (while (< index (get names :length))

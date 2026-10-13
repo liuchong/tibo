@@ -61,6 +61,8 @@ evidence/x-page 解析官方主页及单帖页面，区分引用文章与自身�
 
 没有模型服务或部分资料获取失败时，自有算法仍可运行；证据不足时明确返回未知，不填造概率。重组目录不改变概率规则、状态格式、固定推送时间、权限或模型能力。evidence/post-features 校验断言，ai/post-features 负责逐帖提取和缓存；forecast/features 管理状态与未知值，feature-model 计算有门槛的风险调整，feature-log 保存独立前瞻日志。没有经过审计的负窗口不训练，当前没有启用特征系数。详见 [结构化特征](structured-features.md)。
 
+evidence/reset-timing 校验作者态度、时间词、明写数字与时区，forecast/reset-timing 解析可核实的预期窗口并选择相应风险段。语义理解复用逐帖提取，不另请求概率；正式承诺和非确定时间预期分别管理。没有经过验证的时间系数时，信息仍进入报告与观察日志，数值保留原有算法。
+
 详细算法见 [判断约定](decision-contract.md)，可选任务见 [AI 资料与任务](ai-research.md)。
 
 presentation/forecast-evidence 选择公开参考与必要理由，presentation/report 渲染唯一固定模板，business 复用此模板。CLI、MCP 和订阅生成不维护各自的报告版本；完整数据仍保留在本地 JSON 中。evidence/public-posts 为受限搜索核实固定官方 X 账户的补充原帖，不引入任意抓取或系统执行能力。报告约定见 [预测报告格式](forecast-report.md)。
