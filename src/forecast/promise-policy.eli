@@ -1,0 +1,22 @@
+(module tibo.forecast.promise-policy
+  (import "../platform/util.eli" ms hour-ms clamp)
+  ;; An explicit first-party deadline is an operational prior, not a fitted
+  ;; message coefficient. Keep that distinction visible in local diagnostics.
+  (defun apply-promise-policy (prob signals now)
+    (let* ((promise (get signals :promise))
+      (remaining (when promise (- (ms (get promise :targetAt)) (ms now))))
+      (eligible (and promise (get promise :primary) (not (get promise :fulfilled)) (not (get promise :withdrawn))
+        (= (get promise :kind) "global") (>= remaining 0)
+        (or (not (= (get prob :available) false)) (<= remaining (* 24 hour-ms)))))
+      (h24 (and eligible (<= remaining (* 24 hour-ms))))
+      (h48 (and eligible (<= remaining (* 48 hour-ms)))))
+      (put prob :promisePolicy (js-object :policy "official-deadline-1" :applied (not (not h48))
+        :calibrated false :floor 90 :postId (when promise (get promise :postId))
+        :targetAt (when promise (get promise :targetAt)) :h24 (not (not h24)) :h48 (not (not h48))))
+      (when h48
+        (put prob :p24 (clamp (Math/max (or (get prob :p24) 0) (if h24 90 0))))
+        (put prob :p48 (clamp (Math/max (get prob :p24) (or (get prob :p48) 0) 90)))
+        (put prob :available t) (put prob :confidence "高")
+        (put prob :signal "明确承诺待兑现") (put prob :signalStrength "强")
+        (put prob :mode "official-deadline-policy")) prob))
+  (export apply-promise-policy))

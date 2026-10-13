@@ -4,6 +4,7 @@
   (import "./post-features.eli" extract-post-features)
   (import "../forecast/features.eli" feature-state)
   (import "../forecast/feature-model.eli" adjusted-risk)
+  (import "../forecast/promise-policy.eli" apply-promise-policy)
   (import "../forecast/models.eli" baseline-curve)
   (import "../platform/state.eli" read-state)
   (import "../platform/privacy.eli" public-text)
@@ -80,6 +81,9 @@
           (put prob :featureAdjustment adjustment)
           (when (get adjustment :applied)
             (put prob :p24 (get adjustment :p24)) (put prob :p48 (get adjustment :p48)) (put prob :mode "feature-risk"))))
+      ;; A fitted model may modify the historical risk, but cannot erase a
+      ;; separately validated official deadline. This also works with AI off.
+      (apply-promise-policy prob (get result :signals) (get input :now))
       (put input :final (js-object :p24 (get prob :p24) :p48 (get prob :p48)))
       (let ((index 0) (names (js-array "search" "research" "brief")))
         (while (< index (get names :length))

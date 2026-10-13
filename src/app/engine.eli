@@ -5,6 +5,7 @@
   (import "../forecast/signals.eli" normalize-events analyze-signals)
   (import "../forecast/history.eli" summarize-history)
   (import "../forecast/forecast.eli" forecast)
+  (import "../forecast/promise-policy.eli" apply-promise-policy)
   (import "../forecast/models.eli" eligible)
   (import "../forecast/availability.eli" information)
   (import "../presentation/report.eli" render-report)
@@ -49,8 +50,9 @@
         (progn
           (put observed :history history)
           (put observed :forecast (js-object :available false :p24 nil :p48 nil :base24 nil :base48 nil :confidence "低"
-            :mode "evidence-only" :policyVersion "6" :information (information snapshot (get observed :signals) history)
-            :signal "数值依据不足" :signalStrength "未知" :reasons (js-array "历史不足，保留公告和原帖；不编造数值概率"))) observed))))
+            :mode "evidence-only" :policyVersion "7" :information (information snapshot (get observed :signals) history)
+            :signal "数值依据不足" :signalStrength "未知" :reasons (js-array "历史不足，保留公告和原帖；不编造数值概率")))
+          (apply-promise-policy (get observed :forecast) (get observed :signals) (get snapshot :now)) observed))))
   (defasync load-snapshot (&optional path offline)
     (if path (validate-snapshot (JSON/parse (await (readFile path "utf8"))))
       (let ((snapshot (validate-snapshot (await (collect-sources nil offline)))))

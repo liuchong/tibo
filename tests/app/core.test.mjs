@@ -39,13 +39,15 @@ test('Pacific tomorrow uses San Francisco date and explicit PST is UTC-8',()=>{
  expect(target_time(post(25,'Global reset landing tomorrow 10am PT for all paid accounts.',{at:'2026-10-02T02:14:51Z'}))).toBe('2026-10-02T17:00:00.000Z');
 });
 test('unparseable time, missing object and negation cannot become a timed promise',()=>{
- for(const text of ['reset next week','Global reset landing tomorrow 10am PST.','I cannot give a reset tomorrow 10am PST for all accounts.']){
+ for(const text of ['reset next week','Reset landing tomorrow 10am PST.','I cannot give a reset tomorrow 10am PST for all accounts.']){
   const s=snapshot({posts:[post(25,text)]}); const r=judge(s);expect(r.signals.promise).toBeNull();expect(r.forecast.confidence).toBe('低');
  }
 });
-test('fresh explicit primary promise is a strong signal separate from historical probability',()=>{
+test('fresh explicit primary deadline receives an operational prior independent of fitted hint weights',()=>{
  const s=snapshot({now:'2026-09-25T01:00:00Z',posts:[...snapshot().posts,post(25,'Global reset landing tomorrow 10am PST for all paid accounts.')]});
- const r=judge(s);expect(r.forecast.signalStrength).toBe('强');expect(r.forecast.p24).toBe(judge(snapshot({now:s.now})).forecast.p24);expect(r.forecast.confidence).toBe('低');
+ const r=judge(s);expect(r.forecast.signalStrength).toBe('强');expect(r.forecast.p24).toBe(90);expect(r.forecast.confidence).toBe('高');
+ expect(r.forecast.base24).toBe(judge(snapshot({now:s.now})).forecast.base24);
+ expect(r.forecast.promisePolicy).toMatchObject({applied:true,calibrated:false});
 });
 test('fulfilled banked promise has zero ongoing promise weight',()=>{
  const s=snapshot({events:[event(1),event(3),event(24),event(25,{global:false,banked:true,fulfilledPromiseId:'post-24'})],posts:[post(24,'Global reset landing tomorrow 10am PST for all paid accounts.',{at:'2026-09-24T12:00:00Z'}),post(25,'A banked reset has been added.',{id:'event-25'})]});
