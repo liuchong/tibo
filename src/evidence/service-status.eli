@@ -5,6 +5,32 @@
   (import "../platform/privacy.eli" public-text)
   (import "../platform/util.eli" iso fail)
   (import "./transport.eli" request-json)
+  (defasync incident-feed ()
+    (await (state-transaction "service-incidents" (async ()
+      (let ((saved (await (read-state "service-incidents"))))
+        (if (and saved (> (get saved :until) (Date/now))) saved
+          (let ((result nil))
+            (try
+              (let ((raw (await (request-json "https://status.openai.com/api/v2/incidents.json" (js-object :redirect "manual") 4000))))
+                (unless (Array/isArray (get raw :incidents)) (fail "incidents-schema"))
+                (setq result (js-object :state "ok" :at (iso (Date/now)) :items (js-call (get raw :incidents) :slice 0 100) :until (+ (Date/now) 60000))))
+              (catch error (setq result (js-object :state "unavailable" :at (iso (Date/now)) :items (js-array) :until (+ (Date/now) 30000)))))
+            (await (write-state "service-incidents" result)) result)))))))
+  (defun incident-record (i)
+    (js-object :name (public-text (get i :name) 200) :status (get i :status) :impact (get i :impact)
+      :createdAt (get i :created_at) :updatedAt (get i :updated_at) :resolvedAt (get i :resolved_at)
+      :url (get i :shortlink "https://status.openai.com/")
+      :components (js-call (get i :components (js-array)) :map (lambda (c) (public-text (get c :name) 100)))
+      :updates (js-call (js-call (get i :incident_updates (js-array)) :slice 0 6) :map
+        (lambda (u) (js-object :at (get u :display_at (get u :created_at)) :status (get u :status) :text (public-text (get u :body) 700))))))
+  (defasync service-history (limit days &optional component)
+    (let* ((feed (await (incident-feed))) (needle (js-call (or component "") :toLowerCase)) (cutoff (- (Date/now) (* days 86400000)))
+      (rows (js-call (get feed :items) :filter (lambda (i)
+        (and (>= (Date/parse (get i :created_at (get i :updated_at))) cutoff)
+          (or (= needle "") (js-call (js-call (str (get i :name) " " (JSON/stringify (get i :components (js-array)))) :toLowerCase) :includes needle)))))))
+      (js-call rows :sort (lambda (a b) (- (Date/parse (get b :created_at (get b :updated_at))) (Date/parse (get a :created_at (get a :updated_at))))))
+      (js-object :state (get feed :state) :at (get feed :at) :url "https://status.openai.com/" :coverage "latest-official-page"
+        :days days :incidents (js-call (js-call rows :slice 0 limit) :map incident-record))))
   (defasync service-status ()
     (await (state-transaction "service-status" (async ()
       (let ((cached (await (read-state "service-status"))))
@@ -12,9 +38,9 @@
           (let ((result nil))
             (try
               (let* ((raw (await (request-json "https://status.openai.com/api/v2/summary.json" (js-object :redirect "manual") 4000)))
+                (feed (unless (Array/isArray (get raw :incidents)) (await (incident-feed))))
                 (incidents (if (Array/isArray (get raw :incidents)) (get raw :incidents)
-                  (try (get (await (request-json "https://status.openai.com/api/v2/incidents.json" (js-object :redirect "manual") 4000)) :incidents)
-                    (catch error nil)))))
+                  (when (= (get feed :state) "ok") (get feed :items)))))
                 (unless (and (get raw :status) (= (value-type (get (get raw :status) :description)) "string")
                   (Array/isArray (get raw :components))) (fail "status-schema"))
                 (setq result (js-object :state "ok" :at (iso (Date/now)) :url "https://status.openai.com/"
@@ -23,10 +49,8 @@
                     (lambda (c) (js-object :name (public-text (get c :name) 100) :status (get c :status))))
                   :incidentsKnown (Array/isArray incidents)
                   :incidents (js-call (js-call (js-call (or incidents (js-array)) :filter
-                    (lambda (i) (not (js-call (js-array "resolved" "postmortem") :includes (get i :status))))) :slice 0 5) :map
-                    (lambda (i) (js-object :name (public-text (get i :name) 200) :status (get i :status)
-                      :updatedAt (get i :updated_at) :url (get i :shortlink))))
+                    (lambda (i) (not (js-call (js-array "resolved" "postmortem") :includes (get i :status))))) :slice 0 5) :map incident-record)
                   :until (+ (Date/now) 60000))))
               (catch error (setq result (js-object :state "unavailable" :at (iso (Date/now)) :url "https://status.openai.com/" :until (+ (Date/now) 30000)))))
             (await (write-state "service-status" result)) result)))))))
-  (export service-status))
+  (export service-status service-history))

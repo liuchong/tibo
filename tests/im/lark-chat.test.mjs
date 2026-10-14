@@ -79,7 +79,7 @@ test('real WebSocket worker builds multiple native AI turns, replies in the quot
   if(path==='/open-apis/bot/v3/info')return Response.json({code:0,bot:{open_id:'ou_bot'}});
   if(path==='/callback/ws/endpoint')return Response.json({code:0,data:{URL:'wss://msg-frontier.feishu.cn/ws?service_id=809',ClientConfig:{PingInterval:5,ReconnectInterval:1}}});
   if(path==='/ai'){
-   const evidence=JSON.parse(body.messages.at(-1).content);const routing=body.max_tokens===280;
+   const evidence=JSON.parse(body.messages.at(-1).content);const routing=body.max_tokens===280;if(body.max_tokens===600)return Response.json({choices:[{finish_reason:'stop',message:{content:JSON.stringify({topic:'chat',queries:[]})}}]});
    if(!routing)asks.push(body);
    return Response.json({choices:[{finish_reason:'stop',message:{content:JSON.stringify(routing?{command:'ask',args:{question:evidence.question},language:'zh'}:{text:asks.length===1?'指 steering：模型更快响应你途中调整的方向。':asks.length===2?'例如先要求修后端，再要求只修改校验逻辑。':'这是一次独立聊天。'})}}]});
   }
@@ -103,7 +103,7 @@ test('real WebSocket worker builds multiple native AI turns, replies in the quot
  };
  try{
   await writeFile(join(dir,'history.json'),JSON.stringify({sentinel:'preserve'}));
-  child=spawn(process.execPath,[resolve('tests/helpers/lark-client.mjs')],{env:{...process.env,TIBO_CONFIG_FILE:join(dir,'absent.env'),TIBO_STATE_DIR:dir,TIBO_TEST_NOW:new Date(now).toISOString(),TIBO_TEST_CLOCK_FILE:clock,TIBO_TEST_SERVER:server.url.origin,TIBO_LARK_APP_ID:'fixture-app',TIBO_LARK_APP_SECRET:'fixture-secret',TIBO_LARK_CHAT_IDS:'all',TIBO_LARK_ADMIN_CHAT_IDS:'',TIBO_LARK_NOTIFY_CHAT_IDS:'',TIBO_LARK_ADMIN_OPEN_IDS:'',TIBO_LARK_BOT_OPEN_ID:'',TIBO_LARK_DOMAIN:'feishu',TIBO_AI_FEATURES:'router,answer',DEEPSEEK_API_KEY:'fixture-key'},stdio:['ignore','pipe','pipe']});
+  child=spawn(process.execPath,[resolve('tests/helpers/lark-client.mjs')],{env:{...process.env,TIBO_CONFIG_FILE:join(dir,'absent.env'),TIBO_STATE_DIR:dir,TIBO_TEST_NOW:new Date(now).toISOString(),TIBO_TEST_CLOCK_FILE:clock,TIBO_TEST_SERVER:server.url.origin,TIBO_LARK_APP_ID:'fixture-app',TIBO_LARK_APP_SECRET:'fixture-secret',TIBO_LARK_CHAT_IDS:'all',TIBO_LARK_ADMIN_CHAT_IDS:'',TIBO_LARK_NOTIFY_CHAT_IDS:'',TIBO_LARK_ADMIN_OPEN_IDS:'',TIBO_LARK_BOT_OPEN_ID:'',TIBO_LARK_DOMAIN:'feishu',TIBO_AI_FEATURES:'router,answer,read',DEEPSEEK_API_KEY:'fixture-key'},stdio:['ignore','pipe','pipe']});
   child.stderr.on('data',x=>stderr+=x);closed=new Promise(r=>child.once('close',r));
   await until(()=>socket&&stderr.includes('已启动'));
   send('引导即时生效是什么意思？','om_question1','om_root');await until(()=>sent.length===1);

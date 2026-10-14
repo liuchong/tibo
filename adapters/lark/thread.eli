@@ -60,7 +60,7 @@
             (= (get context :scope) group) (message-id? id)) (fail "thread-scope"))
           (let* ((current (await (js-call client :messageInfo id signal)))
             (native (get current :thread_id)) (root (get current :root_id))
-            (origin nil) (parent (get current :parent_id)) (visited (new Set)))
+            (origin nil) (quoted nil) (parent (get current :parent_id)) (direct-parent (get current :parent_id)) (visited (new Set)))
             (unless (and (= (get current :chat_id) group) (= (get current :message_id) id)
               (= (get (get current :sender) :sender_type) "user")
               (= (get (get current :sender) :id) (get context :actor)) (not (get current :deleted)) (reference-of current))
@@ -81,6 +81,10 @@
             (when (and native (not origin)) (setq origin current root id))
             (unless (and origin (= (get origin :chat_id) group)
               (<= (Number (get origin :create_time)) (Number (get current :create_time)))) (fail "thread-root"))
+            (when (and (message-id? direct-parent) (not (= direct-parent id)))
+              (let* ((item (if (= direct-parent root) origin (await (js-call client :messageInfo direct-parent signal))))
+                (row (when (= (get item :chat_id) group) (record-of item app-id))))
+                (when row (setq quoted (js-object :role (get row :role) :content (get row :content))))))
             (setq session (or native root) key (conversation-key context session))
             (let* ((state (await (read-session key))) (progress-key (str "lark-import-" (js-call key :slice 13)))
               (saved (await (read-state progress-key)))
@@ -124,6 +128,6 @@
                   ;; answering. It resumes from through on the next attempt.
                   (if (not (= (get progress :currentId) id)) (js-object :state "partial" :messages (js-array))
                     (js-object :state "ready" :sessionId session :currentId id
-                      :messages (session-messages (await (read-session key)))))))))
+                      :activeSubject (get (await (read-session key)) :readSubject) :quotedMessage quoted :messages (session-messages (await (read-session key)))))))))
           (catch error (js-object :state "unavailable" :messages (js-array)))))))
   (export reference-of reply-target-of message-id? thread-id? body-text load-thread reference-root))

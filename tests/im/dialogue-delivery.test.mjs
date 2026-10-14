@@ -8,7 +8,7 @@ test('same thread deliveries serialize generation and send; failed sends do not 
  const dir=await mkdtemp(join(tmpdir(),'tibo-dialogue-delivery-'));
  try{
   const code=`
-const prompts=[];globalThis.fetch=async(u,o)=>{const b=JSON.parse(o.body);prompts.push(b);return Response.json({choices:[{finish_reason:'stop',message:{content:JSON.stringify({text:'回答'+prompts.length})}}]});};
+const prompts=[];globalThis.fetch=async(u,o)=>{const b=JSON.parse(o.body);if(b.max_tokens===600)return Response.json({choices:[{finish_reason:'stop',message:{content:JSON.stringify({topic:'closure',queries:[]})}}]});prompts.push(b);return Response.json({choices:[{finish_reason:'stop',message:{content:JSON.stringify({text:'回答'+prompts.length})}}]});};
 const {deliver,delivery_key,finish_chat}=await import(${JSON.stringify(resolve('dist/adapters/lark/service.mjs'))});
 const {reference_of}=await import(${JSON.stringify(resolve('dist/adapters/lark/thread.mjs'))});
 const store=await import(${JSON.stringify(resolve('dist/src/chat/store.mjs'))});
@@ -36,7 +36,7 @@ const failedLedger=await read_state(delivery_key(context.scope,q3.message_id)),a
 console.log(JSON.stringify({prefix,sends,saved,afterRecovery,ledger,rejected,failedLedger,after,promptCount:prompts.length}));
 `;
   const r=spawnSync(process.execPath,['--eval',code],{env:{...process.env,TIBO_CONFIG_FILE:join(dir,'absent.env'),TIBO_STATE_DIR:dir,
-   TIBO_CHAT_CONTEXT_TOKENS:'900000',TIBO_AI_FEATURES:'answer',DEEPSEEK_API_KEY:'fixture-key',TIBO_LARK_APP_ID:'fixture-app'},
+   TIBO_CHAT_CONTEXT_TOKENS:'900000',TIBO_AI_FEATURES:'answer,read',DEEPSEEK_API_KEY:'fixture-key',TIBO_LARK_APP_ID:'fixture-app'},
    encoding:'utf8',timeout:10000,maxBuffer:2000000});
   expect(r.status,r.stderr).toBe(0);const d=JSON.parse(r.stdout);
   expect(d.sends).toEqual(['om_q1','om_q2','om_q3']);expect(d.prefix).toBe(true);expect(d.saved.turns).toHaveLength(5);

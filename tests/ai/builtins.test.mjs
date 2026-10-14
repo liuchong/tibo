@@ -1,9 +1,10 @@
 import {test,expect} from 'bun:test';import {spawnSync} from 'node:child_process';
 import {mkdtemp,rm} from 'node:fs/promises';import {join,resolve} from 'node:path';import {tmpdir} from 'node:os';
 import {calculate} from '../../dist/src/capabilities/calculate.mjs';
-import {requests_for,builtin_question_QMARK_ as builtinQuestion} from '../../dist/src/capabilities/read.mjs';
+import {validate_plan} from '../../dist/src/commands/chat-plan.mjs';
+import {clock_at,date_difference,convert_unit} from '../../dist/src/capabilities/general.mjs';
 import {search_results,public_link_QMARK_ as publicLink} from '../../dist/src/evidence/web-search.mjs';
-async function trial(code,features='answer'){
+async function trial(code,features='answer,read'){
  const dir=await mkdtemp(join(tmpdir(),'tibo-builtins-'));
  try{const r=spawnSync(process.execPath,['--eval',code],{env:{...process.env,TIBO_CONFIG_FILE:join(dir,'absent.env'),TIBO_STATE_DIR:dir,TIBO_AI_FEATURES:features,DEEPSEEK_API_KEY:'fixture-answer-key'},encoding:'utf8',timeout:10000});expect(r.status,r.stderr).toBe(0);return JSON.parse(r.stdout);}
  finally{await rm(dir,{recursive:true,force:true});}
@@ -14,12 +15,16 @@ test('numeric parser handles precedence, unary signs and powers; invalid code, b
  for(const [expression,value] of [['(123+456)*7',4053],['-2^2',-4],['2**3**2',512],['2^-2',0.25],['1e3/4',250],['10%3',1]])expect(calculate(expression)).toBe(value);
  for(const expression of ['1 2+3','1/0','process.exit(0)','1;2','2^1001','1+'.repeat(130)+'1','('.repeat(33)+'1'+')'.repeat(33),'2+'])expect(()=>calculate(expression)).toThrow();
 });
-test('followup resolves only its explicit quoted context and public technical vocabulary remains useful',()=>{
- const thread={messages:[{role:'assistant',content:'OpenAI API status is unknown. Check API key balance or the official status page.'}]};
- expect(requests_for('你查查',thread).status).toBe(true);expect(requests_for('你查查',null).status).toBe(false);
- expect(requests_for('opanai的api挂了吗',null).status).toBe(true);expect(requests_for('OpenAI API是什么',thread).status).toBe(false);
- expect(builtinQuestion('给我两条最新发言')).toBe(false);expect(builtinQuestion('Show me the latest post')).toBe(false);expect(builtinQuestion('Codex重置状态怎么样')).toBe(false);
- expect(requests_for('计算 2+3',thread).expression).toBe('2+3');
+test('read plans validate the entire batch and deterministic general methods reject invalid data',()=>{
+ expect(validate_plan({topic:'service',queries:[{command:'service-history',args:{limit:2}}]}).queries[0].args.days).toBe(14);
+ for(const q of [{command:'ask',args:{question:'exec'}},{command:'pray',args:{}},{command:'clear-history',args:{}},{command:'time',args:{timezone:'Invalid/Zone'}},{command:'convert',args:{value:'1',from:'kg',to:'m'}},{command:'calculate',args:{expression:'process.exit(0)'}},{command:'search',args:{query:'https://localhost/x'}}])expect(()=>validate_plan({topic:'x',queries:[{command:'service-status',args:{}},q]})).toThrow();
+ expect(()=>validate_plan({topic:'x',queries:[{command:'service-status',args:{}},{command:'service-status',args:{}}]})).toThrow();
+ expect(()=>validate_plan({topic:'wrong',queries:[{command:'history',args:{}}]},'service','展开历史')).toThrow();
+ expect(validate_plan({topic:'switch',subjectChange:'tibo',changeQuote:'Codex重置',queries:[{command:'history',args:{}}]},'service','查Codex重置历史').subject).toBe('tibo');
+ expect(()=>validate_plan({topic:'switch',subjectChange:'tibo',changeQuote:'Codex重置',queries:[{command:'history',args:{}}]},'service','展开历史')).toThrow();
+ expect(convert_unit('1','GiB','MiB').result).toBe(1024);expect(convert_unit('32','F','C').result).toBe(0);
+ expect(date_difference('2026-10-14','2026-10-16').days).toBe(2);expect(()=>date_difference('2026-02-30','2026-03-01')).toThrow();
+ expect(clock_at('Asia/Shanghai','2026-10-14T00:00:00Z').local).toBe('2026-10-14 08:00:00');
 });
 test('RSS and HTML results are bounded public citations; technical verification vocabulary is not a page gate',()=>{
  const rss='<rss><channel><item><title><![CDATA[Public CAPTCHA documentation]]></title><link>https://docs.example.com/captcha?a=1&amp;b=2</link><description><![CDATA[How verification works.]]></description></item><item><title>Private</title><link>http://127.0.0.1/x</link></item></channel></rss>';
@@ -33,30 +38,49 @@ test('unavailable Google/Baidu fall back to RSS; concurrent/repeated searches sh
  expect(d.calls).toHaveLength(4);expect(d.results.every(r=>r.state==='ok')).toBe(true);expect(d.repeat.results).toHaveLength(1);
  expect(d.calls.some(u=>u.startsWith('https://docs.example.com'))).toBe(false);
 });
-test('quoted status followup prepares official data then makes exactly one answer request, with no tool or function call interface',async()=>{
- const code='const calls=[],prompts=[];globalThis.fetch=async(u,o)=>{calls.push(String(u));if(String(u).includes("status.openai.com"))return Response.json('+JSON.stringify(status)+');const b=JSON.parse(o.body);prompts.push(b);return Response.json({choices:[{finish_reason:"stop",message:{content:JSON.stringify({text:"官方状态显示 API 出现故障，Codex 正常。https://status.openai.com/"})}}]});};const {execute_query}=await import('+path('commands/index')+');const r=await execute_query({command:"ask",args:{question:"你查查"}},{threadConversation:{state:"ready",messages:[{role:"assistant",content:"OpenAI API状态还没有核实，可以检查API key余额或官方状态页。"}]}});console.log(JSON.stringify({calls,prompts,r}));';
- const d=await trial(code);expect(d.calls).toHaveLength(2);expect(d.prompts).toHaveLength(1);expect(d.prompts[0].messages.map(x=>x.role)).toEqual(['system','assistant','user']);
- expect(d.prompts[0].messages[1].content).toContain('API key余额');expect(d.prompts[0].tools).toBeUndefined();expect(d.prompts[0].functions).toBeUndefined();expect(d.prompts[0].function_call).toBeUndefined();
- expect(JSON.parse(d.prompts[0].messages.at(-1).content).builtinFacts.serviceStatus.components[0].status).toBe('major_outage');expect(d.r.text).toContain('官方状态显示 API');
+test('quoted followup has one semantic read plan and one answer, with no tools or repeated dispatch',async()=>{
+ const d=await trial('const prompts=[],calls=[];globalThis.fetch=async(u,o)=>{calls.push(String(u));if(String(u).includes("status.openai.com"))return Response.json('+JSON.stringify(status)+');const b=JSON.parse(o.body);prompts.push(b);const plan=b.max_tokens===600;return Response.json({choices:[{finish_reason:"stop",message:{content:JSON.stringify(plan?{topic:"OpenAI API service status",queries:[{command:"service-status",args:{}}]}:{text:"官方状态显示 API 出现故障。https://status.openai.com/"})}}]});};const {execute_query}=await import('+path('commands/index')+');const r=await execute_query({command:"ask",args:{question:"把刚才那份状态展开看看"}},{threadConversation:{state:"ready",messages:[{role:"assistant",content:"OpenAI API状态，可检查API key余额或官方状态页。"}]}});console.log(JSON.stringify({calls,prompts,r}));');
+ expect(d.calls).toHaveLength(3);expect(d.prompts).toHaveLength(2);expect(d.prompts[0].max_tokens).toBe(600);
+ expect(JSON.parse(d.prompts[0].messages.at(-1).content).history[0].content).toContain('API key余额');
+ for(const p of d.prompts){expect(p.tools).toBeUndefined();expect(p.functions).toBeUndefined();expect(p.function_call).toBeUndefined();}
+ const facts=JSON.parse(d.prompts[1].messages.at(-1).content).builtinFacts;
+ expect(facts.reads[0].data.components[0].status).toBe('major_outage');expect(d.r.text).toContain('官方状态显示 API');
 });
-test('AI failure/tool output preserves program status and calculation; offline never makes network requests',async()=>{
- const d=await trial('let calls=0;globalThis.fetch=async(u)=>{calls++;if(String(u).includes("status.openai.com"))return Response.json('+JSON.stringify(status)+');return Response.json({choices:[{finish_reason:"tool_calls",message:{tool_calls:[{function:{name:"exec",arguments:"danger"}}]}}]});};const {execute_query}=await import('+path('commands/index')+');const calc=await execute_query({command:"ask",args:{question:"计算 (123+456)*7"}},{noAi:true});const live=await execute_query({command:"ask",args:{question:"OpenAI API是否正常"}});const before=calls;const off=await execute_query({command:"ask",args:{question:"OpenAI API是否正常"}},{offline:true,noAi:true});console.log(JSON.stringify({calc,live,off,before,calls}));');
- expect(d.calc.text).toBe('(123+456)*7 = 4053');expect(d.live.text).toContain('major_outage');expect(d.live.text).not.toContain('danger');
- expect(d.off.text).toContain('不能确认');expect(d.before).toBe(d.calls);
+test('failed final answer preserves fixed data; bad plans cannot fetch, mutate, or start a tool loop',async()=>{
+ const d=await trial('const calls=[];globalThis.fetch=async(u,o)=>{calls.push(String(u));if(String(u).includes("status.openai.com"))return Response.json('+JSON.stringify(status)+');const b=JSON.parse(o.body);return Response.json({choices:[{finish_reason:"stop",message:{content:JSON.stringify(b.max_tokens===600?{topic:"OpenAI",queries:[{command:"service-status",args:{}}]}:{text:""})}}]});};const {execute_query}=await import('+path('commands/index')+');const calc=await execute_query({command:"calculate",args:{expression:"(123+456)*7"}},{noAi:true});const live=await execute_query({command:"ask",args:{question:"把状态拉下来"}},{threadConversation:{messages:[{role:"user",content:"OpenAI API故障"}]}});const before=calls.length;const off=await execute_query({command:"service-status",args:{}},{offline:true,noAi:true});console.log(JSON.stringify({calc,live,off,before,calls}));');
+ expect(d.calc.text).toBe('(123+456)*7 = 4053');expect(d.live.text).toContain('major_outage');expect(d.calls).toHaveLength(d.before);expect(d.off.ok).toBe(false);
 });
 test('service status reads are shared, cache their collection time and recover from transport failure',async()=>{
  const d=await trial('let now=Date.now();Date.now=()=>now;let calls=0,broken=false;globalThis.fetch=async()=>{calls++;if(broken)throw Error("private supplier failure");return Response.json('+JSON.stringify(status)+')};const {service_status}=await import('+path('evidence/service-status')+');const a=await Promise.all([service_status(),service_status(),service_status()]);now+=60001;broken=true;const bad=await service_status();const cached=await service_status();now+=30001;broken=false;const recovered=await service_status();console.log(JSON.stringify({a,bad,cached,recovered,calls}));');
  expect(d.calls).toBe(3);expect(new Set(d.a.map(x=>x.at)).size).toBe(1);expect(d.bad.state).toBe('unavailable');expect(d.cached.cached).toBe(true);expect(d.recovered.state).toBe('ok');expect(JSON.stringify(d.bad)).not.toContain('supplier');
 });
 
-test('official summary without incidents reads the fixed incident feed, filters resolved events and retains a stable cached answer',async()=>{
+test('status and history share the fixed incident feed, retaining resolved history and collection time',async()=>{
  const summary={status:{description:'All Systems Operational'},components:[{name:'API',status:'operational'}]};
- const d=await trial('const calls=[],prompts=[];globalThis.fetch=async(u,o)=>{calls.push(String(u));if(String(u).endsWith("summary.json"))return Response.json('+JSON.stringify(summary)+');if(String(u).endsWith("incidents.json"))return Response.json({incidents:[{name:"Old outage",status:"resolved"}]});prompts.push(JSON.parse(o.body));return Response.json({choices:[{finish_reason:"stop",message:{content:JSON.stringify({text:"官方目前显示正常。https://status.openai.com/"})}}]});};const {execute_query}=await import('+path('commands/index')+');const q={command:"ask",args:{question:"OpenAI API是否正常"}};const a=await execute_query(q),b=await execute_query(q);console.log(JSON.stringify({calls,prompts,a,b}));');
- expect(d.calls).toHaveLength(3);expect(d.prompts).toHaveLength(1);
- const facts=JSON.parse(d.prompts[0].messages.at(-1).content).builtinFacts.serviceStatus;
- expect(facts.incidentsKnown).toBe(true);expect(facts.incidents).toEqual([]);expect(d.a.text).toBe(d.b.text);
+ const d=await trial('let calls=0;globalThis.fetch=async u=>{calls++;return Response.json(String(u).endsWith("summary.json")?'+JSON.stringify(summary)+':{incidents:[{name:"Old outage",status:"resolved",created_at:new Date().toISOString(),incident_updates:[{body:"Restored",status:"resolved"}]}]});};const {service_status,service_history}=await import('+path('evidence/service-status')+');const status=await service_status();const history=await service_history(3,14);console.log(JSON.stringify({calls,status,history}));');
+ expect(d.calls).toBe(2);expect(d.status.incidents).toEqual([]);expect(d.history.incidents[0].status).toBe('resolved');expect(d.history.coverage).toBe('latest-official-page');
 });
-test('obvious builtin requests route locally, preserve fixed business priority and work without a model',async()=>{
- const d=await trial('let calls=0;globalThis.fetch=async()=>{calls++;throw Error("unexpected network")};const {resolve_query,execute_query}=await import('+path('commands/index')+');const math=await resolve_query("计算 (123+456)*7",null,{noAi:true});const r=await execute_query(math,{noAi:true});const status=await resolve_query("OpenAI API挂了吗",null,{noAi:true});const fixed=await resolve_query("status",null,{noAi:true});console.log(JSON.stringify({math,r,status,fixed,calls}));','');
- expect(d.math.command).toBe('ask');expect(d.status.command).toBe('ask');expect(d.fixed.command).toBe('status');expect(d.r.text).toBe('(123+456)*7 = 4053');expect(d.calls).toBe(0);
+test('fixed general commands work without AI; unknown natural phrasing does not use keyword guessing',async()=>{
+ const d=await trial('let calls=0;globalThis.fetch=async()=>{calls++;throw Error("unexpected network")};const {resolve_query,execute_query}=await import('+path('commands/index')+');const math=await resolve_query("calculate (123+456)*7",null,{noAi:true});const r=await execute_query(math,{noAi:true});const natural=await resolve_query("帮我计算一下",null,{noAi:true});console.log(JSON.stringify({r,natural,calls}));','');
+ expect(d.r.text).toBe('(123+456)*7 = 4053');expect(d.natural.command).toBe('semantic-disabled');expect(d.calls).toBe(0);
+});
+
+test('empty plans do no source I/O, read has an independent failure circuit, and a blocked read does not disable ordinary chat',async()=>{
+ const d=await trial('const prompts=[];globalThis.fetch=async(u,o)=>{const b=JSON.parse(o.body);prompts.push(b);return Response.json({choices:[{finish_reason:"stop",message:{content:JSON.stringify(b.max_tokens===600?{topic:"chat",queries:[{command:"clear-history",args:{}}]}:{text:"我们可以继续讨论闭包。"})}}]});};const {execute_query}=await import('+path('commands/index')+');const {ai_status}=await import('+path('ai/runtime')+');const rows=[];for(const question of ["解释概念甲","解释概念乙","解释概念丙"])rows.push(await execute_query({command:"ask",args:{question}}));console.log(JSON.stringify({rows,prompts,status:await ai_status()}));');
+ expect(d.prompts.filter(p=>p.max_tokens===600)).toHaveLength(2);expect(d.prompts.filter(p=>p.max_tokens===1200)).toHaveLength(3);
+ expect(d.rows.every(r=>r.text.includes('继续讨论闭包'))).toBe(true);expect(d.status.circuit.features.read.until).toBeGreaterThan(Date.now());expect(d.status.circuit.features.answer?.until||0).toBe(0);
+});
+test('bad entire batch and provider tool calls cannot dispatch any read or repeated plan',async()=>{
+ const d=await trial('const calls=[];globalThis.fetch=async(u,o)=>{calls.push(String(u));const b=JSON.parse(o.body);return Response.json({choices:[{finish_reason:"stop",message:{content:JSON.stringify(b.max_tokens===600?{topic:"bad",queries:[{command:"service-status",args:{}},{command:"calculate",args:{expression:"process.exit(0)"}}]}:{text:"此次查询未准备成功。"})}}]});};const {execute_query}=await import('+path('commands/index')+');const r=await execute_query({command:"ask",args:{question:"展示刚才的数据"}});console.log(JSON.stringify({calls,r}));');
+ expect(d.calls).toHaveLength(2);expect(d.calls.every(u=>u.includes('/chat/completions'))).toBe(true);expect(d.r.text).toContain('未准备成功');
+});
+test('semantic planning receives the direct quote and typed prior methods, while unquoted calls have no historical input',async()=>{
+ const d=await trial('const prompts=[];globalThis.fetch=async(u,o)=>{const b=JSON.parse(o.body);prompts.push(b);return Response.json({choices:[{finish_reason:"stop",message:{content:JSON.stringify(b.max_tokens===600?{topic:"service",queries:[]}:{text:"解释当前记录。"})}}]});};const {execute_query}=await import('+path('commands/index')+');const thread={state:"ready",quotedMessage:{role:"assistant",content:"此前API正常。"},messages:[{role:"user",content:JSON.stringify({question:"查API状态",builtinFacts:{topic:"service",reads:[{method:"service-status"}]}})},{role:"assistant",content:"API正常，也可以查看其他业务。"}]};await execute_query({command:"ask",args:{question:"解释这份记录"}},{threadConversation:thread});await execute_query({command:"ask",args:{question:"解释那份记录"}});console.log(JSON.stringify(prompts));');
+ const first=JSON.parse(d[0].messages.at(-1).content),plain=JSON.parse(d[2].messages.at(-1).content);
+ expect(first.quotedMessage.content).toBe('此前API正常。');expect(first.history[0].content).toContain('service-status');expect(plain.history).toEqual([]);expect(plain.quotedMessage).toBeNull();
+});
+
+test('confirmed read subject survives compaction and takes precedence over old unrelated suggestions',async()=>{
+ const d=await trial('const prompts=[];globalThis.fetch=async(u,o)=>{const b=JSON.parse(o.body);prompts.push(b);return Response.json({choices:[{finish_reason:"stop",message:{content:JSON.stringify(b.max_tokens===600?{topic:"service",queries:[]}:{text:"解释这份服务资料。"})}}]});};const {conversation_key,commit_turn,read_session,compact_session}=await import('+path('chat/store')+');const ctx={transport:"probe",account:"fixture",scope:"dialogue",authenticated:true},key=conversation_key(ctx,"topic");await commit_turn({key,revision:0,sourceId:"question",user:{role:"user",content:"查询"},assistant:"回答",readSubject:"service"},"response");const saved=await read_session(key);await compact_session(key,saved.revision,"Prior service data.");const compacted=await read_session(key);const {execute_query}=await import('+path('commands/index')+');const result=await execute_query({command:"ask",args:{question:"解释这份记录"}},{threadConversation:{activeSubject:compacted.readSubject,messages:[{role:"user",content:JSON.stringify({builtinFacts:{reads:[{method:"history",state:"ok"}]}})}]}});console.log(JSON.stringify({compacted,prompts,result}));');
+ expect(d.compacted.readSubject).toBe('service');expect(d.prompts.length,JSON.stringify(d.result)).toBeGreaterThan(0);expect(JSON.parse(d.prompts[0].messages.at(-1).content).activeSubject).toBe('service');
 });

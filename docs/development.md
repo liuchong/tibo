@@ -7,8 +7,8 @@
 | 目录 | 职责与主要入口 |
 | --- | --- |
 | `src/app/` | CLI、MCP、后台采集入口；engine 编排采集、算法和可选 AI |
-| `src/capabilities/` | read 按需准备状态、公开搜索、计算与时间；calculate 是有界算术解析器；不向模型开放工具 |
-| `src/commands/` | index 公共查询接口；catalog、parser、router、execute、help、admin 分别负责命令定义、固定解析、语义解析、执行、帮助和管理票据 |
+| `src/capabilities/` | read 按需准备状态、公开搜索、计算与时间；calculate 是有界算术解析器，general 提供时区、日期和单位；不向模型开放工具 |
+| `src/commands/` | index 公共查询接口；catalog、parser、router、chat-plan、execute、help、admin 分别负责命令定义、固定解析、语义解析、执行、帮助和管理票据 |
 | `src/forecast/` | 事件与信号、历史统计、模型、信息完整度；cycle 负责公告与七天参考、journal 负责实际报告复盘、experience 负责独立经验训练；不调用 AI 或 IM |
 | `src/evidence/` | 采集、原文判定、HTML、受限搜索和资料校验；post-body 匹配截断长帖的存档正文；不依赖预测模型或 AI 网关 |
 | `src/ai/` | runtime 任务网关、enhance 预测辅助、repair 人工输入修复 |

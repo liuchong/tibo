@@ -29,7 +29,7 @@
 | 变量 | 默认与范围 | 用途 |
 | --- | --- | --- |
 | `DEEPSEEK_API_KEY` | 空 | 官方 HTTP API 凭据 |
-| `TIBO_AI_FEATURES` | 未设置时无功能；安装时只在该键不存在时补全十二项 | 逗号分隔的独立功能开关 |
+| `TIBO_AI_FEATURES` | 未设置时无功能；安装时只在该键不存在时补全十三项 | 逗号分隔的独立功能开关 |
 | `TIBO_CHAT_SEARCH` | 1；0 关闭 | 基础聊天的公开搜索；不关闭固定官方状态、计算和时间方法 |
 | `TIBO_CHAT_CONTEXT_TOKENS` | 900000；有效整数 8192..900000 | 引用对话的输入预算，接近后单独摘要；无引用不积累会话 |
 | `TIBO_AI_WEIGHT` | 已停用，实际权重为 0 | 旧配置兼容；不发起概率建议、不影响数值 |
@@ -40,7 +40,7 @@
 
 ```dotenv
 DEEPSEEK_API_KEY=在此填入自己的密钥
-TIBO_AI_FEATURES=signals,search,research,brief,router,translate,answer,repair,oracle,wish,trigger,festival
+TIBO_AI_FEATURES=signals,search,research,brief,router,translate,answer,repair,oracle,wish,trigger,festival,read
 ```
 
 不使用 AI：
@@ -101,3 +101,5 @@ TIBO_AI_FEATURES=
 `festival` 独立控制集体彩蛋短祝词，最多等待 1.5 秒、输出上限 240 token；图案、等级和消息数量始终由本地程序决定。关闭后保留全部随机庆典保底。已有安装的功能列表需显式加入 festival；安装器不覆盖已有列表。完整规则见 [集体彩蛋庆典](collective-celebrations.md)。
 
 引用聊天的脱敏会话保存在状态目录的 `conversation-*.json`，Lark 历史导入进度为 `lark-import-*.json`。配置和用户档案不混入对话。重装保留这些状态；相关规则见 [基础聊天与引用对话](chat.md)。
+
+`read` 是聊天的一次只读能力语义解析，独立于 answer 开关及冷却。新安装默认列表包含 read；旧安装不自动修改已有功能列表，需在原 `TIBO_AI_FEATURES` 末尾加入 read 并重启两个服务。固定通用方法无需模型；`TIBO_CHAT_SEARCH=0` 只关闭公开搜索，不关闭官方服务状态或事故历史。服务事故原始页共享缓存为 `service-incidents.json`。

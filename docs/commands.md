@@ -29,6 +29,13 @@ tibo query 'help'
 | `review`，别名 `复盘/预测复盘` | 无 | 最近 6 份真实报告的原始概率及严格 24h/48h 公告结果；重叠窗口不能当独立成绩 |
 | `help`，别名 `帮助/commands/命令` | 无 | 当前身份可用命令、参数和管道用法 |
 | `ask`，别名 `问答` | `question` 必填，≤800 字符；带空格时加引号 | 了解 Tibo 背景的基础聊天；Lark 引用延续同一 Thread，未引用单轮；询问近期重置时补入业务状态，其他问题按需查官方状态、公开搜索摘要、计算或时间；不能操作账户 |
+| `service-status` | 无 | OpenAI 官方整体服务、组件与进行中事故，区别于重置 status |
+| `service-history` | `limit=1..20` 默认 8；`days=1..90` 默认 14；`component` 可选子串 | 官方事故历史，含已解决；只覆盖官方返回的最近一页 |
+| `search` | `query` 必填 ≤200 字符，带空格加引号 | 公开搜索摘要与原始链接，不自动抓取结果页 |
+| `calculate`，别名 `calc` | `expression` 必填 ≤256 字符 | 有限浮点算术，括号、四则、取余、幂；不执行代码 |
+| `time` | `timezone` 默认 UTC，IANA 名称；`at` 可选 | 当前或指定时刻的 UTC 与时区时间 |
+| `date-diff` | `from to` 必填 | 有符号秒/小时/天差；纯日期为 UTC 零点，时间须带 Z |
+| `convert` | `value from to` 必填 | 长度、质量、时长、数据容量和温度换算；拒绝跨维度 |
 | `pray`，别名 `祈祷/上香/🙏` | `action limit`；action offer/me/board/stats 默认 offer；limit 1..20 默认 10 | 上香、本人档案、当前会话榜单与愿力池 |
 | `subscribe`，别名 `订阅` | `target=personal/group`，默认 personal；可选 `chatId` | 任何会话默认订阅本人私聊；group 由管理员申请并确认 |
 | `unsubscribe`，别名 `退订/取消订阅` | 同 subscribe | 默认取消本人订阅；group 由管理员申请并确认 |
@@ -38,7 +45,7 @@ tibo query 'help'
 
 `status` 中的 7 天是“上次 global 后满 7 天”的参考，不能代替个人额度页面的自动刷新日期。个人每周自动刷新不算强行 global，不计入概率或复盘。`forecast` 只展示概率、相关原始消息和简短理由，格式见 [预测报告约定](forecast-report.md)。状态规则与模型同时适用于 CLI、MCP 和 IM，详见 [判断约定](decision-contract.md#重置时钟与-7-天参考)。
 
-可直接问“刚重置了吗”“上次重置多久了”“还有几天到 7 天参考”。语义路由优先选择 status；显式 `ask` 也补入相同状态。AI 关闭或失败时，此类显式问答保留固定状态说明，不编造个人剩余额度。“刚重置了对吧”不触发求重置彩蛋；“帮我重置一下”仍是角色回应。
+可直接问“刚重置了吗”“上次重置多久了”“还有几天到 7 天参考”。语义路由优先选择 status；显式 `ask` 也补入相同状态。AI 关闭或失败时用固定 status 查询同一状态，不依靠关键词猜测 ask 的意图，不编造个人剩余额度。“刚重置了对吧”不触发求重置彩蛋；“帮我重置一下”仍是角色回应。
 
 ## 自然语言与文字问答
 
@@ -49,11 +56,14 @@ tibo query '帮我订阅早晚报告'
 tibo query 'ask "global 和 banked 有什么区别？"'
 tibo query 'OpenAI API挂了吗'
 tibo query '搜索 OpenAI API官方文档'
-tibo query '计算 (123+456)*7 --no-ai'
-tibo query '现在几点 --no-ai'
+tibo query 'calculate "(123+456)*7" --no-ai'
+tibo query 'time Asia/Shanghai --no-ai'
+tibo query 'date-diff 2026-10-14 2026-10-16 --no-ai'
+tibo query 'convert 1 GiB MiB --no-ai'
+tibo query 'service-history 5 14'
 ```
 
-固定命令优先；明确的状态、搜索、数字计算和时间问题由程序直接进入 ask，不多调用路由模型，计算与时间在无 AI 时也可用。其余未识别的输入使用 `router` 把问题映射到目录中的一个命令及参数。未命中业务功能的闲聊、一般问题进入 `ask`；它不拥有任意工具执行能力。语义路由失败或未启用时返回简短提示；固定命令仍可使用。历史启用方式见 [基础聊天与引用对话](chat.md)。
+固定命令直接运行；其他输入使用语义路由。引用追问进入聊天，由 read 结合引用链选择固定只读方法，程序取数后回答；没有针对特定自然语言问法的快捷正则。AI 不可用时使用固定命令，计算、时间、单位、日期仍可用，网络方法保留真实失败状态。
 
 Lark 明确引用/话题中的固定指令仍优先；其他文字直接作为本对话的追问，省去一次语义路由，不把追问重新分流到无关功能。要在引用对话里调用业务，使用 `posts`、`forecast`、`help` 等固定指令。没有引用的自然语言业务选择沿用上面的语义路由。
 
@@ -102,3 +112,5 @@ tibo query 'confirm 返回的确认ID'
 CLI 管理员由 `TIBO_LOCAL_ADMIN_UID` 与进程真实 UID 比较，不能传一个用户名冒充。Lark 管理员必须来自当前应用的已认证用户事件，且位于管理员 open_id 白名单；仅接受本人与机器人私聊或明确授权的群会话。其他应用身份、非管理员及未授权群不能执行这些管理操作。MCP 没有可信人工身份，不开放危险命令。配置与备份恢复见 [配置参考](configuration.md) 和 [安装与运维](operations.md)。
 
 上香和订阅的身份、行为规则见 [上香与订阅](pray-subscriptions.md)。原文、翻译、多步操作见 [语言与管道](language-pipelines.md)。
+
+单位代码：长度 m/km/cm/mm/in/ft/mi；质量 kg/g/lb；时长 s/min/h/d；数据 bit/B/KB/MB/GB/KiB/MiB/GiB；温度 C/F/K。数据单位区分大小写，KB/MB/GB 用十进制，KiB/MiB/GiB 用二进制；不是汇率工具。日期接受 YYYY-MM-DD 或带 Z 的 UTC ISO，拒绝非法日期，不猜个人时区。

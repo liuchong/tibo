@@ -2,6 +2,7 @@
   (import "../platform/host.eli" Number RegExp)
   (import "../platform/privacy.eli" public-text source-free-text)
   (import "./admin.eli" is-admin)
+  (import "../capabilities/general.eli" units)
   (import "../platform/util.eli" fail ms)
   (defconst subscription-params (js-object
     :target (js-object :type "string" :enum (js-array "personal" "group") :default "personal")
@@ -33,6 +34,23 @@
       (js-object :name "subscription" :aliases (js-array "订阅状态") :purpose "任何会话默认查看本人私聊订阅；target=group仅管理员在操作群/私聊查看群订阅，省略chatId规则同subscribe" :params subscription-params :positionals (js-array "target" "chatId"))
       (js-object :name "ask" :aliases (js-array "问答") :purpose "了解Tibo背景的基础聊天、概念解释、文字处理或常识问答；可按需查官方服务状态、公开搜索摘要、数字计算和时间；引用时延续同一对话Thread，未引用时单轮；不能执行命令或操作账户，不提供未抓取的新事件事实"
         :params (js-object :question (js-object :type "string" :maxLength 800 :required t)) :positionals (js-array "question"))
+      (js-object :name "service-status" :aliases (js-array) :purpose "查询OpenAI官方服务整体、组件与进行中事故；不同于Codex重置状态"
+        :params (js-object) :positionals (js-array))
+      (js-object :name "service-history" :aliases (js-array) :purpose "查询OpenAI官方服务事故历史，含已解决事故、时间与更新；不查询重置公告。官方最近一页可能不覆盖完整范围"
+        :params (js-object :limit (js-object :type "integer" :minimum 1 :maximum 20 :default 8)
+          :days (js-object :type "integer" :minimum 1 :maximum 90 :default 14)
+          :component (js-object :type "string" :maxLength 80)) :positionals (js-array "limit" "days" "component"))
+      (js-object :name "search" :aliases (js-array) :purpose "搜索公开资料的摘要与原始链接；没有逐页读取，不提供任意URL抓取"
+        :params (js-object :query (js-object :type "string" :maxLength 200 :required t)) :positionals (js-array "query"))
+      (js-object :name "calculate" :aliases (js-array "calc") :purpose "有限浮点数字算术：括号、加减乘除、取余、幂；只解析数字，不执行代码"
+        :params (js-object :expression (js-object :type "string" :maxLength 256 :required t)) :positionals (js-array "expression"))
+      (js-object :name "time" :aliases (js-array) :purpose "当前或指定时刻的UTC与IANA时区时间；timezone例如UTC、Asia/Shanghai、America/Los_Angeles，不使用运行环境时区"
+        :params (js-object :timezone (js-object :type "string" :maxLength 80 :default "UTC") :at (js-object :type "string" :maxLength 40)) :positionals (js-array "timezone" "at"))
+      (js-object :name "date-diff" :aliases (js-array) :purpose "两个明确日期或UTC时刻的有符号时间差，返回秒/小时/天；日期YYYY-MM-DD表示UTC零点，时间须带Z"
+        :params (js-object :from (js-object :type "string" :maxLength 40 :required t) :to (js-object :type "string" :maxLength 40 :required t)) :positionals (js-array "from" "to"))
+      (js-object :name "convert" :aliases (js-array) :purpose "确定性单位换算：长度、质量、时长、数据容量与温度；不同维度拒绝，KB/MB/GB十进制、KiB/MiB/GiB二进制"
+        :params (js-object :value (js-object :type "string" :maxLength 64 :required t)
+          :from (js-object :type "string" :enum (Object/keys units) :required t) :to (js-object :type "string" :enum (Object/keys units) :required t)) :positionals (js-array "value" "from" "to"))
       (js-object :name "clear-history" :aliases (js-array "清空历史" "重置历史") :purpose "危险写操作：申请清空本地历史缓存，需要管理员及二次确认" :admin t :params (js-object) :positionals (js-array))
       (js-object :name "clear-experience" :aliases (js-array "清空经验") :purpose "危险写操作：申请清空预测经验，需要管理员及二次确认" :admin t :params (js-object) :positionals (js-array))
       (js-object :name "reset-ai" :aliases (js-array "恢复AI" "ai-reset") :purpose "写操作：申请清除AI暂停与缓存，需要管理员及二次确认" :admin t :params (js-object) :positionals (js-array))

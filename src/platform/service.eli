@@ -1,7 +1,7 @@
 (module tibo.platform.service
   (import "node:process" :default process)
   (import "node:os" homedir)
-  (import "node:path" join basename)
+  (import "node:path" join basename parse)
   (import "node:fs/promises" mkdir readFile writeFile rename chmod unlink copyFile)
   (import "node:child_process" spawnSync)
   (import "node:timers/promises" setTimeout)
@@ -30,7 +30,7 @@
       "<key>StandardOutPath</key><string>" (xml (join (get p :state) (str (get p :log "daemon") ".stdout.log"))) "</string>"
       "<key>StandardErrorPath</key><string>" (xml (join (get p :state) (str (get p :log "daemon") ".stderr.log"))) "</string></dict></plist>\n"))
   (defun launchctl (args &optional allow-failure)
-    (let ((result (spawnSync "/bin/launchctl" args (js-object :encoding "utf8" :timeout 15000 :maxBuffer 100000))))
+    (let ((result (spawnSync (join (get (parse (homedir)) :root) "bin" "launchctl") args (js-object :encoding "utf8" :timeout 15000 :maxBuffer 100000))))
       (unless (or allow-failure (= (get result :status) 0)) (fail "launchctl 操作失败，请用 service status 查看服务状态")) result))
   (defasync unload (p)
     (launchctl (js-array "bootout" (target p)) t)
@@ -61,7 +61,7 @@
             (let ((values (parse-config existing)))
               (unless (get values :DEEPSEEK_API_KEY)
                 (when (get (get process :env) :DEEPSEEK_API_KEY) (put values :DEEPSEEK_API_KEY (get (get process :env) :DEEPSEEK_API_KEY))))
-              (unless (Object/hasOwn values "TIBO_AI_FEATURES") (put values :TIBO_AI_FEATURES "signals,search,research,brief,router,translate,answer,repair,oracle,wish,trigger,festival"))
+              (unless (Object/hasOwn values "TIBO_AI_FEATURES") (put values :TIBO_AI_FEATURES "signals,search,research,brief,router,translate,answer,repair,oracle,wish,trigger,festival,read"))
               (unless (get values :TIBO_LOCAL_ADMIN_UID) (put values :TIBO_LOCAL_ADMIN_UID (str (js-call process :getuid))))
               (unless (get values :TIBO_DAEMON_INTERVAL) (put values :TIBO_DAEMON_INTERVAL "900"))
               (unless (get values :TIBO_STATE_DIR) (put values :TIBO_STATE_DIR (get p :state)))

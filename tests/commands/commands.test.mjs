@@ -1,12 +1,12 @@
 import {test,expect} from 'bun:test';import {mkdtemp,writeFile,rm} from 'node:fs/promises';import {tmpdir,homedir,userInfo} from 'node:os';import {join,resolve} from 'node:path';import {spawnSync} from 'node:child_process';
 import {catalog,visible_catalog,fixed_query,validate_query,execute_query,public_forecast} from '../../dist/src/commands/index.mjs';import {public_text} from '../../dist/src/platform/privacy.mjs';import {judge} from '../../dist/src/app/engine.mjs';import {snapshot,post,event} from '../helpers/fixture.mjs';
 test('one command registry defines aliases, defaults, bounds and rejects all operations or extra arguments',()=>{
- expect(visible_catalog().map(c=>c.name)).toEqual(['forecast','status','posts','history','banked','signals','stats','review','help','pray','subscribe','unsubscribe','subscription','ask']);
+ expect(visible_catalog().map(c=>c.name)).toEqual(['forecast','status','posts','history','banked','signals','stats','review','help','pray','subscribe','unsubscribe','subscription','ask','service-status','service-history','search','calculate','time','date-diff','convert']);
  expect(fixed_query('预测 48')).toEqual({command:'forecast',args:{horizon:'48',noAi:false}});
  expect(fixed_query('发言 5 reset --hours 24')).toEqual({command:'posts',args:{limit:5,hours:24,keyword:'reset'}});
  expect(fixed_query('历史 3 global').args).toEqual({limit:3,kind:'global'});expect(fixed_query('forecast --no-ai').args.noAi).toBe(true);
  expect(fixed_query('posts --limit 11').command).toBe('invalid');expect(fixed_query('service restart')).toBeNull();
- for(const q of [{command:'service',args:{}},{command:'posts',args:{limit:0}},{command:'posts',args:{limit:'3'}},{command:'forecast',args:{horizon:'72'}},{command:'status',args:{since:'today'}},{command:'posts',args:{path:'/etc/passwd'}},{command:'help',args:{},model:'forbidden'}])expect(()=>validate_query(q)).toThrow();
+ for(const q of [{command:'service',args:{}},{command:'posts',args:{limit:0}},{command:'posts',args:{limit:'3'}},{command:'forecast',args:{horizon:'72'}},{command:'status',args:{since:'today'}},{command:'posts',args:{path:join(homedir(),'private')}},{command:'help',args:{},model:'forbidden'}])expect(()=>validate_query(q)).toThrow();
 });
 test('posts filters and orders evidence; history/banked/signals/stats use existing core and work without AI',async()=>{
  const dir=await mkdtemp(join(tmpdir(),'tibo-queries-')),file=join(dir,'snapshot.json');const s=snapshot({posts:[post(23,'reset older'),post(25,'reset newest'),post(24,'unrelated')],events:[event(1),event(3),event(6),event(10),event(13),event(18),event(24),event(25,{global:false,banked:true})]});await writeFile(file,JSON.stringify(s));
@@ -21,9 +21,9 @@ test('posts filters and orders evidence; history/banked/signals/stats use existi
 });
 test('public output removes local identity, paths, credentials and provider names; errors expose no diagnostics',()=>{
  const original=process.env.DEEPSEEK_API_KEY;process.env.DEEPSEEK_API_KEY='fixture-private-credential';
- try{const secret=`${homedir()}/secret ${userInfo().username} ${process.cwd()} fixture-private-credential deepseek-flash sk-123456789abcdef /etc/local-secret`;
+ try{const secret=`${homedir()}/secret ${userInfo().username} ${process.cwd()} fixture-private-credential deepseek-flash sk-123456789abcdef ${join(homedir(),'local-secret')}`;
  const r=judge(snapshot());r.ai={model:'deepseek-flash',features:{forecast:{state:'blocked',reason:secret,code:401,retryAt:'2026-01-01'},brief:{state:'ok',value:{summary:secret,followups:[secret,'观察新公告']}}}};
- const text=public_forecast(r,'both');for(const value of ['fixture-private-credential','deepseek-flash','sk-123456789abcdef','/etc/local-secret',homedir(),process.cwd(),'401'])expect(text).not.toContain(value);
+ const text=public_forecast(r,'both');for(const value of ['fixture-private-credential','deepseek-flash','sk-123456789abcdef',join(homedir(),'local-secret'),homedir(),process.cwd(),'401'])expect(text).not.toContain(value);
  expect(text).toContain('**判断理由**');expect(text).not.toContain('出了问题');expect(public_text(secret)).not.toContain(userInfo().username);
  }finally{if(original===undefined)delete process.env.DEEPSEEK_API_KEY;else process.env.DEEPSEEK_API_KEY=original;}
 });
@@ -45,8 +45,8 @@ test('semantic subscription, cancellation and status reuse the registry, exclude
  for(const body of r.sent){const input=JSON.parse(body.messages[1].content);expect(input.commands.find(x=>x.name==='subscribe').params.target).toMatchObject({default:'personal',enum:['personal','group']});expect(JSON.stringify(body.messages)).not.toMatch(/ou_private|oc_private|private-app/);}
 });
 test('Lark semantic errors send one generic reply and never send supplier error bodies or configuration',async()=>{
- const r=await subprocess(`globalThis.fetch=async()=>new Response('fixture-router-secret /Users/private deepseek-flash',{status:401});const {deliver}=await import(${JSON.stringify(resolve('dist/adapters/lark/service.mjs'))});let sent=[];const client={send:async m=>{sent.push(m);return {code:0,data:{message_id:'fixture'}}}};await deliver(client,'oc_fixture','message-one','帮我查询最近发言');console.log(JSON.stringify(sent));`);
- expect(r).toHaveLength(1);const text=JSON.parse(r[0].content).zh_cn.content[0][0].text;expect(text).toContain('出了问题');for(const forbidden of ['fixture-router-secret','/Users/','deepseek','401','认证','模型','retryAt'])expect(text).not.toContain(forbidden);
+ const r=await subprocess(`globalThis.fetch=async()=>new Response('fixture-router-secret '+process.cwd()+'/private deepseek-flash',{status:401});const {deliver}=await import(${JSON.stringify(resolve('dist/adapters/lark/service.mjs'))});let sent=[];const client={send:async m=>{sent.push(m);return {code:0,data:{message_id:'fixture'}}}};await deliver(client,'oc_fixture','message-one','帮我查询最近发言');console.log(JSON.stringify(sent));`);
+ expect(r).toHaveLength(1);const text=JSON.parse(r[0].content).zh_cn.content[0][0].text;expect(text).toContain('出了问题');for(const forbidden of ['fixture-router-secret',homedir(),'deepseek','401','认证','模型','retryAt'])expect(text).not.toContain(forbidden);
 });
 test('Lark fixed query failures send a generic response and do not expose a corrupt local file',async()=>{
  const r=await subprocess(`const fs=await import('node:fs/promises');await fs.writeFile(process.env.TIBO_STATE_DIR+'/ledger.json','bad');globalThis.fetch=async()=>{throw new Error('private-path')};const {deliver}=await import(${JSON.stringify(resolve('dist/adapters/lark/service.mjs'))});let sent=[];await deliver({send:async m=>{sent.push(m);return {code:0,data:{message_id:'fixture'}}}},'oc_fixture','message-two','发言 2');console.log(JSON.stringify(sent));`);

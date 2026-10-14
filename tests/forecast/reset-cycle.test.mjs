@@ -35,7 +35,7 @@ test('official full text verifies author, ID and official prefix; primary grade 
 test('optional expansion outage keeps original; full or unrelated short posts never need the extra fetch',async()=>{
  const code=`let calls=0;globalThis.fetch=async()=>{calls++;throw new Error('unavailable')};const {expand_post}=await import(${JSON.stringify(resolve('dist/src/evidence/post-body.mjs'))});const a=await expand_post(${JSON.stringify(excerpt)}),b=await expand_post(${JSON.stringify({...excerpt,truncated:false})});console.log(JSON.stringify({a,b,calls}));`;
  const dir=await mkdtemp(join(tmpdir(),'tibo-expansion-outage-'));
- try{const r=spawnSync(process.execPath,['--eval',code],{env:{...process.env,TIBO_STATE_DIR:dir,TIBO_CONFIG_FILE:'/dev/null'},encoding:'utf8',timeout:5000});expect(r.status).toBe(0);const v=JSON.parse(r.stdout);expect(v.a).toEqual(excerpt);expect(v.b.truncated).toBe(false);expect(v.calls).toBe(1);}
+ try{const r=spawnSync(process.execPath,['--eval',code],{env:{...process.env,TIBO_STATE_DIR:dir,TIBO_CONFIG_FILE:join(dir,'absent.env')},encoding:'utf8',timeout:5000});expect(r.status).toBe(0);const v=JSON.parse(r.stdout);expect(v.a).toEqual(excerpt);expect(v.b.truncated).toBe(false);expect(v.calls).toBe(1);}
  finally{await rm(dir,{recursive:true,force:true});}
 });
 test('known completion restarts clock, retains precise time, consumes old hints and ignores routine events even when mislabeled global',()=>{
@@ -66,10 +66,10 @@ test('only consistent actually saved receipts migrate; original 11/25 survive; o
  expect(audit_rows([receipt],[],'2026-10-09T01:10:00.010Z',true)[0].audit.h48.outcome).toBe(0);
  expect(resolve_predictions([{...receipt,outcome:null}],[{...e,verified:false}],'2026-10-09T01:10:00.010Z')[0].outcome).toBeNull();
 });
-test('fixed status and explicit ask fallback have cycle evidence without AI or personal account access',async()=>{
+test('fixed status retains cycle evidence without AI; natural ask no longer guesses read intent',async()=>{
  const dir=await mkdtemp(join(tmpdir(),'tibo-cycle-')),file=join(dir,'snapshot.json');
  const p=expanded_body(excerpt,body);await writeFile(file,JSON.stringify(snapshot({now,posts:[...snapshot().posts,p],events:[...snapshot().events,...events_from_posts([p])]})));
- try{for(const q of [{command:'status',args:{}},{command:'ask',args:{question:'刚重置过吗？还剩几天7天自动刷新？'}}]){const r=await execute_query(q,{snapshotPath:file,noAi:true,persist:false});expect(r.ok).toBe(true);expect(r.text).toContain('03:35');expect(r.text).toContain('刚重置过');expect(r.text).toContain('仅为参考');expect(r.text).not.toContain('官方全文已核实');}}finally{await rm(dir,{recursive:true,force:true});}
+ try{for(const q of [{command:'status',args:{}}]){const r=await execute_query(q,{snapshotPath:file,noAi:true,persist:false});expect(r.ok).toBe(true);expect(r.text).toContain('03:35');expect(r.text).toContain('刚重置过');expect(r.text).toContain('仅为参考');expect(r.text).not.toContain('官方全文已核实');}expect((await execute_query({command:'ask',args:{question:'刚重置过吗？'}},{snapshotPath:file,noAi:true})).ok).toBe(false);}finally{await rm(dir,{recursive:true,force:true});}
 });
 test('journal is idempotent and separate from nonoverlapping learning',async()=>{
  const dir=await mkdtemp(join(tmpdir(),'tibo-journal-'));
@@ -81,5 +81,5 @@ test('journal is idempotent and separate from nonoverlapping learning',async()=>
 test('offline and supplied snapshot reports never write or settle actual forecast receipts',async()=>{
  const dir=await mkdtemp(join(tmpdir(),'tibo-journal-offline-')),file=join(dir,'snapshot.json');await writeFile(file,JSON.stringify(snapshot()));
  const code=`const {write_state,read_state}=await import(${JSON.stringify(resolve('dist/src/platform/state.mjs'))});const {run_report}=await import(${JSON.stringify(resolve('dist/src/app/engine.mjs'))});const s=JSON.parse(await Bun.file(${JSON.stringify(file)}).text());await write_state('ledger',s);await write_state('forecast-journal',{reports:[{at:'2026-09-01T00:00:00Z',p24:11,p48:25,audit:{}}]});const before=await read_state('forecast-journal');await run_report({offline:true,noAi:true,persist:false});await run_report({snapshotPath:${JSON.stringify(file)},noAi:true,persist:false});console.log(JSON.stringify({before,after:await read_state('forecast-journal'),experience:await read_state('experience')}));`;
- try{const r=spawnSync(process.execPath,['--eval',code],{env:{...process.env,TIBO_CONFIG_FILE:'/dev/null',TIBO_STATE_DIR:dir,TIBO_AI_FEATURES:''},encoding:'utf8',timeout:5000});expect(r.status).toBe(0);const v=JSON.parse(r.stdout);expect(v.after).toEqual(v.before);expect(v.experience).toBeNull();}finally{await rm(dir,{recursive:true,force:true});}
+ try{const r=spawnSync(process.execPath,['--eval',code],{env:{...process.env,TIBO_CONFIG_FILE:join(dir,'absent.env'),TIBO_STATE_DIR:dir,TIBO_AI_FEATURES:''},encoding:'utf8',timeout:5000});expect(r.status).toBe(0);const v=JSON.parse(r.stdout);expect(v.after).toEqual(v.before);expect(v.experience).toBeNull();}finally{await rm(dir,{recursive:true,force:true});}
 });

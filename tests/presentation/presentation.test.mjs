@@ -5,13 +5,13 @@ import {parse_pipeline,detect_language,validate_stages,language} from '../../dis
 import {snapshot,post} from '../helpers/fixture.mjs';
 const commands=JSON.stringify(resolve('dist/src/commands/index.mjs'));
 const evidence=snapshot({posts:[post(24,'Older statement.',{id:'2100000000000000001'}),post(25,'Either an improvement or a full reset. 17% is a forecast, not a promise.',{id:'2100000000000000002',truncated:true})]});
-async function trial(body,setup='',features='router,translate,answer'){
+async function trial(body,setup='',features='router,translate,answer,read'){
  const dir=await mkdtemp(join(tmpdir(),'tibo-pipes-')),file=join(dir,'snapshot.json');await writeFile(file,JSON.stringify(evidence));
  try{const script=`let sent=[];const reply=value=>new Response(JSON.stringify({choices:[{finish_reason:'stop',message:{content:JSON.stringify(value)}}]}));${setup};const {resolve_query,execute_query}=await import(${commands});const opts={snapshotPath:process.env.TIBO_SNAPSHOT,persist:false};${body}`;
  const r=spawnSync(process.execPath,['--eval',script],{env:{...process.env,TIBO_STATE_DIR:dir,TIBO_SNAPSHOT:file,TIBO_AI_FEATURES:features,DEEPSEEK_API_KEY:'fixture-presentation-secret',LANG:'ja_JP.UTF-8',LC_ALL:'ja_JP.UTF-8',TZ:'Europe/Paris',TIBO_LARK_CHAT_IDS:'oc_fixtureGroup',TIBO_LARK_ADMIN_OPEN_IDS:'ou_fixtureOwner'},encoding:'utf8',timeout:10000});expect(r.stderr).toBe('');expect(r.status).toBe(0);return JSON.parse(r.stdout);
  }finally{await rm(dir,{recursive:true,force:true});}
 }
-const fake=String.raw`globalThis.fetch=async(u,o)=>{const b=JSON.parse(o.body),e=JSON.parse(b.messages[1].content);sent.push(b.messages);if(e.commands)return reply({command:'posts',args:{limit:1},language:e.question.includes('发言')?'zh':'en'});return reply({text:e.targetLanguage?'Translated '+e.targetLanguage+'\n'+e.text:'AI explanation '+e.responseLanguage+'\n'+e.text});}`;
+const fake=String.raw`globalThis.fetch=async(u,o)=>{const b=JSON.parse(o.body),e=JSON.parse(b.messages[1].content);sent.push(b.messages);if(b.max_tokens===600)return reply({topic:"concept",queries:[]});if(e.commands)return reply({command:'posts',args:{limit:1},language:e.question.includes('发言')?'zh':'en'});return reply({text:e.targetLanguage?'Translated '+e.targetLanguage+'\n'+e.text:'AI explanation '+e.responseLanguage+'\n'+e.text});}`;
 test('pipe grammar preserves quoted keywords and apostrophes; validates all stages and bounds before execution',()=>{
  expect(parse_pipeline('posts 2 "a|b" |translate zh-CN |ask 用两句话总结 |original')).toEqual({base:'posts 2 "a|b"',stages:[{name:'translate',language:'zh'},{name:'ask',instruction:'用两句话总结'},{name:'original'}]});
  expect(parse_pipeline("What's the difference? |ask translate").base).toBe("What's the difference?");
@@ -23,7 +23,7 @@ test('recognized BCP47 languages and script/region tags are accepted without an 
  for(const tag of ['mn','mn-MN','mn-Mong','mn-Cyrl-MN','bo','ug','hi','sw','fil','he','en-US']){
   expect(language(tag.toLowerCase())).toBe(tag);expect(parse_pipeline('posts 2 |translate '+tag).stages[0].language).toBe(tag);
  }
- for(const tag of ['zz','xx','qaa','und','zxx','mul','mn-Fake','en-QQ','mn-u-ca-gregory','蒙古语','mn /tmp/x',{},null])expect(language(tag)==null).toBe(true);
+ for(const tag of ['zz','xx','qaa','und','zxx','mul','mn-Fake','en-QQ','mn-u-ca-gregory','蒙古语','mn '+join(tmpdir(),'x'),{},null])expect(language(tag)==null).toBe(true);
 });
 test('semantic routing accepts Mongolian replies and preserves source originals without reclassifying Cyrillic as Russian',async()=>{
  const r=await trial(`const q=await resolve_query('请用蒙古语展示最新一条发言');const result=await execute_query(q,opts);console.log(JSON.stringify({q,result,sent}));`,
@@ -50,7 +50,7 @@ test('changed facts reject translation; feature circuit is independent; failure 
  const r=await trial(`const first=await execute_query(await resolve_query('posts 1 |translate zh'),opts),second=await execute_query(await resolve_query('posts 1 |translate zh'),opts),blocked=await execute_query(await resolve_query('posts 1 |translate zh'),opts),answer=await execute_query(await resolve_query('posts 1 |ask 用一句话解释'),opts);console.log(JSON.stringify({first,second,blocked,answer,sent}));`,
  `globalThis.fetch=async(u,o)=>{const b=JSON.parse(o.body),e=JSON.parse(b.messages[1].content);sent.push(b.messages);return reply({text:e.targetLanguage?'Invented reset at 90%':'可用的独立解释'});}`);
  expect(r.sent).toHaveLength(3);expect(r.first.partial).toBe(true);expect(r.blocked.text).toContain('17%');expect(r.blocked.text).toContain('出了问题');expect(r.answer.text).toBe('可用的独立解释');expect(r.answer.partial).toBe(false);
- const auth=await trial(`const first=await execute_query(await resolve_query('posts 1 |translate en'),opts),second=await execute_query(await resolve_query('posts 1 |ask summarize'),opts);console.log(JSON.stringify({first,second,sent}));`,`globalThis.fetch=async()=>{sent.push('attempt');return new Response('fixture-presentation-secret /Users/private deepseek-flash',{status:401});}`);
+ const auth=await trial(`const first=await execute_query(await resolve_query('posts 1 |translate en'),opts),second=await execute_query(await resolve_query('posts 1 |ask summarize'),opts);console.log(JSON.stringify({first,second,sent}));`,`globalThis.fetch=async()=>{sent.push('attempt');return new Response('fixture-presentation-secret '+process.cwd()+'/private deepseek-flash',{status:401});}`);
  expect(auth.sent).toHaveLength(1);for(const item of [auth.first,auth.second]){expect(item.text).toContain(evidence.posts[1].text);expect(item.text).not.toMatch(/fixture-presentation-secret|\/Users\/|deepseek|401|认证/);}
 });
 test('no-AI switch preserves forecast and originals even with text pipelines; standalone answer does not request AI',async()=>{
@@ -81,9 +81,9 @@ test('administrator pipelines reject before proposals or confirmations; malforme
  const r=await trial(`const {write_state,read_state}=await import(${JSON.stringify(resolve('dist/src/platform/state.mjs'))});await write_state('ledger',{sentinel:'keep'});const context={transport:'lark',actor:'ou_fixtureOwner',scope:'oc_fixtureGroup'};const results=[];for(const text of ['clear-history |translate zh','confirm 12345678-1234-1234-1234-123456789abc |original'])results.push(await execute_query(await resolve_query(text,context),{context}));results.push(await execute_query({command:'clear-history',args:{},pipeline:[{name:'execute'}]},{context}));const fs=await import('node:fs/promises');console.log(JSON.stringify({results,ledger:await read_state('ledger'),files:await fs.readdir(process.env.TIBO_STATE_DIR),sent}));`,fake);
  expect(r.results.every(x=>!x.ok)).toBe(true);expect(r.ledger.sentinel).toBe('keep');expect(r.files.some(x=>x.startsWith('confirm-'))).toBe(false);expect(r.sent).toHaveLength(0);
 });
-test('basic chat uses safe capabilities, not a second router or invented current evidence',async()=>{
+test('basic chat interprets read needs once and keeps safe capabilities without invented evidence',async()=>{
  const r=await trial(`const direct=await execute_query({command:'ask',args:{question:'global和banked有什么区别？'}},opts);console.log(JSON.stringify({direct,sent}));`,fake);
- expect(r.sent).toHaveLength(1);expect(r.direct.ok).toBe(true);const payload=JSON.parse(r.sent[0][1].content);expect(payload.language).toBe('zh');expect(payload.verifiedBusinessContext).toBe('');expect(payload.historyStatus).toBe('none');expect(payload.capabilities.commands.some(c=>c.name==='confirm')).toBe(false);
+ expect(r.sent).toHaveLength(2);expect(r.direct.ok).toBe(true);const payload=JSON.parse(r.sent[1].at(-1).content);expect(payload.language).toBe('zh');expect(payload.verifiedBusinessContext).toBe('');expect(payload.historyStatus).toBe('none');expect(payload.capabilities.commands.some(c=>c.name==='confirm')).toBe(false);
 });
 test('actual CLI pipe tokens and MCP question pipelines use the same core without spawning shell commands',async()=>{
  const dir=await mkdtemp(join(tmpdir(),'tibo-pipe-wire-')),file=join(dir,'snapshot.json');await writeFile(file,JSON.stringify(evidence));
@@ -97,6 +97,6 @@ test('actual CLI pipe tokens and MCP question pipelines use the same core withou
 });
 test('Lark delivery keeps Markdown and honors pipeline language without forwarding supplier error bodies',async()=>{
  const r=await trial(`const {deliver}=await import(${JSON.stringify(resolve('dist/adapters/lark/service.mjs'))});let outgoing=[];const client={send:async m=>{outgoing.push(m);return {code:0,data:{message_id:'fixture-'+outgoing.length}}}};await deliver(client,'oc_fixtureGroup','pipeline-help','help |translate en');await deliver(client,'oc_fixtureGroup','pipeline-error','help |ask summarize');console.log(JSON.stringify({outgoing,sent}));`,
- String.raw`globalThis.fetch=async(u,o)=>{sent.push(JSON.parse(o.body).messages);return sent.length===1?reply({text:'**Help**\n'+JSON.parse(JSON.parse(o.body).messages[1].content).text}):new Response('fixture-presentation-secret /Users/private deepseek-flash',{status:422});}`);
+ String.raw`globalThis.fetch=async(u,o)=>{sent.push(JSON.parse(o.body).messages);return sent.length===1?reply({text:'**Help**\n'+JSON.parse(JSON.parse(o.body).messages[1].content).text}):new Response('fixture-presentation-secret '+process.cwd()+'/private deepseek-flash',{status:422});}`);
  expect(r.outgoing).toHaveLength(2);const texts=r.outgoing.map(x=>JSON.parse(x.content).zh_cn.content[0][0]);expect(texts.every(x=>x.tag==='md')).toBe(true);expect(texts[0].text).toContain('**Help**');expect(texts[1].text).toContain('temporarily unavailable');expect(texts[1].text).not.toMatch(/fixture-presentation-secret|\/Users\/|deepseek|422/);
 });
