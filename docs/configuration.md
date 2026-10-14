@@ -31,7 +31,7 @@
 | `DEEPSEEK_API_KEY` | 空 | 官方 HTTP API 凭据 |
 | `TIBO_AI_FEATURES` | 未设置时无功能；安装时只在该键不存在时补全十三项 | 逗号分隔的独立功能开关 |
 | `TIBO_CHAT_SEARCH` | 1；0 关闭 | 基础聊天的公开搜索；不关闭固定官方状态、计算和时间方法 |
-| `TIBO_CHAT_CONTEXT_TOKENS` | 900000；有效整数 8192..900000 | 引用对话的输入预算，接近后单独摘要；无引用不积累会话 |
+| `TIBO_CHAT_CONTEXT_TOKENS` | 980000；有效整数 8192..980000 | 总上下文摘要触发目标；默认按 1M 窗口预留余量，超窗材料归档，无引用不积累会话 |
 | `TIBO_AI_WEIGHT` | 已停用，实际权重为 0 | 旧配置兼容；不发起概率建议、不影响数值 |
 
 当前模型为 `deepseek-flash`，端点为 `https://api.deepseek.com/chat/completions`。这是应用当前实现配置，不能在普通 IM 查询中索取或泄露。程序不依赖模型 SDK。

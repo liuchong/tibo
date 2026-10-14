@@ -1,5 +1,4 @@
 (module tibo.commands.catalog
-  (import "../chat/input.eli" chat-input-limit)
   (import "../platform/host.eli" Number RegExp)
   (import "../platform/privacy.eli" public-text source-free-text)
   (import "./admin.eli" is-admin)
@@ -34,7 +33,7 @@
       (js-object :name "unsubscribe" :aliases (js-array "退订" "取消订阅") :purpose "任何会话默认取消本人私聊订阅；target=group取消指定群订阅，仅管理员在操作群/私聊申请并二次确认，省略chatId规则同subscribe" :params subscription-params :positionals (js-array "target" "chatId"))
       (js-object :name "subscription" :aliases (js-array "订阅状态") :purpose "任何会话默认查看本人私聊订阅；target=group仅管理员在操作群/私聊查看群订阅，省略chatId规则同subscribe" :params subscription-params :positionals (js-array "target" "chatId"))
       (js-object :name "ask" :aliases (js-array "问答") :purpose "了解Tibo背景的基础聊天、概念解释、文字处理或常识问答；可按需查官方服务状态、公开搜索摘要、数字计算和时间；引用时延续同一对话Thread，未引用时单轮；不能执行命令或操作账户，不提供未抓取的新事件事实"
-        :params (js-object :question (js-object :type "string" :maxLength chat-input-limit :required t)) :positionals (js-array "question"))
+        :params (js-object :question (js-object :type "string" :required t)) :positionals (js-array "question"))
       (js-object :name "service-status" :aliases (js-array) :purpose "查询OpenAI官方服务整体、组件与进行中事故；不同于Codex重置状态"
         :params (js-object) :positionals (js-array))
       (js-object :name "service-history" :aliases (js-array) :purpose "查询OpenAI官方服务事故历史，含已解决事故、时间与更新；不查询重置公告。官方最近一页可能不覆盖完整范围"
@@ -84,8 +83,9 @@
                         (unless (and (Number/isInteger value) (>= value (get rule :minimum)) (<= value (get rule :maximum))) (fail "整数参数超出范围")))
                       ((= (get rule :type) "boolean") (unless (= (value-type value) "boolean") (fail "参数必须为布尔值")))
                       (t (unless (= (value-type value) "string") (fail "参数必须为字符串"))
+                         (when (and (get rule :required) (= (get (js-call value :trim) :length) 0)) (fail "缺少必填参数"))
                          (unless (or (= (get rule :format) "Lark-chat-ID")
-                           (= (public-text value (or (get rule :maxLength) 200)) (source-free-text value))) (fail "参数包含非业务信息"))
+                           (= (public-text value (or (get rule :maxLength) (get value :length))) (source-free-text value))) (fail "参数包含非业务信息"))
                          (when (and (get rule :enum) (not (js-call (get rule :enum) :includes value))) (fail "枚举参数不合法"))
                          (when (and (get rule :maxLength) (or (= value "") (> (get value :length) (get rule :maxLength)))) (fail "关键词长度不合法"))
                          (when (get rule :format)

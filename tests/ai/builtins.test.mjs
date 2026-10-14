@@ -147,7 +147,7 @@ test('incomplete reference history cannot trigger a guessed read plan or source 
  expect(d.calls).toBe(0);expect(d.rows.every(r=>r.ok===false)).toBe(true);
 });
 
-test('long explicit messages keep the complete user turn through planning and answering; oversized inputs reply without AI',async()=>{
+test('long explicit messages above the former entry limit keep full text through planning and answering',async()=>{
  const d=await trial(`const prompts=[];globalThis.fetch=async(u,o)=>{const b=JSON.parse(o.body);prompts.push(b);return Response.json({choices:[{finish_reason:'stop',message:{content:JSON.stringify(b.max_tokens===600?{topic:'Explain supplied progress',queries:[]}:{text:'The final supplied detail is understood.'})}}]});};
  const {trigger_candidate}=await import(${path('im/triggers')});const {resolve_query,execute_query}=await import(${path('commands/index')});
  const text='Explain supplied progress. '+('A public progress note. '.repeat(130))+'FINAL-DETAIL';
@@ -156,8 +156,9 @@ test('long explicit messages keep the complete user turn through planning and an
  const denied=await execute_query(oversized),directDenied=await execute_query({command:'ask',args:{question:over}});
  console.log(JSON.stringify({text,candidate,query,result,prompts,before,denied,directDenied}));`);
  expect(d.text.length).toBeGreaterThan(2400);expect(d.candidate.kind).toBe('direct');expect(d.query.args.question).toBe(d.text);
- expect(d.prompts).toHaveLength(2);for(const p of d.prompts)expect(JSON.parse(p.messages.at(-1).content).question).toBe(d.text);
- expect(d.result.ok).toBe(true);expect(d.denied.text).toContain('16000');expect(d.directDenied.text).toContain('16000');expect(d.prompts.length).toBe(d.before);
+ expect(d.prompts).toHaveLength(4);for(const p of d.prompts.slice(0,2))expect(JSON.parse(p.messages.at(-1).content).question).toBe(d.text);
+ expect(d.result.ok).toBe(true);expect(d.denied.ok).toBe(true);expect(d.directDenied.ok).toBe(true);
+ for(const p of d.prompts.slice(2))expect(JSON.parse(p.messages.at(-1).content).question).toHaveLength(16001);
 });
 
 test('a semantic chat route need not echo long text into a small output budget, and cannot change the original question',async()=>{

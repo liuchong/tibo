@@ -1,4 +1,0 @@
-;; Bound a human turn independently of the accumulated dialogue capacity.
-(module tibo.chat.input
-  (defconst chat-input-limit 16000)
-  (export chat-input-limit))

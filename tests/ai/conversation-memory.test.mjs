@@ -46,8 +46,8 @@ test('failed summary and incomplete import preserve history and never answer fro
  const dir=await mkdtemp(join(tmpdir(),'tibo-summary-failure-'));
  try{
   const data=trial(dir,`let calls=0;globalThis.fetch=async()=>{calls++;return new Response('private detail',{status:402});};`+prelude+`await store.import_turns(key,Array.from({length:20},(_,i)=>({id:'m'+i,role:'user',content:'x'.repeat(700)})),10);const {chat_text}=await import(${chat});const before=await store.read_session(key);const r=await chat_text('继续','zh',{commands:[]},null,{state:'ready',sessionId:'root',currentId:'q1'},context);const partial=await chat_text('继续','zh',{commands:[]},null,{state:'partial',messages:[]},context);console.log(JSON.stringify({calls,r,partial,before,after:await store.read_session(key)}));`,'8192');
-  expect(data.calls).toBe(1);expect(data.r.state).toBe('fallback');expect(data.partial.state).toBe('fallback');
-  expect(data.after).toEqual(data.before);expect(JSON.stringify(data.r)).not.toContain('private detail');
+  expect(data.calls).toBe(1);expect(data.r.state).toBe('blocked');expect(data.partial.state).toBe('fallback');
+  expect(data.after.seen).toEqual(data.before.seen);expect(data.after.archives).toHaveLength(1);expect(data.after.summary).toContain("context-read");expect(JSON.stringify(data.r)).not.toContain('private detail');
  }finally{await rm(dir,{recursive:true,force:true});}
 });
 

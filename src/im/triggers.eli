@@ -43,11 +43,11 @@
     (when (and (= (value-type text) "string") (> (get text :length) 0))
       (cond ((has-pray? text) (js-object :level 1 :kind "prayer" :command "pray"))
         ((or private-chat mentioned (matches "tibo|\\bpray\\b|祈祷|上香" text))
-          (let ((command (clean (js-call text :replace (new RegExp "^tibo\\s*[,，:：]?\\s*" "i") ""))))
+          (let ((command (js-call (js-call text :replace (new RegExp "^tibo\\s*[,，:：]?\\s*" "i") "") :trim)))
             (setq command (js-call command :replace (new RegExp "^pray(?:\\s+(?:me|board|stats))?\\b" "i")
               (lambda (prefix) (js-call prefix :toLowerCase))))
-            ;; Explicit requests enter the queue even when over the input limit:
-            ;; the command layer returns a size notice without calling AI.
+            ;; Explicit requests keep their full text; the shared context layer
+            ;; handles window overflow after admission to the durable queue.
             (js-object :level 1 :kind "direct" :command (if (= command "") "help" command))))
         ((and (<= (get text :length) 800) (js-call (keywords text) :some (lambda (p) (> (local-score text p) 0))))
           (let ((low (not (js-call (keywords text) :some (lambda (p) (not (= (get p :level) 3)))))))

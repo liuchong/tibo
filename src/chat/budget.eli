@@ -1,0 +1,22 @@
+(module tibo.chat.budget
+  (import "node:process" :default process)
+  (import "node:crypto" createHash)
+  (import "../platform/host.eli" Number TextEncoder)
+  ;; Includes room for the provider wrapper, completion and estimate overhead.
+  (defconst model-input-budget 980000)
+  (defun system-key (instruction) (js-call (js-call (createHash "sha256") :update instruction) :digest "hex"))
+  (defun token-bound (text) (+ 16 (get (js-call (new TextEncoder) :encode text) :length)))
+  (defun context-budget ()
+    (let ((n (Number (get (get process :env) :TIBO_CHAT_CONTEXT_TOKENS (str model-input-budget)))))
+      (if (and (Number/isSafeInteger n) (>= n 8192) (<= n model-input-budget)) n model-input-budget)))
+  (defun context-size (messages instruction &optional checkpoint)
+    (let ((measured (and checkpoint (= (value-type (get checkpoint :system)) "string")
+      (Number/isFinite (get checkpoint :tokens)) (Number/isSafeInteger (get checkpoint :count))
+      (>= (get checkpoint :count) 0) (<= (get checkpoint :count) (get messages :length)))))
+      ;; When instructions change, the old measured prefix still bounds the
+      ;; unchanged turns. Adding the new instruction avoids underestimation.
+      (+ (if measured (+ (get checkpoint :tokens)
+          (if (= (get checkpoint :system) (system-key instruction)) 0 (token-bound instruction))) (token-bound instruction))
+        (js-call (js-call messages :slice (if measured (get checkpoint :count) 0)) :reduce
+          (lambda (sum row) (+ sum (token-bound (get row :content)))) 0) 1024)))
+  (export model-input-budget system-key token-bound context-budget context-size))

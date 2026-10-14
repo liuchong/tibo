@@ -46,6 +46,8 @@ CLI、MCP 和 Lark 不维护三份命令实现。IM 身份从平台边界取得�
 
 `presentation/chat` 承担了解应用背景的基础聊天，`presentation/text` 保留管道文字处理。`ai/conversation` 只接受 user/assistant 文字轮次，脱敏但不裁剪轮次；runtime 将历史作为原生 AI messages，并把历史纳入缓存身份。Lark 的 `thread` 模块按需读取平台话题或普通引用链，核对会话和当前发言人，排除无关消息，再由固定 reply API 延续引用关系。chat/store 按应用、会话和根消息保存脱敏的追加轮次；chat/memory 按容量单独摘要，再从摘要继续。只有确认发送后才提交 AI 轮次；未引用消息不建立会话。详见 [基础聊天与引用对话](chat.md)。
 
+chat/budget 按总上下文计量，不限制单条正文字符数；chat/packing 在超窗时有限摘要，chat/archive 保存完整原文和虚拟文件目录。`context-read` 在既有一次只读资料准备中取回当前范围的原文，平台层不复制这套存储和容量逻辑。归档随持久会话保存，单轮请求的归档不会自动累积为会话，见 [固定设计](chat-context-design.md)。
+
 ## 采集与预测
 
 app/engine 组织采集、标准化与判断。evidence 获取公开内容并保留核实等级；post-thread 在固定官方详情页补充有限的作者自回复，与主页发现共用短期缓存。forecast 分析完成事件、条件承诺、banked 和历史间隔，结合信息完整度选用可用模型；promise-history 按周期去重限时承诺、记录兑现状态和未知结果；promise-policy 只在审计覆盖与样本精度足够时应用条件兑现估计，其他情况保留基线。AI 开启且可用时，ai/enhance 执行受校验的可选任务，再由经验与展示模块记录、输出结果。
