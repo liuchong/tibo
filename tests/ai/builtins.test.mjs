@@ -16,12 +16,16 @@ test('numeric parser handles precedence, unary signs and powers; invalid code, b
  for(const expression of ['1 2+3','1/0','process.exit(0)','1;2','2^1001','1+'.repeat(130)+'1','('.repeat(33)+'1'+')'.repeat(33),'2+'])expect(()=>calculate(expression)).toThrow();
 });
 test('read plans validate the entire batch and deterministic general methods reject invalid data',()=>{
- expect(validate_plan({topic:'service',queries:[{command:'service-history',args:{limit:2}}]}).queries[0].args.days).toBe(14);
- for(const q of [{command:'ask',args:{question:'exec'}},{command:'pray',args:{}},{command:'clear-history',args:{}},{command:'time',args:{timezone:'Invalid/Zone'}},{command:'convert',args:{value:'1',from:'kg',to:'m'}},{command:'calculate',args:{expression:'process.exit(0)'}},{command:'search',args:{query:'https://localhost/x'}}])expect(()=>validate_plan({topic:'x',queries:[{command:'service-status',args:{}},q]})).toThrow();
- expect(()=>validate_plan({topic:'x',queries:[{command:'service-status',args:{}},{command:'service-status',args:{}}]})).toThrow();
- expect(()=>validate_plan({topic:'wrong',queries:[{command:'history',args:{}}]},'service','展开历史')).toThrow();
- expect(validate_plan({topic:'switch',subjectChange:'tibo',changeQuote:'Codex重置',queries:[{command:'history',args:{}}]},'service','查Codex重置历史').subject).toBe('tibo');
- expect(()=>validate_plan({topic:'switch',subjectChange:'tibo',changeQuote:'Codex重置',queries:[{command:'history',args:{}}]},'service','展开历史')).toThrow();
+ const evidence={question:'service request'};
+ const scope={subject:'service',source:'current',quote:evidence.question};
+ const plan=queries=>({topic:'service',scope,queries});
+ expect(validate_plan(plan([{command:'service-history',args:{limit:2}}]),null,evidence).queries[0].args.days).toBe(14);
+ for(const q of [{command:'ask',args:{question:'exec'}},{command:'pray',args:{}},{command:'clear-history',args:{}},{command:'time',args:{timezone:'Invalid/Zone'}},{command:'convert',args:{value:'1',from:'kg',to:'m'}},{command:'calculate',args:{expression:'process.exit(0)'}},{command:'search',args:{query:'https://localhost/x'}}])expect(()=>validate_plan(plan([{command:'service-status',args:{}},q]),null,evidence)).toThrow();
+ expect(()=>validate_plan(plan([{command:'service-status',args:{}},{command:'service-status',args:{}}]),null,evidence)).toThrow();
+ expect(()=>validate_plan(plan([{command:'history',args:{}}]),'service',evidence)).toThrow();
+ const switchPlan={topic:'switch',scope:{subject:'tibo',source:'current',quote:'Codex reset'},queries:[{command:'history',args:{}}]};
+ expect(validate_plan(switchPlan,'service',{question:'Check Codex reset history'}).scope.subject).toBe('tibo');
+ expect(()=>validate_plan(switchPlan,'service',{question:'Expand the history'})).toThrow();
  expect(convert_unit('1','GiB','MiB').result).toBe(1024);expect(convert_unit('32','F','C').result).toBe(0);
  expect(date_difference('2026-10-14','2026-10-16').days).toBe(2);expect(()=>date_difference('2026-02-30','2026-03-01')).toThrow();
  expect(clock_at('Asia/Shanghai','2026-10-14T00:00:00Z').local).toBe('2026-10-14 08:00:00');
@@ -39,7 +43,7 @@ test('unavailable Google/Baidu fall back to RSS; concurrent/repeated searches sh
  expect(d.calls.some(u=>u.startsWith('https://docs.example.com'))).toBe(false);
 });
 test('quoted followup has one semantic read plan and one answer, with no tools or repeated dispatch',async()=>{
- const d=await trial('const prompts=[],calls=[];globalThis.fetch=async(u,o)=>{calls.push(String(u));if(String(u).includes("status.openai.com"))return Response.json('+JSON.stringify(status)+');const b=JSON.parse(o.body);prompts.push(b);const plan=b.max_tokens===600;return Response.json({choices:[{finish_reason:"stop",message:{content:JSON.stringify(plan?{topic:"OpenAI API service status",queries:[{command:"service-status",args:{}}]}:{text:"官方状态显示 API 出现故障。https://status.openai.com/"})}}]});};const {execute_query}=await import('+path('commands/index')+');const r=await execute_query({command:"ask",args:{question:"把刚才那份状态展开看看"}},{threadConversation:{state:"ready",messages:[{role:"assistant",content:"OpenAI API状态，可检查API key余额或官方状态页。"}]}});console.log(JSON.stringify({calls,prompts,r}));');
+ const d=await trial('const prompts=[],calls=[];globalThis.fetch=async(u,o)=>{calls.push(String(u));if(String(u).includes("status.openai.com"))return Response.json('+JSON.stringify(status)+');const b=JSON.parse(o.body);prompts.push(b);const plan=b.max_tokens===600;return Response.json({choices:[{finish_reason:"stop",message:{content:JSON.stringify(plan?{topic:"OpenAI API service status",scope:{subject:"service",source:"current",quote:JSON.parse(b.messages.at(-1).content).question},queries:[{command:"service-status",args:{}}]}:{text:"官方状态显示 API 出现故障。https://status.openai.com/"})}}]});};const {execute_query}=await import('+path('commands/index')+');const r=await execute_query({command:"ask",args:{question:"把刚才那份状态展开看看"}},{threadConversation:{state:"ready",messages:[{role:"assistant",content:"OpenAI API状态，可检查API key余额或官方状态页。"}]}});console.log(JSON.stringify({calls,prompts,r}));');
  expect(d.calls).toHaveLength(3);expect(d.prompts).toHaveLength(2);expect(d.prompts[0].max_tokens).toBe(600);
  expect(JSON.parse(d.prompts[0].messages.at(-1).content).history[0].content).toContain('API key余额');
  for(const p of d.prompts){expect(p.tools).toBeUndefined();expect(p.functions).toBeUndefined();expect(p.function_call).toBeUndefined();}
@@ -47,7 +51,7 @@ test('quoted followup has one semantic read plan and one answer, with no tools o
  expect(facts.reads[0].data.components[0].status).toBe('major_outage');expect(d.r.text).toContain('官方状态显示 API');
 });
 test('failed final answer preserves fixed data; bad plans cannot fetch, mutate, or start a tool loop',async()=>{
- const d=await trial('const calls=[];globalThis.fetch=async(u,o)=>{calls.push(String(u));if(String(u).includes("status.openai.com"))return Response.json('+JSON.stringify(status)+');const b=JSON.parse(o.body);return Response.json({choices:[{finish_reason:"stop",message:{content:JSON.stringify(b.max_tokens===600?{topic:"OpenAI",queries:[{command:"service-status",args:{}}]}:{text:""})}}]});};const {execute_query}=await import('+path('commands/index')+');const calc=await execute_query({command:"calculate",args:{expression:"(123+456)*7"}},{noAi:true});const live=await execute_query({command:"ask",args:{question:"把状态拉下来"}},{threadConversation:{messages:[{role:"user",content:"OpenAI API故障"}]}});const before=calls.length;const off=await execute_query({command:"service-status",args:{}},{offline:true,noAi:true});console.log(JSON.stringify({calc,live,off,before,calls}));');
+ const d=await trial('const calls=[];globalThis.fetch=async(u,o)=>{calls.push(String(u));if(String(u).includes("status.openai.com"))return Response.json('+JSON.stringify(status)+');const b=JSON.parse(o.body);return Response.json({choices:[{finish_reason:"stop",message:{content:JSON.stringify(b.max_tokens===600?{topic:"OpenAI",scope:{subject:"service",source:"current",quote:JSON.parse(b.messages.at(-1).content).question},queries:[{command:"service-status",args:{}}]}:{text:""})}}]});};const {execute_query}=await import('+path('commands/index')+');const calc=await execute_query({command:"calculate",args:{expression:"(123+456)*7"}},{noAi:true});const live=await execute_query({command:"ask",args:{question:"把状态拉下来"}},{threadConversation:{messages:[{role:"user",content:"OpenAI API故障"}]}});const before=calls.length;const off=await execute_query({command:"service-status",args:{}},{offline:true,noAi:true});console.log(JSON.stringify({calc,live,off,before,calls}));');
  expect(d.calc.text).toBe('(123+456)*7 = 4053');expect(d.live.text).toContain('major_outage');expect(d.calls).toHaveLength(d.before);expect(d.off.ok).toBe(false);
 });
 test('service status reads are shared, cache their collection time and recover from transport failure',async()=>{
@@ -71,7 +75,7 @@ test('empty plans do no source I/O, read has an independent failure circuit, and
  expect(d.rows.every(r=>r.text.includes('继续讨论闭包'))).toBe(true);expect(d.status.circuit.features.read.until).toBeGreaterThan(Date.now());expect(d.status.circuit.features.answer?.until||0).toBe(0);
 });
 test('bad entire batch and provider tool calls cannot dispatch any read or repeated plan',async()=>{
- const d=await trial('const calls=[];globalThis.fetch=async(u,o)=>{calls.push(String(u));const b=JSON.parse(o.body);return Response.json({choices:[{finish_reason:"stop",message:{content:JSON.stringify(b.max_tokens===600?{topic:"bad",queries:[{command:"service-status",args:{}},{command:"calculate",args:{expression:"process.exit(0)"}}]}:{text:"此次查询未准备成功。"})}}]});};const {execute_query}=await import('+path('commands/index')+');const r=await execute_query({command:"ask",args:{question:"展示刚才的数据"}});console.log(JSON.stringify({calls,r}));');
+ const d=await trial('const calls=[];globalThis.fetch=async(u,o)=>{calls.push(String(u));const b=JSON.parse(o.body);return Response.json({choices:[{finish_reason:"stop",message:{content:JSON.stringify(b.max_tokens===600?{topic:"bad",scope:{subject:"service",source:"current",quote:JSON.parse(b.messages.at(-1).content).question},queries:[{command:"service-status",args:{}},{command:"calculate",args:{expression:"process.exit(0)"}}]}:{text:"此次查询未准备成功。"})}}]});};const {execute_query}=await import('+path('commands/index')+');const r=await execute_query({command:"ask",args:{question:"展示刚才的数据"}});console.log(JSON.stringify({calls,r}));');
  expect(d.calls).toHaveLength(2);expect(d.calls.every(u=>u.includes('/chat/completions'))).toBe(true);expect(d.r.text).toContain('未准备成功');
 });
 test('semantic planning receives the direct quote and typed prior methods, while unquoted calls have no historical input',async()=>{
@@ -83,4 +87,62 @@ test('semantic planning receives the direct quote and typed prior methods, while
 test('confirmed read subject survives compaction and takes precedence over old unrelated suggestions',async()=>{
  const d=await trial('const prompts=[];globalThis.fetch=async(u,o)=>{const b=JSON.parse(o.body);prompts.push(b);return Response.json({choices:[{finish_reason:"stop",message:{content:JSON.stringify(b.max_tokens===600?{topic:"service",queries:[]}:{text:"解释这份服务资料。"})}}]});};const {conversation_key,commit_turn,read_session,compact_session}=await import('+path('chat/store')+');const ctx={transport:"probe",account:"fixture",scope:"dialogue",authenticated:true},key=conversation_key(ctx,"topic");await commit_turn({key,revision:0,sourceId:"question",user:{role:"user",content:"查询"},assistant:"回答",readSubject:"service"},"response");const saved=await read_session(key);await compact_session(key,saved.revision,"Prior service data.");const compacted=await read_session(key);const {execute_query}=await import('+path('commands/index')+');const result=await execute_query({command:"ask",args:{question:"解释这份记录"}},{threadConversation:{activeSubject:compacted.readSubject,messages:[{role:"user",content:JSON.stringify({builtinFacts:{reads:[{method:"history",state:"ok"}]}})}]}});console.log(JSON.stringify({compacted,prompts,result}));');
  expect(d.compacted.readSubject).toBe('service');expect(d.prompts.length,JSON.stringify(d.result)).toBeGreaterThan(0);expect(JSON.parse(d.prompts[0].messages.at(-1).content).activeSubject).toBe('service');
+});
+
+test('a first followup has one grounded subject; assistant references cannot authorize cross-topic reads or a subject switch',()=>{
+ const quote={role:'assistant',content:'The API status is unknown. If you meant Tibo instead, we could check its posts.'};
+ const evidence={question:'Please check',quotedMessage:quote,history:[{role:'assistant',content:'Check the reset history'}]};
+ const scope={subject:'service',source:'quoted',quote:''};
+ const p={topic:'API availability',scope,queries:[{command:'service-status',args:{}}]};
+ const validated=validate_plan(p,null,evidence);
+ expect(validate_plan(validated,null,evidence)).toEqual(validated); // cache hits are revalidated
+ expect(()=>validate_plan({...p,queries:[...p.queries,{command:'posts',args:{}}]},null,evidence)).toThrow('read-plan-subject-mismatch');
+ expect(()=>validate_plan({...p,scope:{...scope,subject:'mixed'}},null,evidence)).toThrow('read-plan-mixed-authority');
+ expect(()=>validate_plan({...p,scope:{...scope,subject:'tibo'},queries:[{command:'posts',args:{}}]},'service',evidence)).toThrow('read-plan-scope-change');
+ expect(()=>validate_plan({...p,scope:{subject:'tibo',source:'user-history',quote:'Check the reset history'},queries:[{command:'history',args:{}}]},null,evidence)).toThrow('read-plan-scope-evidence');
+ expect(()=>validate_plan(p,null,{question:'Please check'})).toThrow('read-plan-quoted');
+ const explicit={...p,scope:{subject:'mixed',source:'current',quote:'API status and Tibo posts'},queries:[...p.queries,{command:'posts',args:{limit:1}}]};
+ expect(validate_plan(explicit,'service',{question:'Check API status and Tibo posts'}).queries).toHaveLength(2);
+ expect(()=>validate_plan(explicit,'service',evidence)).toThrow('read-plan-scope-evidence');
+});
+
+test('confirmed user scope wins over method order; mixed or failed reads cannot create a new confirmed topic',async()=>{
+ const {active_subject,confirmed_subject}=await import('../../dist/src/commands/chat-plan.mjs');
+ const reads=[{method:'service-status',state:'ok'},{method:'posts',state:'ok'}];
+ expect(confirmed_subject({subject:'service',reads})).toBe('service');
+ expect(confirmed_subject({reads})).toBeNull();
+ expect(confirmed_subject({scope:{subject:'mixed'},reads})).toBeNull();
+ expect(confirmed_subject({subject:'service',reads:[{method:'service-status',state:'unavailable'}]})).toBeNull();
+ const turn={role:'user',content:JSON.stringify({builtinFacts:{subject:'service',reads}})};
+ expect(active_subject({messages:[turn]})).toBe('service');
+ expect(active_subject({activeSubject:'tibo',messages:[turn]})).toBe('tibo');
+});
+
+test('the three-turn service followup performs only official service reads; repeating a plan uses its revalidated cache',async()=>{
+ const code=`const prompts=[],sources=[];let stage=0;
+ globalThis.fetch=async(u,o)=>{if(String(u).includes('status.openai.com')){sources.push(String(u));return Response.json(String(u).endsWith('summary.json')?${JSON.stringify(status)}:{incidents:[{name:'Resolved API issue',status:'resolved',created_at:new Date().toISOString()}]});}
+ const b=JSON.parse(o.body);prompts.push(b);const input=JSON.parse(b.messages.at(-1).content);
+ const plan={topic:'OpenAI service',scope:{subject:'service',source:stage?'inherited':'quoted',quote:''},queries:stage===1?[{command:'service-status',args:{}},{command:'service-history',args:{limit:2}}]:[{command:'service-status',args:{}}]};
+ return Response.json({choices:[{finish_reason:'stop',message:{content:JSON.stringify(b.max_tokens===600?plan:{text:'The official service data is ready.'})}}]});};
+ const {execute_query}=await import(${path('commands/index')});const {plan_reads}=await import(${path('commands/chat-plan')});
+ const thread={state:'ready',quotedMessage:{role:'assistant',content:'OpenAI API status is unknown. Optionally we could check Tibo posts.'},messages:[]};
+ const firstPlan=await plan_reads('Can you check?',thread);const cached=await plan_reads('Can you check?',thread);
+ const rows=[];for(const question of ['Can you check?','Give me a tidy service history','Download that status data']){
+ const r=await execute_query({command:'ask',args:{question}},{threadConversation:thread});rows.push(r);
+ const answerPrompt=prompts.at(-1),wire=JSON.parse(answerPrompt.messages.at(-1).content);
+ thread.messages.push({role:'user',content:JSON.stringify(wire)},{role:'assistant',content:'The service data is ready. Optionally we could check Tibo posts.'});
+ thread.quotedMessage=thread.messages.at(-1);stage++;}
+ console.log(JSON.stringify({prompts,sources,rows,firstPlan,cached}));`;
+ const d=await trial(code);expect(d.firstPlan.state).toBe('ok');expect(d.cached.state).toBe('cached');
+ expect(d.prompts.filter(p=>p.max_tokens===600)).toHaveLength(3);
+ const answers=d.prompts.filter(p=>p.max_tokens===1200).map(p=>JSON.parse(p.messages.at(-1).content));
+ expect(answers.map(p=>p.builtinFacts.reads.map(r=>r.method))).toEqual([['service-status'],['service-status','service-history'],['service-status']]);
+ expect(answers.every(p=>p.builtinFacts.scope.subject==='service')).toBe(true);
+ expect(d.sources).toHaveLength(2);expect(d.rows.every(r=>r.ok)).toBe(true);
+ for(const p of d.prompts)expect(p.tools).toBeUndefined();
+});
+
+test('incomplete reference history cannot trigger a guessed read plan or source fetch',async()=>{
+ const d=await trial('let calls=0;globalThis.fetch=async()=>{calls++;throw Error("unexpected I/O")};const {execute_query}=await import('+path('commands/index')+');const rows=[];for(const state of ["partial","unavailable"])rows.push(await execute_query({command:"ask",args:{question:"Show that data"}},{threadConversation:{state,messages:[]}}));console.log(JSON.stringify({rows,calls}));');
+ expect(d.calls).toBe(0);expect(d.rows.every(r=>r.ok===false)).toBe(true);
 });

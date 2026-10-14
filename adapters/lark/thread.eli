@@ -1,6 +1,7 @@
 ;; Platform history bootstraps and incrementally supplies the local dialogue. Reads are opt-in and
 ;; fixed; no AI-generated URLs, selectors, identities or commands are accepted.
 (module tibo.lark.thread
+  (import "node:crypto" createHash)
   (import "../../src/platform/host.eli" RegExp Date Number Map Set AbortSignal)
   (import "../../src/ai/conversation.eli" conversation-turns)
   (import "../../src/platform/util.eli" fail)
@@ -8,6 +9,17 @@
   (import "../../src/chat/store.eli" conversation-key read-session session-messages import-turns)
   (defun message-id? (id) (and (= (value-type id) "string") (js-call (new RegExp "^om_[A-Za-z0-9_-]{1,180}$") :test id)))
   (defun thread-id? (id) (and (= (value-type id) "string") (js-call (new RegExp "^omt_[A-Za-z0-9_-]{1,180}$") :test id)))
+  (defun message-key (id) (str "lark-message-" (js-call (js-call (js-call (createHash "sha256") :update id) :digest "hex") :slice 0 40)))
+  (defasync quoted-request (client item row context app-id signal)
+    (when (= (get (or row (js-object)) :role) "assistant")
+      (let* ((saved (or (await (read-state (message-key (get item :message_id)))) (js-object))) (source (get saved :sourceMessageId)))
+        (when (and (message-id? source) (= (get saved :messageId) (get item :message_id))
+          (= (get saved :group) (get context :scope)) (= (get saved :appId) app-id) (= (get saved :account) (get context :account)))
+          (try (let* ((original (await (js-call client :messageInfo source signal))) (request (record-of original app-id)))
+            (when (and (= (get original :message_id) source) (= (get original :chat_id) (get context :scope))
+              (= (get (get original :sender) :id) (get saved :sourceActor)) (= (get (or request (js-object)) :role) "user")
+              (<= (Number (get original :create_time)) (Number (get item :create_time))))
+              (js-object :role "user" :content (get request :content)))) (catch error nil))))))
   (defun reference-of (message)
     (when (or (thread-id? (get message :thread_id)) (and (message-id? (get message :parent_id)) (not (= (get message :parent_id) (get message :message_id))))
               (and (message-id? (get message :root_id)) (not (= (get message :root_id) (get message :message_id)))))
@@ -60,7 +72,7 @@
             (= (get context :scope) group) (message-id? id)) (fail "thread-scope"))
           (let* ((current (await (js-call client :messageInfo id signal)))
             (native (get current :thread_id)) (root (get current :root_id))
-            (origin nil) (quoted nil) (parent (get current :parent_id)) (direct-parent (get current :parent_id)) (visited (new Set)))
+            (origin nil) (quoted nil) (request nil) (initial-request nil) (parent (get current :parent_id)) (direct-parent (get current :parent_id)) (visited (new Set)))
             (unless (and (= (get current :chat_id) group) (= (get current :message_id) id)
               (= (get (get current :sender) :sender_type) "user")
               (= (get (get current :sender) :id) (get context :actor)) (not (get current :deleted)) (reference-of current))
@@ -84,7 +96,13 @@
             (when (and (message-id? direct-parent) (not (= direct-parent id)))
               (let* ((item (if (= direct-parent root) origin (await (js-call client :messageInfo direct-parent signal))))
                 (row (when (= (get item :chat_id) group) (record-of item app-id))))
-                (when row (setq quoted (js-object :role (get row :role) :content (get row :content))))))
+                (when row
+                  (setq quoted (js-object :role (get row :role) :content (get row :content)))
+                  (setq request (await (quoted-request client item row context app-id signal))))))
+            (let ((root-row (record-of origin app-id)))
+              (setq initial-request (if (= (get (or root-row (js-object)) :role) "user")
+                (when (not (= root id)) (js-object :role "user" :content (get root-row :content)))
+                (if (= direct-parent root) request (await (quoted-request client origin root-row context app-id signal))))))
             (setq session (or native root) key (conversation-key context session))
             (let* ((state (await (read-session key))) (progress-key (str "lark-import-" (js-call key :slice 13)))
               (saved (await (read-state progress-key)))
@@ -128,6 +146,8 @@
                   ;; answering. It resumes from through on the next attempt.
                   (if (not (= (get progress :currentId) id)) (js-object :state "partial" :messages (js-array))
                     (js-object :state "ready" :sessionId session :currentId id
-                      :activeSubject (get (await (read-session key)) :readSubject) :quotedMessage quoted :messages (session-messages (await (read-session key)))))))))
+                      :activeSubject (get (await (read-session key)) :readSubject) :quotedMessage quoted :quotedRequest request
+                      :initialRequest initial-request
+                      :messages (session-messages (await (read-session key)))))))))
           (catch error (js-object :state "unavailable" :messages (js-array)))))))
-  (export reference-of reply-target-of message-id? thread-id? body-text load-thread reference-root))
+  (export reference-of reply-target-of message-id? thread-id? message-key body-text load-thread reference-root))

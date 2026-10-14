@@ -125,3 +125,37 @@ test('real WebSocket worker builds multiple native AI turns, replies in the quot
   expect(asks[3].messages.map(x=>x.role)).toEqual(['system','user']);
  }finally{if(child){child.kill('SIGTERM');await closed;}server.stop(true);await rm(dir,{recursive:true,force:true});}
 },15000);
+
+test('a quoted bot reply carries only its verified originating user request, scoped to the same application and chat',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'tibo-quote-origin-'));const old=process.env.TIBO_STATE_DIR;process.env.TIBO_STATE_DIR=dir;
+ try{
+ const {message_key}=await import('../../dist/adapters/lark/thread.mjs');const {write_state}=await import('../../dist/src/platform/state.mjs');
+ const origin=message('om_origin','Is the API unavailable?',1);
+ const root=message('om_bot','The API status is unknown. Optionally check Tibo posts.',2,{sender:bot});
+ const current=message('om_followup','Please check',3,{parent_id:root.message_id,root_id:root.message_id});
+ const metadata={messageId:root.message_id,sourceMessageId:origin.message_id,sourceActor:'ou_person',group:'oc_private',appId:'fixture-app',account:context.account};
+ const items=new Map([origin,root,current].map(m=>[m.message_id,m]));let calls=[];
+ const client={messageInfo:async id=>{calls.push(id);return items.get(id);},historyPage:async()=>({has_more:false,items:[root,current]})};
+ const job={group:'oc_private',key:current.message_id,context,reference:reference_of(current)};
+ await write_state(message_key(root.message_id),metadata);
+ const h=await load_thread(client,job,'fixture-app');expect(h.state).toBe('ready');
+ expect(h.quotedRequest).toEqual({role:'user',content:'Is the API unavailable?'});
+ expect(h.initialRequest).toEqual(h.quotedRequest);
+ expect(h.messages.map(x=>x.content)).toEqual(['The API status is unknown. Optionally check Tibo posts.']);
+ const answer=message('om_nextbot','An unrelated suggestion',4,{sender:bot,parent_id:current.message_id,root_id:root.message_id});
+ const followup=message('om_nextuser','Show that status data',5,{parent_id:answer.message_id,root_id:root.message_id});
+ items.set(answer.message_id,answer);items.set(followup.message_id,followup);
+ await write_state(message_key(answer.message_id),{...metadata,messageId:answer.message_id,sourceMessageId:current.message_id});
+ const next=await load_thread({...client,historyPage:async()=>({has_more:false,items:[root,current,answer,followup]})},
+  {...job,key:followup.message_id,reference:reference_of(followup)},'fixture-app');
+ expect(next.initialRequest).toEqual(h.initialRequest);expect(next.quotedRequest).toEqual({role:'user',content:'Please check'});
+ calls=[];expect((await load_thread(client,{...job,reference:null},'fixture-app')).state).toBe('none');expect(calls).toEqual([]);
+ for(const changed of [{group:'oc_other'},{account:'different'},{appId:'different'},{sourceActor:'ou_other'}]){
+  await write_state(message_key(root.message_id),{...metadata,...changed});expect((await load_thread(client,job,'fixture-app')).quotedRequest).toBeNull();
+ }
+ await write_state(message_key(root.message_id),metadata);
+ items.set(origin.message_id,{...origin,deleted:true});expect((await load_thread(client,job,'fixture-app')).quotedRequest).toBeNull();
+ const failed=await load_thread({...client,messageInfo:async id=>{if(id===origin.message_id)throw Error('source unavailable');return items.get(id);}},job,'fixture-app');
+ expect(failed.state).toBe('ready');expect(failed.quotedRequest).toBeNull();
+ }finally{if(old===undefined)delete process.env.TIBO_STATE_DIR;else process.env.TIBO_STATE_DIR=old;await rm(dir,{recursive:true,force:true});}
+});
