@@ -1,0 +1,32 @@
+(module tibo.evidence.service-status
+  (import "../platform/host.eli" Date)
+  (import "../platform/state.eli" read-state write-state)
+  (import "../platform/transaction.eli" state-transaction)
+  (import "../platform/privacy.eli" public-text)
+  (import "../platform/util.eli" iso fail)
+  (import "./transport.eli" request-json)
+  (defasync service-status ()
+    (await (state-transaction "service-status" (async ()
+      (let ((cached (await (read-state "service-status"))))
+        (if (and cached (> (get cached :until) (Date/now))) (Object/assign (js-object) cached (js-object :cached t))
+          (let ((result nil))
+            (try
+              (let* ((raw (await (request-json "https://status.openai.com/api/v2/summary.json" (js-object :redirect "manual") 4000)))
+                (incidents (if (Array/isArray (get raw :incidents)) (get raw :incidents)
+                  (try (get (await (request-json "https://status.openai.com/api/v2/incidents.json" (js-object :redirect "manual") 4000)) :incidents)
+                    (catch error nil)))))
+                (unless (and (get raw :status) (= (value-type (get (get raw :status) :description)) "string")
+                  (Array/isArray (get raw :components))) (fail "status-schema"))
+                (setq result (js-object :state "ok" :at (iso (Date/now)) :url "https://status.openai.com/"
+                  :status (public-text (get (get raw :status) :description) 200)
+                  :components (js-call (js-call (get raw :components) :filter (lambda (c) (not (get c :group)))) :map
+                    (lambda (c) (js-object :name (public-text (get c :name) 100) :status (get c :status))))
+                  :incidentsKnown (Array/isArray incidents)
+                  :incidents (js-call (js-call (js-call (or incidents (js-array)) :filter
+                    (lambda (i) (not (js-call (js-array "resolved" "postmortem") :includes (get i :status))))) :slice 0 5) :map
+                    (lambda (i) (js-object :name (public-text (get i :name) 200) :status (get i :status)
+                      :updatedAt (get i :updated_at) :url (get i :shortlink))))
+                  :until (+ (Date/now) 60000))))
+              (catch error (setq result (js-object :state "unavailable" :at (iso (Date/now)) :url "https://status.openai.com/" :until (+ (Date/now) 30000)))))
+            (await (write-state "service-status" result)) result)))))))
+  (export service-status))

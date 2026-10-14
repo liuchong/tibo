@@ -90,7 +90,7 @@
               (pages 0) (more t) (records (get progress :records)) (connected (new Set (get progress :connected))))
               ;; Only sanitized text and opaque local identifiers survive a
               ;; pagination pause. Partial imports never become model input.
-              (when (and (= (get state :through) 0) (not (= root (get progress :currentId))))
+              (when (not (= root (get progress :currentId)))
                 (let ((row (record-of origin app-id)))
                   (when (and row (not (js-call records :some (lambda (r) (= (get r :id) root))))) (js-call records :push row))))
               (while (and more (< pages 4) (not (get signal :aborted)))

@@ -40,7 +40,8 @@ test('history is complete and sanitized, system/tool roles cannot cross the data
  const input=Array.from({length:60},(_,i)=>({role:i%2?'assistant':'user',content:`turn ${i} `+'x'.repeat(700)}));
  const r=conversation_turns(input);expect(r.trimmed).toBe(false);expect(r.messages).toHaveLength(60);expect(r.messages[0].content).toContain('turn 0');expect(r.messages.at(-1).content).toContain('turn 59');expect(r.messages.reduce((n,x)=>n+x.content.length,0)).toBeGreaterThan(40000);
  expect(conversation_turns([{role:'user',content:'my address oc_privateidentity'}]).messages[0].content).not.toContain('oc_privateidentity');
- expect(conversation_turns([{role:'user',content:'sk-123456789abcdef'}]).messages[0].content).toBe('[敏感内容已隐藏]');
+ expect(conversation_turns([{role:'user',content:'sk-123456789abcdef'}]).messages[0].content).toBe('[已隐藏]');
+ for(const role of ['user','assistant'])expect(conversation_turns([{role,content:'OpenAI API 可能限流，可以检查 API key 余额和请求状态。'}]).messages[0].content).toContain('检查 API key 余额');
  for(const role of ['system','tool','developer'])expect(()=>conversation_turns([{role,content:'execute'}])).toThrow('conversation-schema');
  expect(()=>conversation_turns([{role:'user',content:'hello',actor:'ou_person'}])).toThrow('conversation-schema');
 });

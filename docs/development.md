@@ -7,6 +7,7 @@
 | 目录 | 职责与主要入口 |
 | --- | --- |
 | `src/app/` | CLI、MCP、后台采集入口；engine 编排采集、算法和可选 AI |
+| `src/capabilities/` | read 按需准备状态、公开搜索、计算与时间；calculate 是有界算术解析器；不向模型开放工具 |
 | `src/commands/` | index 公共查询接口；catalog、parser、router、execute、help、admin 分别负责命令定义、固定解析、语义解析、执行、帮助和管理票据 |
 | `src/forecast/` | 事件与信号、历史统计、模型、信息完整度；cycle 负责公告与七天参考、journal 负责实际报告复盘、experience 负责独立经验训练；不调用 AI 或 IM |
 | `src/evidence/` | 采集、原文判定、HTML、受限搜索和资料校验；post-body 匹配截断长帖的存档正文；不依赖预测模型或 AI 网关 |
@@ -41,7 +42,7 @@ bun run compile
 
 ```bash
 bun --eval 'import {snapshot} from "./tests/helpers/fixture.mjs"; await Bun.write(".tibo/example-snapshot.json", JSON.stringify(snapshot()));'
-TIBO_CONFIG_FILE=/dev/null TIBO_STATE_DIR=.tibo/example-state TIBO_AI_FEATURES='' bun bin/tibo.mjs forecast --snapshot .tibo/example-snapshot.json
+TIBO_CONFIG_FILE=.tibo/absent-example.env TIBO_STATE_DIR=.tibo/example-state TIBO_AI_FEATURES='' bun bin/tibo.mjs forecast --snapshot .tibo/example-snapshot.json
 ```
 
 明确区分证据层级：单元测试通过、协议模拟通过、独立二进制试用、后台安装成功、真实 IM 收发成功是不同结论。不要用 fixture 或 check 成功代替真实平台送达。

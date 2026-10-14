@@ -39,7 +39,7 @@ for (const file of files) {
     const targetLayer = target.split('/')[1];
     const allowed = {platform: ['platform'], evidence: ['evidence', 'platform'],
       forecast: ['forecast', 'evidence', 'platform'], ai: ['ai', 'evidence', 'forecast', 'platform'],
-      chat: ['chat', 'ai', 'platform']}[layer];
+      chat: ['chat', 'ai', 'platform'], capabilities: ['capabilities', 'evidence', 'platform']}[layer];
     if (file.startsWith('src/') && allowed && (!target.startsWith('src/') || !allowed.includes(targetLayer))) {
       failures.push(`${file}: ${layer} imports higher-level module ${target}`);
     }

@@ -1,7 +1,7 @@
 ;; Only data roles can cross the AI boundary. No transport IDs or executable
 ;; actions belong to conversation turns.
 (module tibo.ai.conversation
-  (import "../platform/privacy.eli" public-text private-question?)
+  (import "../platform/privacy.eli" public-text)
   (import "../platform/util.eli" fail)
   (defun conversation-turns (input)
     (when (and input (not (Array/isArray input))) (fail "conversation-schema"))
@@ -11,8 +11,8 @@
           (= (value-type (get turn :content)) "string")
           (js-call (Object/keys turn) :every (lambda (k) (js-call (js-array "role" "content") :includes k))))
           (fail "conversation-schema"))
-        (let ((text (if (private-question? (get turn :content)) "[敏感内容已隐藏]"
-          (public-text (get turn :content) (get (get turn :content) :length)))))
+        ;; Scrub concrete values; technical vocabulary is conversation content.
+        (let ((text (public-text (get turn :content) (get (get turn :content) :length))))
           (when (> (get (js-call text :trim) :length) 0)
             (js-call rows :push (js-object :role (get turn :role) :content text))))))
       (js-object :messages rows :trimmed false)))

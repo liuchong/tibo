@@ -30,6 +30,7 @@
 | --- | --- | --- |
 | `DEEPSEEK_API_KEY` | 空 | 官方 HTTP API 凭据 |
 | `TIBO_AI_FEATURES` | 未设置时无功能；安装时只在该键不存在时补全十二项 | 逗号分隔的独立功能开关 |
+| `TIBO_CHAT_SEARCH` | 1；0 关闭 | 基础聊天的公开搜索；不关闭固定官方状态、计算和时间方法 |
 | `TIBO_CHAT_CONTEXT_TOKENS` | 900000；有效整数 8192..900000 | 引用对话的输入预算，接近后单独摘要；无引用不积累会话 |
 | `TIBO_AI_WEIGHT` | 已停用，实际权重为 0 | 旧配置兼容；不发起概率建议、不影响数值 |
 
@@ -84,6 +85,7 @@ TIBO_AI_FEATURES=
 | `forecast-journal.json` | 最多 400 份真实报告回执和逐窗口复盘；不作为独立训练样本 |
 | `report-*.json` / `evidence-*.json` | 各报告通道上次概率与证据，用于趋势比较 |
 | `diagnostics-cli.json` / `diagnostics-daemon.json` | 最近成功生成报告的采集、AI 输入与结果诊断 |
+| `service-status.json` / `web-search-*.json` | 官方状态与公开搜索的短期共享缓存；不保存私人会话原文 |
 | `ai.json` | AI 用量、缓存、最近失败阶段和冷却 |
 | `daemon.json` / `daemon-latest.json` | 采集进程状态 / 最近成功结果，含简洁报告及完整结构数据 |
 | `pray-identities.json` / `pray-<摘要>.json` / `subscriptions-*.json` | 统一个人及会话上香档案 / 迁移保留旧档案 / 应用账户订阅 |
