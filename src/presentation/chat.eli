@@ -1,4 +1,5 @@
 (module tibo.presentation.chat
+  (import "../chat/input.eli" chat-input-limit)
   (import "../platform/host.eli" RegExp)
   (import "../chat/memory.eli" memory-call)
   (import "../ai/conversation.eli" conversation-turns)
@@ -7,7 +8,7 @@
   (defasync chat-text (question lang capabilities &optional facts thread context builtin-facts)
     (setq thread (or thread (js-object)))
     (let* ((history (conversation-turns (get thread :messages)))
-      (evidence (js-object :question (public-text question 800) :language lang :capabilities capabilities
+      (evidence (js-object :question (public-text question chat-input-limit) :language lang :capabilities capabilities
         :verifiedBusinessContext (public-text (or facts "") 8000)
         :builtinFacts (or builtin-facts (js-object))
         :quotedMessage (when (get thread :quotedMessage) (get (get (conversation-turns (js-array (get thread :quotedMessage))) :messages) 0))
@@ -23,7 +24,10 @@
             (<= (get (get v :text) :length) 14000) (js-call (Object/keys v) :every (lambda (k) (= k "text"))))
             (fail "chat-schema"))
           (when (> (get (get evidence :verifiedBusinessContext) :length) 0)
-            (let ((known (or (js-call (get evidence :verifiedBusinessContext) :match (new RegExp "[0-9]+(?:\\.[0-9]+)?%" "g")) (js-array)))
+            ;; User-supplied measurements are discussion material, not a newly
+            ;; invented forecast. Their provenance stays separate in the prompt.
+            (let ((known (or (js-call (str (get evidence :verifiedBusinessContext) "\n" (get evidence :question))
+              :match (new RegExp "[0-9]+(?:\\.[0-9]+)?%" "g")) (js-array)))
               (proposed (or (js-call (get v :text) :match (new RegExp "[0-9]+(?:\\.[0-9]+)?%" "g")) (js-array))))
               (unless (js-call proposed :every (lambda (token) (js-call known :includes token))) (fail "answer-invented-probability"))))
           (js-object :text (public-text (get v :text) 14000))) nil thread context))))

@@ -1,4 +1,5 @@
 (module tibo.commands.execute
+  (import "../chat/input.eli" chat-input-limit)
   (import "../app/engine.eli" load-snapshot observe run-report)
   (import "../forecast/history.eli" summarize-history)
   (import "../forecast/models.eli" eligible)
@@ -24,7 +25,10 @@
   (defasync execute-core (query &optional options)
     (setq options (or options (js-object)))
     (let* ((name (get query :command)) (args (get query :args (js-object))))
-      (cond ((= name "semantic-error") (js-object :text "语义查询暂时出了问题，请使用固定指令或帮助。" :ok false))
+      (cond ((= name "input-too-long") (js-object :text (if (= (get options :language "zh") "zh")
+          (str "消息超过 " chat-input-limit " 字符，请缩短或分段发送；本次没有执行查询。")
+          (str "Message exceeds " chat-input-limit " characters. Please shorten it or send it in parts; no query was executed.")) :ok false))
+            ((= name "semantic-error") (js-object :text "语义查询暂时出了问题，请使用固定指令或帮助。" :ok false))
             ((= name "semantic-disabled") (js-object :text "语义查询尚未开启，请使用固定指令或帮助。" :ok false))
             ((or (= name "unsupported") (= name "invalid")) (js-object :text "未能识别有效的Tibo查询。发送“帮助”查看支持的命令与参数。" :ok false))
             (t

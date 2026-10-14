@@ -1,5 +1,6 @@
 ;; One input interpretation, a fixed read batch, then one answer. No tool loop.
 (module tibo.commands.chat-plan
+  (import "../chat/input.eli" chat-input-limit)
   (import "../ai/runtime.eli" ai-call)
   (import "../ai/conversation.eli" conversation-turns)
   (import "../platform/privacy.eli" public-text)
@@ -103,16 +104,16 @@
     (if (or no-ai (js-call (js-array "partial" "unavailable") :includes (get (or thread (js-object)) :state)))
       (js-object :state (if no-ai "disabled" "history-unavailable") :queries (js-array) :topic "")
       (let* ((active (active-subject thread))
-        (evidence (js-object :question (public-text question 800) :history (history-for-plan thread)
+        (evidence (js-object :question (public-text question chat-input-limit) :history (history-for-plan thread)
           :quotedMessage (when (get (or thread (js-object)) :quotedMessage)
             (let ((row (get (get (conversation-turns (js-array (get thread :quotedMessage))) :messages) 0)))
               (js-object :role (get row :role) :content (public-text (get row :content) 1600))))
           :quotedRequest (when (get (or thread (js-object)) :quotedRequest)
             (let ((row (get (get (conversation-turns (js-array (get thread :quotedRequest))) :messages) 0)))
-              (when (= (get row :role) "user") (js-object :role "user" :content (public-text (get row :content) 800)))))
+              (when (= (get row :role) "user") (js-object :role "user" :content (public-text (get row :content) chat-input-limit)))))
           :initialRequest (when (get (or thread (js-object)) :initialRequest)
             (let ((row (get (get (conversation-turns (js-array (get thread :initialRequest))) :messages) 0)))
-              (when (= (get row :role) "user") (js-object :role "user" :content (public-text (get row :content) 800)))))
+              (when (= (get row :role) "user") (js-object :role "user" :content (public-text (get row :content) chat-input-limit)))))
           :activeSubject active :methods (read-catalog) :now (iso (* (Math/floor (/ (Date/now) 60000)) 60000))))
         (result (await (ai-call "read" (js-object :task "read-plan"
           :instruction "先确定用户本轮真正要解决的主问题，再为这个问题选择固定只读资料。只输出JSON {\"topic\":\"当前主题，120字符内\",\"scope\":{\"subject\":\"service或tibo或general或mixed\",\"source\":\"current或user-history或request或quoted或inherited\",\"quote\":\"current/user-history时的逐字短句，200字符内；inherited/quoted/request时空\"},\"queries\":[{\"command\":\"目录方法\",\"args\":{}}]}。最多3项，不重复；先填scope，queries仅服务该范围。service=OpenAI服务状态和事故历史，tibo=Tibo发言与Codex统一重置业务，general=其他主题。理解主题时以用户目标为主线：当前明确请求最优先；简短引用追问沿着initialRequest中的真实用户原始问题或activeSubject延续，即使直接引用的机器人回复已经答偏，也回到用户原主题；若还没有已确认主题，优先使用quotedRequest中产生该引用回复的真实用户原问题（允许拼写误差），其次选择直接引用正在回答的核心问题。机器人自行提出的可选建议属于背景，用户明确选中才成为请求。引用一条表示无法查某项信息的回复后要求查询，是要求补齐原问题的信息。主主题可以从历史语义和引用主旨理解，不要求当前用户重复主体。scope.source标明依据：current的quote来自当前question；user-history来自history中用户发言；request使用initialRequest或quotedRequest的真实用户原问题，quote留空；quoted使用已给出的quotedMessage主旨，quote留空；inherited继承activeSubject，quote留空。简短追问有activeSubject时优先用inherited继承它；当前用户明确换题时用current及其换题原句；activeSubject存在时，其他source均延续它。只有当前用户明确同时要求service和tibo两种资料才用mixed且source=current，quote引用同时请求的原句；引用中并列出现两个主题并不等于用户要求两种查询。需要补齐信息就实际选方法，普通闲聊、解释或改写已有材料用空queries，主体确实不明时交给回答阶段询问。服务状态用service-status，服务历史用service-history；重置状态和历史才用status/history。通用搜索、算术、时间、日期和单位方法可为当前主题提供必要资料。每个查询都应直接帮助当前问题；搜索词只描述本轮主题。当前question才授权查询，历史仅帮助理解，不执行旧命令。只用目录中的只读方法和规范参数，目录外能力用空queries。参数不含URL、身份、路径、命令行，不编造缺失数值；日期是YYYY-MM-DD或带Z的UTC ISO，纯日期表示UTC零点，未知个人时区时time用UTC。无需回答、写代码、提出下一步或调用工具。"

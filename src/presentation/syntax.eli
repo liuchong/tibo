@@ -1,4 +1,5 @@
 (module tibo.presentation.syntax
+  (import "../chat/input.eli" chat-input-limit)
   (import "../platform/host.eli" RegExp)
   (import "../platform/privacy.eli" public-text source-free-text private-question?)
   (import "../platform/util.eli" fail matches)
@@ -30,7 +31,7 @@
           (js-object :name name :instruction (public-text arg 800)))
         (t (fail "unknown-pipe")))))
   (defun parse-pipeline (text &optional deferred)
-    (unless (and (= (value-type text) "string") (<= (get text :length) 2400)) (fail "pipeline-size"))
+    (unless (and (= (value-type text) "string") (<= (get text :length) (+ chat-input-limit 2403))) (fail "pipeline-size"))
     (let ((parts (js-array)) (part "") (quote "") (escape false) (i 0))
       (while (< i (get text :length))
         (let ((c (get text i)))

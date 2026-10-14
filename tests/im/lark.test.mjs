@@ -15,7 +15,7 @@ test('group allowlist and exact bot mention admit only bounded user query text',
  expect(command_of(event({mentions:[],content:JSON.stringify({text:'🙏'})}),['oc_test'],'ou_bot')).toBe('pray');
  expect(command_of(event({mentions:[],content:JSON.stringify({text:'[双手合十]'})}),['oc_other'],'ou_bot')).toBeNull();
  expect(command_of(event({content:JSON.stringify({text:'@_user_1 最近发言是什么'})}),['oc_test'],'ou_bot')).toBe('最近发言是什么');
- expect(command_of(event({content:JSON.stringify({text:'@_user_1 '+'x'.repeat(801)})}),['oc_test'],'ou_bot')).toBeNull();
+ expect(command_of(event({content:JSON.stringify({text:'@_user_1 '+'x'.repeat(801)})}),['oc_test'],'ou_bot')).toBe('x'.repeat(801));
 });
 test('morning/evening schedule is Beijing time, bounded, exact header slot',()=>{
  expect(slot_at('2026-10-03T01:00:33Z').at).toBe('2026-10-03T01:00:00.000Z');

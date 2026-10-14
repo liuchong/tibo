@@ -1,4 +1,5 @@
 (module tibo.commands.catalog
+  (import "../chat/input.eli" chat-input-limit)
   (import "../platform/host.eli" Number RegExp)
   (import "../platform/privacy.eli" public-text source-free-text)
   (import "./admin.eli" is-admin)
@@ -33,7 +34,7 @@
       (js-object :name "unsubscribe" :aliases (js-array "退订" "取消订阅") :purpose "任何会话默认取消本人私聊订阅；target=group取消指定群订阅，仅管理员在操作群/私聊申请并二次确认，省略chatId规则同subscribe" :params subscription-params :positionals (js-array "target" "chatId"))
       (js-object :name "subscription" :aliases (js-array "订阅状态") :purpose "任何会话默认查看本人私聊订阅；target=group仅管理员在操作群/私聊查看群订阅，省略chatId规则同subscribe" :params subscription-params :positionals (js-array "target" "chatId"))
       (js-object :name "ask" :aliases (js-array "问答") :purpose "了解Tibo背景的基础聊天、概念解释、文字处理或常识问答；可按需查官方服务状态、公开搜索摘要、数字计算和时间；引用时延续同一对话Thread，未引用时单轮；不能执行命令或操作账户，不提供未抓取的新事件事实"
-        :params (js-object :question (js-object :type "string" :maxLength 800 :required t)) :positionals (js-array "question"))
+        :params (js-object :question (js-object :type "string" :maxLength chat-input-limit :required t)) :positionals (js-array "question"))
       (js-object :name "service-status" :aliases (js-array) :purpose "查询OpenAI官方服务整体、组件与进行中事故；不同于Codex重置状态"
         :params (js-object) :positionals (js-array))
       (js-object :name "service-history" :aliases (js-array) :purpose "查询OpenAI官方服务事故历史，含已解决事故、时间与更新；不查询重置公告。官方最近一页可能不覆盖完整范围"

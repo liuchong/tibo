@@ -146,3 +146,26 @@ test('incomplete reference history cannot trigger a guessed read plan or source 
  const d=await trial('let calls=0;globalThis.fetch=async()=>{calls++;throw Error("unexpected I/O")};const {execute_query}=await import('+path('commands/index')+');const rows=[];for(const state of ["partial","unavailable"])rows.push(await execute_query({command:"ask",args:{question:"Show that data"}},{threadConversation:{state,messages:[]}}));console.log(JSON.stringify({rows,calls}));');
  expect(d.calls).toBe(0);expect(d.rows.every(r=>r.ok===false)).toBe(true);
 });
+
+test('long explicit messages keep the complete user turn through planning and answering; oversized inputs reply without AI',async()=>{
+ const d=await trial(`const prompts=[];globalThis.fetch=async(u,o)=>{const b=JSON.parse(o.body);prompts.push(b);return Response.json({choices:[{finish_reason:'stop',message:{content:JSON.stringify(b.max_tokens===600?{topic:'Explain supplied progress',queries:[]}:{text:'The final supplied detail is understood.'})}}]});};
+ const {trigger_candidate}=await import(${path('im/triggers')});const {resolve_query,execute_query}=await import(${path('commands/index')});
+ const text='Explain supplied progress. '+('A public progress note. '.repeat(130))+'FINAL-DETAIL';
+ const candidate=trigger_candidate(text,false,true);const query=await resolve_query(candidate.command,null,{conversationMode:true,humanInput:true});const result=await execute_query(query,{threadConversation:{state:'ready',messages:[]}});
+ const over='x'.repeat(16001),oversized=await resolve_query(trigger_candidate(over,false,true).command,null,{conversationMode:true});const before=prompts.length;
+ const denied=await execute_query(oversized),directDenied=await execute_query({command:'ask',args:{question:over}});
+ console.log(JSON.stringify({text,candidate,query,result,prompts,before,denied,directDenied}));`);
+ expect(d.text.length).toBeGreaterThan(2400);expect(d.candidate.kind).toBe('direct');expect(d.query.args.question).toBe(d.text);
+ expect(d.prompts).toHaveLength(2);for(const p of d.prompts)expect(JSON.parse(p.messages.at(-1).content).question).toBe(d.text);
+ expect(d.result.ok).toBe(true);expect(d.denied.text).toContain('16000');expect(d.directDenied.text).toContain('16000');expect(d.prompts.length).toBe(d.before);
+});
+
+test('a semantic chat route need not echo long text into a small output budget, and cannot change the original question',async()=>{
+ const d=await trial(`const prompts=[];globalThis.fetch=async(u,o)=>{const b=JSON.parse(o.body);prompts.push(b);return Response.json({choices:[{finish_reason:'stop',message:{content:JSON.stringify({command:'ask',args:{},language:'en'})}}]});};const {resolve_query}=await import(${path('commands/index')});const text='Explain this material. '+('Public context. '.repeat(180))+'FINAL-DETAIL';const r=await resolve_query(text,null,{humanInput:true});console.log(JSON.stringify({text,r,prompts}));`,'router');
+ expect(d.r.command).toBe('ask');expect(d.r.args.question).toBe(d.text);expect(JSON.parse(d.prompts[0].messages.at(-1).content).question).toBe(d.text);
+});
+
+test('user-supplied measurements in a long source discussion are preserved, while an unprovided percentage is still rejected',async()=>{
+ const d=await trial(`let invented=false;globalThis.fetch=async()=>Response.json({choices:[{finish_reason:'stop',message:{content:JSON.stringify({text:invented?'The next reset is 91%.':'Your supplied measurements say 80% and 50%.'})}}]});const {chat_text}=await import(${path('presentation/chat')});const question='Discuss the 80% capacity increase and 50% speed improvement.';const good=await chat_text(question,'en',{},'The verified current post reports a 60% disk reduction.');invented=true;const bad=await chat_text('What is the chance of the next reset?','en',{},'The verified current post reports a 60% disk reduction.');console.log(JSON.stringify({good,bad}));`,'answer');
+ expect(d.good.state).toBe('ok');expect(d.good.value.text).toContain('80%');expect(d.bad.state).toBe('fallback');expect(d.bad.value).toBeUndefined();
+});
