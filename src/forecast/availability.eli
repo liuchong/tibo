@@ -19,7 +19,8 @@
         :clockReliable (not (not (and global (get global :verified) (not (get global :observed)))))
         :primaryPosts (get primary :length) :archivePosts (- (get current :length) (get primary :length))
         :officialDocuments (get documents :length)
-        :activeIncident (js-call documents :some (lambda (d) (and (= (get d :type) "incident") (not (= (get d :status) "resolved")))))
+        :activeIncident (js-call documents :some (lambda (d) (and (= (get d :type) "incident")
+          (js-call (js-array "investigating" "identified" "monitoring") :includes (get d :status)))))
         :recentRelease (js-call documents :some (lambda (d) (= (get d :type) "release"))) :missing missing
         :historyFresh fresh :experienceUnavailable (get snapshot :experienceUnavailable false)
         :usableIntervals (if history (get (eligible (get history :intervals)) :length) 0)
