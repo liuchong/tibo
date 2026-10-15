@@ -1,0 +1,42 @@
+(module tibo.forecast.promise-prior
+  (import "../platform/util.eli" ms hour-ms day-ms clamp)
+  ;; Explicit, inspectable engineering priors, not fabricated historical counts.
+  (defconst prior (js-object :deliveryAlpha 4 :deliveryBeta 1 :onTimeShare 0.8
+    :delayHours 3 :delayMass 3 :cohortMass 4 :halfLifeDays 90))
+  (defun delivery-cdf (at published deadline delay)
+    (let ((elapsed (- at published)) (lead (Math/max 1 (- deadline published))))
+      (cond ((<= elapsed 0) 0)
+        ((< at deadline) (* (get prior :onTimeShare) (/ elapsed lead)))
+        (t (- 1 (* (- 1 (get prior :onTimeShare)) (Math/exp (/ (- deadline at) (* delay hour-ms)))))))))
+  (defun estimate-prior (prob promise snapshot history audit)
+    (let* ((now (ms (get snapshot :now))) (at (ms (get promise :at))) (deadline (ms (get promise :targetAt)))
+      (bucket (cond ((<= (- deadline at) (* 24 hour-ms)) "under24h")
+        ((<= (- deadline at) (* 48 hour-ms)) "under48h") (t "over48h")))
+      (mass (get prior :delayMass)) (delay-total (* mass (get prior :delayHours))) (delay-n 0)
+      (previous (get prob :promisePrior (js-object)))
+      (base24 (get previous :baseline24 (get prob :p24 (get prob :base24 0))))
+      (base48 (get previous :baseline48 (get prob :p48 (get prob :base48 0)))))
+      (js-call (get history :rows) :forEach (lambda (row)
+        (when (and (get row :primary) (= (get row :revisionCount) 1) (get row :completionAt)
+          (< (ms (get row :at)) at) (<= (ms (get row :completionAt)) now)
+          (= (get row :leadBucket) bucket) (= (get row :timePrecision) (get promise :timePrecision)))
+          (let* ((w (Math/exp (* -1 (Math/log 2) (/ (- now (ms (get row :completionAt))) (* (get prior :halfLifeDays) day-ms)))))
+            (delay (Math/max 0 (/ (- (ms (get row :completionAt)) (ms (get row :targetAt))) hour-ms))))
+            (setq mass (+ mass w) delay-total (+ delay-total (* w delay)) delay-n (+ delay-n 1))))))
+      (let* ((delay (Math/max 0.25 (/ delay-total mass)))
+        (q (/ (get prior :deliveryAlpha) (+ (get prior :deliveryAlpha) (get prior :deliveryBeta))))
+        (seen (delivery-cdf now at deadline delay)) (rows (js-array)) (n (get audit :n 0)))
+        (js-call (js-array 24 48) :forEach (lambda (hours index)
+          (let* ((base (/ (if (= index 0) base24 base48) 100))
+            (future (delivery-cdf (+ now (* hours hour-ms)) at deadline delay))
+            ;; Condition on no completion observed yet. The deadline naturally
+            ;; affects both horizons; overdue promises lose mass continuously.
+            (delivery (/ (* q (Math/max 0 (- future seen))) (- 1 (* q seen))))
+            (model (- 1 (* (- 1 base) (- 1 delivery))))
+            (hits (get (get audit (if (= index 0) :h24 :h48) (js-object)) :successes 0))
+            (estimate (/ (+ hits (* (get prior :cohortMass) model)) (+ n (get prior :cohortMass)))))
+            (js-call rows :push (clamp (* 100 estimate))))))
+        (js-object :policy "promise-prior-1" :applied t :calibrated false :prior prior :n n
+          :baseline24 base24 :baseline48 base48 :delayHours delay :delaySamples delay-n
+          :p24 (get rows 0) :p48 (Math/max (get rows 0) (get rows 1))))))
+  (export estimate-prior))

@@ -56,7 +56,7 @@
                  (row (js-object :at now :p24 (get prob :p24) :p48 (get prob :p48)
                    :historicalPrediction (js-object :p24 (Math/round (get prob :base24)) :p48 (Math/round (get prob :base48)))
                    :information (get prob :information) :policyVersion (get prob :policyVersion)
-                   :signalBucket (get prob :signalBucket) :models (get (get prob :model) :candidates) :signal (get prob :signal) :outcome nil)))
+                   :signalBucket (get prob :signalBucket) :models (get (get prob :model (js-object)) :candidates (js-array)) :signal (get prob :signal) :outcome nil)))
             (put row :programme (get (get result :signals) :programme))
             (put row :cycle (get result :cycle))
             (when (and proposal (get proposal :value))

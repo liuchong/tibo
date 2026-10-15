@@ -45,7 +45,7 @@ test('unparseable time, missing object and negation cannot become a timed promis
 });
 test('fresh explicit primary deadline is strong evidence without inventing a fixed probability',()=>{
  const s=snapshot({now:'2026-09-25T01:00:00Z',posts:[...snapshot().posts,post(25,'Global reset landing tomorrow 10am PST for all paid accounts.')]});
- const r=judge(s);expect(r.forecast.signalStrength).toBe('强');expect(r.forecast.p24).toBeNull();expect(r.forecast.available).toBe(false);expect(r.forecast.confidence).not.toBe('高');
+ const r=judge(s);expect(r.forecast.signalStrength).toBe('强');expect(r.forecast.p24).toBeGreaterThan(0);expect(r.forecast.available).toBe(true);expect(r.forecast.confidence).not.toBe('高');
  expect(r.forecast.base24).toBe(judge(snapshot({now:s.now})).forecast.base24);
  expect(r.forecast.promisePolicy).toMatchObject({applied:false,calibrated:false,reason:'insufficient-audited-cases'});
 });

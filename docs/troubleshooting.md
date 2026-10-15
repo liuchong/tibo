@@ -55,7 +55,7 @@ tibo diagnose
 
 同时查采集和判断，不能只看“帖子抓到了”。预告若分成父帖说明重置、子回复说明时间，核对两者是否都有完整官方正文，以及子回复的 `parentId/parentRelationProvenance`。`signals.promise` 应指向限时回复并包含 `targetAt`；范围经多日计划推断时还应保留 `scopeBasis/programmePostId`。没有真实父帖关系时不能凭时间接近补齐。
 
-`forecast.promisePolicy` 解释承诺兑现历史是否足够。样本不足并不等于低概率；明确承诺有效时应为 `mode=announced-reset-unquantified`，公开显示高预期或逾期待确认，而非继续输出普通历史百分比。检查 `announcement` 和公开模板，避免聊天 AI 把旧低值当成本轮结论。实际追问沿用本轮资料纠错，旧聊天百分比只能作为待纠正的历史引用。可用原快照重放 `forecast --snapshot <快照> --no-ai` 验证，重放不向 IM 补发消息。
+`forecast.promisePolicy` 记录严格历史估计条件；该路径未启用时，完整有效承诺使用 `mode=smoothed-promise-history` 和 `promisePrior`，仍输出具体百分比。检查 `announcement`、原始基线和当前期限，避免聊天 AI 把旧值当成本轮结论。只有少量历史或没有历史时，`ratePrior` 记录事件率平滑先验；不再显示“高”或缺少数值。实际追问沿用本轮资料纠错，旧聊天百分比只能作为待纠正的历史引用。可用原快照重放 `forecast --snapshot <快照> --no-ai` 验证，重放不向 IM 补发消息。
 
 引用追问质疑预测时，语义资料计划应实际读取 forecast，而不是只解释已列出的发言。若模型将当前用户原句误标为历史引用，程序按精确原文归属纠正来源标签，再执行既有范围校验；不会因此增加查询权限或多轮调用。回答使用程序给出的 `asOf/deadlineState` 区分仍待兑现与期限已过。
 

@@ -30,7 +30,7 @@
             ((get cycle :justReset) "wait-under24h")
             ((get cycle :referencePassed) "wait-over7d") (t "wait-1to7d"))))
         (learned (js-object :applied false :reason "legacy-signal-experience-disabled")))
-      (apply-promise-policy (js-object :policyVersion "8" :cycle cycle :information info :p24 (clamp (get model :p24))
+      (apply-promise-policy (js-object :policyVersion "9" :cycle cycle :information info :p24 (clamp (get model :p24))
         :p48 (Math/max (clamp (get model :p24)) (clamp (get model :p48)))
         :base24 (get model :p24) :base48 (get model :p48) :confidence "低"
         :signal signal :signalStrength (if active (if (get promise :primary) "强" "中") "弱")

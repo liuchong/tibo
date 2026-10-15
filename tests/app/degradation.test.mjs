@@ -14,14 +14,15 @@ test('missing clock verification disables elapsed models, with rates still avail
  expect(unverified.forecast.mode).toBe('history-rate-fallback');expect(unverified.forecast.information.missing).toContain('官方事故资料');
  expect(unverified.forecast.p24).toBeGreaterThan(0);expect(unverified.forecast.p48).toBeGreaterThanOrEqual(unverified.forecast.p24);
 });
-test('insufficient history degrades to evidence rather than fabricated probability or a total command error',async()=>{
+test('sparse histories use an explicit numeric rate prior and preserve normal reports',async()=>{
  const dir=await mkdtemp(join(tmpdir(),'tibo-evidence-only-'));const old=process.env.TIBO_STATE_DIR;process.env.TIBO_STATE_DIR=dir;
  try{
   for(const events of [[],[event(24)],[event(1),event(24)]]){
    const s=snapshot({events}),path=join(dir,'snapshot.json');await writeFile(path,JSON.stringify(s));
-   const r=await run_report({snapshotPath:path,channel:'cli'});expect(r.forecast.available).toBe(false);
-   expect(r.report).toContain('暂无法估计');expect(r.report).not.toMatch(/\d+%/);expect(public_forecast(r,'both')).toContain('暂无法估计');
-   expect(await read_state('experience')).toBeNull();expect(await read_state('report-cli')).toBeNull();
+   const r=await run_report({snapshotPath:path,channel:'cli'});expect(r.forecast.available).toBe(true);
+   expect(r.report).toMatch(/24h：[0-9]+%/);expect(public_forecast(r,'both')).toMatch(/48h：[0-9]+%/);
+   expect(r.forecast.ratePrior).toMatchObject({priorAlpha:1,priorBetaDays:10});expect(r.forecast.p48).toBeGreaterThanOrEqual(r.forecast.p24);
+   expect(await read_state('experience')).toBeNull();expect((await read_state('report-cli')).p24).toBe(r.forecast.p24);
   }
  }finally{if(old===undefined)delete process.env.TIBO_STATE_DIR;else process.env.TIBO_STATE_DIR=old;await rm(dir,{recursive:true,force:true});}
 });

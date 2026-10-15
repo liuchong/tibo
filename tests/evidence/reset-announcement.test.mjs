@@ -27,10 +27,10 @@ test('official typed reply metadata survives immutable body reuse, and no page c
 
 test('verified ellipsis inherits its reset episode and numeric relative deadline, including no-AI features',()=>{
  const s=input(),r=judge(s);expect(r.signals.promise).toMatchObject({postId:childId,parentId,kind:'global',targetAt:'2026-10-15T06:01:00.000Z',timePrecision:'deadline',scopeBasis:'declared-full-reset-programme'});
- expect(r.forecast).toMatchObject({available:false,p24:null,p48:null,mode:'announced-reset-unquantified'});
+ expect(r.forecast).toMatchObject({available:true,mode:'smoothed-promise-history'});
  const selected=post_context(s.posts,now,r.signals.lastGlobal).posts.find(p=>p.id===childId);
  expect(local_row(selected).claims[0]).toMatchObject({kind:'promise',scope:'global',statement:'future',timing:{stance:'commitment',amount:2,window:'within-hours'}});
- const text=public_forecast(r);expect(text).toContain('24h：高');expect(text).toContain(child);expect(text).toContain(parent);expect(text).not.toMatch(/24h：[0-9]+%/);
+ const text=public_forecast(r);expect(text).toMatch(/24h：[0-9]+%/);expect(text).toContain(child);expect(text).toContain(parent);expect(r.forecast.p24).toBeGreaterThan(70);
 });
 
 test('adjacent posts, absent parents, foreign authors, conditional or banked parents never create a global commitment',()=>{
@@ -43,7 +43,7 @@ test('adjacent posts, absent parents, foreign authors, conditional or banked par
 });
 
 test('missed deadline becomes pending confirmation, and a new completion consumes the promise',()=>{
- const s=input();const overdue=judge({...s,now:'2026-10-15T07:00:00Z'});expect(public_forecast(overdue)).toContain('预告期限已过');expect(public_forecast(overdue)).not.toContain('24h：高');
+ const s=input();const overdue=judge({...s,now:'2026-10-15T07:00:00Z'});expect(public_forecast(overdue)).toContain('预告时间已过');expect(overdue.forecast.p24).toBeLessThan(judge(s).forecast.p24);
  const doneId=id('2026-10-15T04:10:00Z');s.posts.push({id:doneId,at:'2026-10-15T04:10:00Z',author:'thsottiaux',provenance:'primary',text:'Global reset has been processed.'});s.events.push({id:doneId,at:'2026-10-15T04:10:00Z',global:true,banked:false});
  const done=judge(s);expect(done.signals.promise.fulfilled).toBe(true);expect(done.forecast.announcement).toBeUndefined();
 });

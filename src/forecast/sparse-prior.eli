@@ -1,0 +1,13 @@
+(module tibo.forecast.sparse-prior
+  (import "../platform/util.eli" ms day-ms)
+  ;; Gamma-Poisson posterior predictive rate for cold starts. Ten days is an
+  ;; engineering prior mean interval, unrelated to personal weekly refreshes.
+  (defun sparse-prior (events now)
+    (let* ((globals (js-call events :filter (lambda (e) (and (get e :global) (get e :verified)
+      (not (get e :observed)) (<= (ms (get e :at)) (ms now))))))
+      (n (get globals :length)) (exposure (if (> n 0) (Math/max 0 (/ (- (ms now) (ms (get (get globals 0) :at))) day-ms)) 0))
+      (alpha (+ 1 (Math/max 0 (- n 1)))) (beta (+ 10 exposure))
+      (predict (lambda (days) (* 100 (- 1 (Math/pow (/ beta (+ beta days)) alpha))))))
+      (js-object :p24 (funcall predict 1) :p48 (funcall predict 2) :alpha alpha :betaDays beta
+        :events n :exposureDays exposure :priorAlpha 1 :priorBetaDays 10)))
+  (export sparse-prior))

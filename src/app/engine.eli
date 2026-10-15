@@ -7,6 +7,7 @@
   (import "../forecast/forecast.eli" forecast)
   (import "../forecast/promise-policy.eli" apply-promise-policy)
   (import "../forecast/models.eli" eligible)
+  (import "../forecast/sparse-prior.eli" sparse-prior)
   (import "../forecast/availability.eli" information)
   (import "../presentation/report.eli" render-report)
   (import "../forecast/experience.eli" record-prediction)
@@ -49,9 +50,11 @@
       (if (and history (>= (get (eligible (get history :intervals)) :length) 3)) (judge snapshot)
         (progn
           (put observed :history history)
-          (put observed :forecast (js-object :available false :p24 nil :p48 nil :base24 nil :base48 nil :confidence "低"
-            :mode "evidence-only" :policyVersion "8" :information (information snapshot (get observed :signals) history)
-            :signal "数值依据不足" :signalStrength "未知" :reasons (js-array "历史不足，保留公告和原帖；不编造数值概率")))
+          (let ((prior (sparse-prior (get observed :events) (get snapshot :now))))
+            (put observed :forecast (js-object :available t :p24 (Math/round (get prior :p24)) :p48 (Math/round (get prior :p48))
+              :base24 (get prior :p24) :base48 (get prior :p48) :confidence "低" :ratePrior prior
+              :mode "smoothed-event-rate" :policyVersion "9" :information (information snapshot (get observed :signals) history)
+              :signal "历史事件率" :signalStrength "未知" :reasons (js-array "稀疏历史使用平滑事件率预测"))))
           (apply-promise-policy (get observed :forecast) (get observed :signals) snapshot) observed))))
   (defasync load-snapshot (&optional path offline)
     (if path (validate-snapshot (JSON/parse (await (readFile path "utf8"))))

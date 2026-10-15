@@ -35,9 +35,9 @@ test('authenticated official account originals can supplement Tibo; unrelated pe
  const r=docs(judge(input()),[{id:'public-post-2107676653895967106',type:'post',at:'2026-10-07T12:00:00Z',author:'openaidevs',text:'Codex usage rate limits will change for eligible accounts.',url:'https://x.com/openaidevs/status/2107676653895967106',provenance:'official-post'}]);
  expect(render_report(r)).toContain('@openaidevs');expect(report_evidence(r).length).toBeLessThanOrEqual(4);
 });
-test('history insufficiency and unknown clock retain all sections without invented numbers or operational status',()=>{
+test('cold starts retain fixed sections and give numeric smoothed forecasts without operational explanations',()=>{
  const r=available_judgment(snapshot({events:[],posts:[]})),text=render_report(r);
- expect(text).toContain('• 24h：暂无法估计');expect(text).toContain('• 48h：暂无法估计（含24h）');expect(text).toContain('上次重置：未核实');expect(text).toContain('未见可用的相关原始消息');expect(text).not.toMatch(/\d+%|AI任务|采集|7天/);
+ expect(text).toMatch(/• 24h：[0-9]+%/);expect(text).toMatch(/• 48h：[0-9]+%（含24h）/);expect(text).toContain('上次重置：未核实');expect(text).toContain('未见可用的相关原始消息');expect(text).not.toMatch(/AI任务|采集|7天|暂无法估计/);
 });
 test('banked timed promises and expired global promises cannot read like a fresh global commitment',()=>{
  const s=input();s.posts.push(post(24,'A banked reset card landing tomorrow 10am PST for all paid accounts.',{id:'2107676653895967107',at:'2026-10-07T12:00:00Z'}));

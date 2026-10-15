@@ -29,12 +29,12 @@ test('audited comparable outcomes produce different estimates, not one fixed pro
  expect(high.forecast.p48).toBeGreaterThanOrEqual(high.forecast.p24);
  expect(high.forecast.promisePolicy.calibrated).toBe(false);
 });
-test('small or imprecise cohorts retain baseline diagnostics without presenting them as a promise-conditioned forecast',()=>{
+test('small or imprecise cohorts use explicit smoothing while retaining the original baseline diagnostics',()=>{
  for(const s of [cohort([0]),cohort(Array(11).fill(0)),cohort([...Array(6).fill(0),...Array(6).fill(70)])]){
   const r=available_judgment(s),base=available_judgment({...s,posts:s.posts.filter(p=>p.id!=='current')});
   expect(r.forecast.promisePolicy.applied).toBe(false);
   expect(r.forecast.base24).toBe(base.forecast.base24);
-  expect(r.forecast.p24).toBeNull();expect(r.forecast.available).toBe(false);
+  expect(r.forecast.p24).toBeGreaterThan(0);expect(r.forecast.available).toBe(true);expect(r.forecast.promisePrior.applied).toBe(true);
   expect(r.forecast.announcement.postId).toBe('current');
  }
  expect(judge(cohort(Array(12).fill(0))).forecast.p24).toBeLessThan(100);
