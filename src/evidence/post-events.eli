@@ -1,0 +1,20 @@
+(module tibo.evidence.post-events
+  (import "./reset-text.eli" completed? completed-post?)
+  (import "./post-context.eli" completion-context)
+  (import "../platform/util.eli" ms matches sorted)
+  (defun events-from-posts (posts)
+    (let ((result (js-array)) (last-global-at 0))
+      (js-call (sorted posts "at") :forEach (lambda (p)
+        (let* ((text (get p :text)) (context (completion-context p posts))
+          (direct (completed? text))
+          (global (and (completed-post? p context)
+            (or direct (> (ms (get context :resetContextAt)) last-global-at))))
+          (banked (and (matches "banked|reset card" text) (matches "added|granted|available|issued" text)
+            (not (matches "will|tomorrow|not |no " text)))))
+          (when (and (or global banked) (= (get p :provenance) "primary") (not (get p :truncated)))
+            (js-call result :push (js-object :id (get p :id) :at (get p :at) :global global :banked banked
+              :observed false :url (get p :url) :scope "以原文对象为准" :provenance "primary"
+              :completionBasis (when (and global (not direct)) (get context :resetContextBasis))
+              :completionPostIds (when (and global (not direct)) (get context :resetContextPostIds))))
+            (when global (setq last-global-at (ms (get p :at)))))))) result))
+  (export events-from-posts))

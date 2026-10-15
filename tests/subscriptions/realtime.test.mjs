@@ -38,6 +38,18 @@ test('startup seeds known historical resets so later primary verification does n
  now+=300000;s={...s,now:new Date(now).toISOString(),posts:snapshot().posts};
  await watch_tick(900,async()=>s,generate);expect(await pending_alerts()).toEqual([]);
 }));
+test('newly verified completion relationships regenerate predictions and enqueue one confirmation without a text change',()=>isolated(async()=>{
+ let now=Date.parse('2026-09-25T01:00:00Z'),calls=0;Date.now=()=>now;
+ const promise=post(25,'Global reset landing within the next 2 hours.',{id:'linked-promise',at:'2026-09-25T00:30:00Z'});
+ const done=post(25,'Done and dusted',{id:'linked-done',at:'2026-09-25T00:50:00Z'});
+ let s=snapshot({now:new Date(now).toISOString(),posts:[...snapshot().posts,promise,done]});
+ const generate=async x=>{calls++;return{...judge(x),report:'shared forecast'};};
+ await watch_tick(900,async()=>s,generate);expect(calls).toBe(1);expect(await pending_alerts()).toEqual([]);
+ now+=300000;s={...s,now:new Date(now).toISOString(),posts:s.posts.map(p=>p.id===done.id?{...p,quotedPostId:promise.id,quotedRelationProvenance:'official-page-data'}:p)};
+ const next=await watch_tick(900,async()=>s,generate);expect(calls).toBe(2);expect(next.result.signals.promise.fulfilled).toBe(true);expect(next.result.signals.lastGlobal.id).toBe(done.id);
+ expect((await pending_alerts()).map(a=>a.kind)).toEqual(['confirmed']);
+ await watch_tick(900,async()=>s,generate);expect(calls).toBe(2);expect((await pending_alerts()).map(a=>a.kind)).toEqual(['confirmed']);
+}));
 test('high probabilities notify once per cycle without modifying numbers; unavailable probabilities are not treated as high',()=>isolated(async()=>{
  const r={...judge(snapshot()),report:'24h 75% / 48h 88%'};r.forecast.p24=75;r.forecast.p48=88;
  const a=await forecast_alert(r,[],null);expect(a.highCycle).toBe('event-24');await forecast_alert(r,[],a.highCycle);expect(await pending_alerts()).toHaveLength(1);

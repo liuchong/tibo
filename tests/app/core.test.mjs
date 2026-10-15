@@ -91,7 +91,7 @@ test('accident compensation hint is not suppressed by a recent banked grant',()=
 });
 test('status remains usable with no global history or no probability denominator',async()=>{
  const {observe,reset_status}=await import('../../dist/src/app/engine.mjs');
- expect(reset_status(observe(snapshot({events:[]}))).state).toBe('unknown');
+ expect(reset_status(observe(snapshot({events:[],posts:[]}))).state).toBe('unknown');
  expect(reset_status(observe(snapshot({events:[event(24)]}))).latestGlobal.at).toBe(at(24));
 });
 test('external prediction values never affect our probability',()=>{

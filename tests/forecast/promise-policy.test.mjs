@@ -45,11 +45,13 @@ test('a deadline alone has no probability floor; weak, partial, archived, unreso
   {...promise(),text:'A banked reset card landing by EOD PST for all users.'},
   {...promise(),text:'Global reset only for some users by EOD PST.'},
   {...promise(),text:'Global reset will not land by EOD PST.'},
-  {...promise(),text:'Global reset has been processed. Enjoy today 10am PST.'},
   {...promise(),truncated:true},{...promise(),contextMissing:true},{...promise(),provenance:'archive'}]){
    const r=judge({...s,posts:[...s.posts.slice(0,-1),p]});
    expect(r.forecast.promisePolicy.applied).toBe(false);expect(r.forecast.p24).toBe(base.forecast.p24);
  }
+ const completed={...promise(),text:'Global reset has been processed. Enjoy today 10am PST.'};
+ const r=judge({...s,posts:[...s.posts.slice(0,-1),completed]});
+ expect(r.signals.lastGlobal).toMatchObject({id:completed.id,verified:true});expect(r.forecast.promisePrior).toBeUndefined();expect(r.forecast.p24).toBeLessThan(base.forecast.p24);
 });
 test('consumed commitments are inactive; overdue and sparse commitments cannot invent probabilities',()=>{
  const s=input();const expired=judge({...s,now:'2026-10-13T08:01:00Z'});expect(expired.forecast.promisePolicy.applied).toBe(false);

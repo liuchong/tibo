@@ -1,9 +1,10 @@
 (module tibo.forecast.signals
-  (import "../evidence/reset-text.eli" completed? conditional-reset? routine-reset?)
-  (import "../evidence/post-context.eli" active-programme linked-reset-context)
+  (import "../evidence/reset-text.eli" completed? completed-post? conditional-reset? routine-reset?)
+  (import "../evidence/post-events.eli" events-from-posts)
+  (import "../evidence/post-context.eli" active-programme linked-reset-context completion-context)
   (import "../evidence/post-features.eli" reset-scope time-text)
   (import "../evidence/reset-timing.eli" expectation-stance negative-expectation? local-timing)
-  (import "../platform/host.eli" Date Set Number Intl)
+  (import "../platform/host.eli" Date Set Map Number Intl)
   (import "../platform/util.eli" ms iso hour-ms day-ms matches match sorted last-item recent)
   ;; PST/PDT are fixed offsets. An unqualified PT uses IANA Pacific DST.
   (defun pacific-date (at)
@@ -37,8 +38,12 @@
   (defun target-precision (text)
     (if (matches "\\bby\\b[^.!?]*(?:\\bEOD\\b|end of (?:the\\s+)?day)|\\bwithin\\b|\\bnext\\s+[0-9]+\\s+(?:hours?|days?)" text) "deadline" "instant"))
   (defun normalize-events (snapshot)
-    (let* ((posts (get snapshot :posts)) (now (get snapshot :now)) (seen (new Set)) (events (js-array)))
-      (js-call (sorted (get snapshot :events) "at") :forEach
+    (let* ((posts (get snapshot :posts)) (now (get snapshot :now)) (seen (new Set)) (events (js-array)) (records (new Map)))
+      ;; Reconcile originals before any baseline, promise, feature or status
+      ;; calculation, including offline snapshots and previously saved ledgers.
+      (js-call (js-call (get snapshot :events) :concat (events-from-posts posts)) :forEach (lambda (event)
+        (js-call records :set (get event :id) (Object/assign (js-object) (js-call records :get (get event :id)) event))))
+      (js-call (sorted (Array/from (js-call records :values)) "at") :forEach
         (lambda (event)
           (let* ((post (js-call posts :find (lambda (p) (= (get p :id) (get event :id)))))
                  (text (if post (get post :text) ""))
@@ -56,7 +61,8 @@
                     (put copy :global false) (put copy :banked t))
                   (when (and (not (completed? text)) (matches "landing|will reset|reset tomorrow|reset next week|reset.*by EOD" text))
                     (put copy :global false)))
-                (put copy :verified (not (not (and post (not (get post :truncated)) (completed? text)))))
+                (put copy :verified (not (not (and post (not (get post :truncated))
+                  (completed-post? post (completion-context post posts))))))
                 (when post (put copy :provenance (get post :provenance)))
                 (put copy :verifiedBanked (not (not (and post (matches "banked|reset card" text)))))
                 (put copy :text text)

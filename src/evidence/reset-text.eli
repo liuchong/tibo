@@ -34,4 +34,17 @@
             (not (matches "banked|reset card" s)))))))))
   (defun conditional-reset? (text)
     (and (matches "reset" text) (matches "\\beither\\b[\\s\\S]*\\bor\\b|\\bif\\b[\\s\\S]*reset|reset[\\s\\S]*\\binstead\\b|\\b(?:updates?|improvements?)\\s+or\\s+(?:a\\s+|full\\s+|global\\s+)*reset\\b" text)))
-  (export completed? conditional-reset? routine-reset? statements))
+  ;; A short completed-status utterance has no reset object on its own. A
+  ;; separately verified reference chain must supply the global reset subject.
+  (defun completion-update? (text)
+    (let* ((plain (js-call text :replace (new RegExp "https?://\\S+" "g") ""))
+      (first (js-call (get (statements plain) 0 "") :trim)))
+      (and (not (matches "\\b(?:not|never)\\b[^.!?]*(?:done|complete|processed|landed)" plain))
+        (matches "^(?:(?:it|that|this)(?:[’']s| is)\\s+)?(?:done(?: and dusted)?|all done|completed?|processed|landed|all set)(?:\\s+(?:now|for everyone))?$" first))))
+  (defun completed-post? (post context)
+    (or (completed? (get post :text))
+      (and (= (get post :author) "thsottiaux") (= (get post :provenance) "primary")
+        (not (get post :truncated)) (not (get post :contextMissing))
+        (= (get context :resetContextVerified) t) (= (get context :resetContextScope) "global")
+        (completion-update? (get post :text)))))
+  (export completed? completed-post? completion-update? conditional-reset? routine-reset? statements))

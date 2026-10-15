@@ -1,7 +1,7 @@
 (module tibo.evidence.post-thread
   (import "../platform/host.eli" Promise)
-  (import "../platform/util.eli" ms recent matches sorted)
-  (import "./reset-text.eli" completed? routine-reset?)
+  (import "../platform/util.eli" ms recent matches sorted last-item)
+  (import "./reset-text.eli" completed? completion-update? routine-reset?)
   (import "./x-page.eli" parse-primary)
   (import "./transport.eli" request)
   ;; A post body is immutable cache material; its visible conversation is not.
@@ -14,7 +14,16 @@
           (recent (get p :at) now 48) (> (ms (get p :at)) last-at)
           (not (get p :truncated)) (matches "reset" (get p :text))
           (not (completed? (get p :text))) (not (routine-reset? (get p :text)))))) :slice -2))
-      (pages (await (Promise/all (js-call roots :map (async (p)
+      (latest (last-item (sorted (js-call posts :filter (lambda (p)
+        (and (= (get p :author) "thsottiaux") (= (get p :provenance) "primary")
+          (matches "^[0-9]{16,20}$" (get p :id "")) (recent (get p :at) now 48)
+          (not (get p :truncated))))) "at")))
+      ;; Immutable original text does not establish the subject of an omitted
+      ;; update. Inspect the latest post's typed references once when missing.
+      (targets (if (and latest (completion-update? (get latest :text)) (not (get latest :referenceMetadataVerified))
+        (not (js-call roots :some (lambda (p) (= (get p :id) (get latest :id))))))
+        (js-call roots :concat (js-array latest)) roots))
+      (pages (await (Promise/all (js-call targets :map (async (p)
         (try
           (let ((rows (parse-primary (await (request (str "https://x.com/thsottiaux/status/" (get p :id)) nil 6000)) now)))
             (js-object :ok t :posts (js-call rows :filter (lambda (row)
@@ -24,6 +33,6 @@
       (js-object :posts found :source (js-object :name "threads" :at now
         :ok (js-call pages :some (lambda (page) (get page :ok)))
         :fetched (js-call pages :some (lambda (page) (get page :ok)))
-        :attempted (get roots :length) :discovered (get found :length)
-        :error (if (= (get roots :length) 0) "无待查询的重置线程" "部分或全部官方线程可能不可读")))))
+        :attempted (get targets :length) :discovered (get found :length)
+        :error (if (= (get targets :length) 0) "无待查询的重置线程" "部分或全部官方线程可能不可读")))))
   (export collect-threads))

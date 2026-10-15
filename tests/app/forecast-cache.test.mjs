@@ -16,7 +16,7 @@ const generate=async()=>{calls++;return result()};`;
 async function trial(body,prefix=''){
  const dir=await mkdtemp(join(tmpdir(),'tibo-forecast-cache-'));
  try{
-  const r=spawnSync(process.execPath,['--eval',prefix+setup+body],{env:{...process.env,TIBO_CONFIG_FILE:'/dev/null',TIBO_STATE_DIR:dir,
+  const r=spawnSync(process.execPath,['--eval',prefix+setup+body],{env:{...process.env,TIBO_CONFIG_FILE:join(dir,'absent.env'),TIBO_STATE_DIR:dir,
    DEEPSEEK_API_KEY:'fixture-cache-key',TIBO_AI_FEATURES:'signals,brief',TIBO_AI_WEIGHT:'0.2'},encoding:'utf8',timeout:10000,maxBuffer:2000000});
   expect(r.status,r.stderr).toBe(0);return JSON.parse(r.stdout);
  }finally{await rm(dir,{recursive:true,force:true});}
@@ -57,4 +57,9 @@ test('actual engine shares collection across callers and persists each channel w
  const r=await trial(`const seed=snapshot({now:new Date(now-1000).toISOString()});await write_state('ledger',{schemaVersion:1,...seed});const {run_report}=await import(${engine});const first=await run_report({channel:'cli',noAi:true});const before=network;const many=await Promise.all(Array.from({length:8},(_,i)=>run_report({channel:'im'+i,noAi:true})));const experience=await read_state('experience');console.log(JSON.stringify({before,network,first:first.reuse,states:many.map(x=>x.reuse.state),timestamps:many.map(x=>x.snapshot.now),experience:experience.predictions.length,saved:await read_state('report-im7')}));`,
  `let network=0;globalThis.fetch=async()=>{network++;return new Response('',{status:503})};`);
  expect(r.before).toBeGreaterThan(0);expect(r.network).toBe(r.before);expect(r.first.state).toBe('fresh');expect(r.states.every(x=>x==='cached')).toBe(true);expect(new Set(r.timestamps).size).toBe(1);expect(r.experience).toBe(1);expect(r.saved.now).toBe(r.timestamps[0]);
+});
+test('completion metadata added to an existing original invalidates shared source and forecast caches and consumes the previous promise',async()=>{
+ const r=await trial(`const base=snapshot({now:new Date(now).toISOString()});const promise={id:'linked-promise',at:'2026-10-09T10:00:00Z',text:'Global reset landing within the next 2 hours.',author:'thsottiaux',provenance:'primary'},done={id:'linked-done',at:'2026-10-09T11:00:00Z',text:'Done and dusted',author:'thsottiaux',provenance:'primary'};await write_state('ledger',{...base,posts:[...base.posts,promise,done]});const {run_report}=await import(${engine});const first=await run_report({noAi:true}),hit=await run_report({noAi:true});let ledger=await read_state('ledger');ledger.posts=ledger.posts.map(p=>p.id===done.id?{...p,quotedPostId:promise.id,quotedRelationProvenance:'official-page-data'}:p);await write_state('ledger',ledger);const after=await run_report({noAi:true}),again=await run_report({noAi:true});console.log(JSON.stringify({first:{p24:first.forecast.p24,fulfilled:first.signals.promise.fulfilled},hit:hit.reuse.state,after:{p24:after.forecast.p24,last:after.signals.lastGlobal.id,fulfilled:after.signals.promise.fulfilled,state:after.reuse.state,report:after.report},again:again.reuse.state}));`,
+ `globalThis.fetch=async()=>new Response('',{status:503});`);
+ expect(r.hit).toBe('cached');expect(r.first.fulfilled).toBe(false);expect(r.after).toMatchObject({last:'linked-done',fulfilled:true,state:'fresh'});expect(r.after.p24).toBeLessThan(r.first.p24);expect(r.again).toBe('cached');expect(r.after.report).not.toContain('仍待完成公告');
 });
