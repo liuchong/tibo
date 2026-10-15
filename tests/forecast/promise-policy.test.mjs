@@ -9,12 +9,13 @@ import {snapshot,post} from '../helpers/fixture.mjs';
 const text='Global reset landing by EOD PST time. Enjoy';
 const promise=()=>post(25,text,{id:'2109812360596865224',at:'2026-10-13T01:03:59.841Z'});
 const input=()=>snapshot({now:'2026-10-13T04:08:00Z',posts:[...snapshot().posts,promise()]});
-test('official EOD announcement resolves deadline but insufficient history preserves baseline',()=>{
+test('official EOD announcement resolves deadline and withholds an uncalibrated percentage',()=>{
  const s=input(),r=judge(s);
  expect(target_time(promise())).toBe('2026-10-13T08:00:00.000Z');
  expect(r.signals.promise).toMatchObject({kind:'global',primary:true,fulfilled:false,timePrecision:'deadline'});
  const base=judge({...s,posts:s.posts.slice(0,-1)});
- expect(r.forecast).toMatchObject({p24:base.forecast.p24,p48:base.forecast.p48,policyVersion:'8'});
+ expect(r.forecast).toMatchObject({p24:null,p48:null,available:false,mode:'announced-reset-unquantified',base24:base.forecast.base24,policyVersion:'8'});
+ expect(render_report(r)).toContain('高（已明确预告，暂无可靠百分比）');
  expect(r.forecast.promisePolicy).toMatchObject({applied:false,n:0,reason:'insufficient-audited-cases'});
  const f=feature_state(r,{rows:s.posts.map(local_row),aiRows:0,ruleRows:s.posts.length});
  expect(f.claims.find(c=>c.postId===promise().id)).toMatchObject({kind:'promise',status:'active',targetAt:'2026-10-13T08:00:00.000Z',timePrecision:'deadline'});
@@ -36,7 +37,8 @@ test('PST/PDT use their stated local calendar; PT follows DST; tomorrow and end-
 test('a deadline alone has no probability floor; weak, partial, archived, unresolved and conditional evidence keeps baseline',()=>{
  const s=input(),base=judge({...s,posts:s.posts.slice(0,-1)});
  const later=judge({...s,posts:[...s.posts.slice(0,-1),{...promise(),text:'Global reset landing tomorrow 10pm PST.'}]});
- expect(later.forecast.p24).toBe(base.forecast.p24);expect(later.forecast.p48).toBe(base.forecast.p48);
+ expect(later.forecast.p24).toBeNull();expect(later.forecast.p48).toBeNull();
+ expect(render_report(later)).toContain('预告期限在窗口外');
  for(const p of [{...promise(),text:'Day 8/ Reset'},{...promise(),text:'Global reset by EOD.'},
   {...promise(),text:'Either improvements or a global reset by EOD PST.'},
   {...promise(),text:'A banked reset card landing by EOD PST for all users.'},
@@ -53,7 +55,7 @@ test('consumed commitments are inactive; overdue and sparse commitments cannot i
  const done={id:'done',at:'2026-10-13T02:00:00Z',global:true,banked:false};
  expect(judge({...s,events:[...s.events,done]}).forecast.promisePolicy.applied).toBe(false);
  const r=judge(s);r.forecast.p24=5;r.forecast.p48=10;apply_promise_policy(r.forecast,r.signals,s);
- expect(r.forecast).toMatchObject({p24:5,p48:10});
+ expect(r.forecast).toMatchObject({p24:null,p48:null,available:false});
  const sparse=available_judgment({...s,events:[]});expect(sparse.forecast).toMatchObject({available:false});
 });
 test('a later official cancellation withdraws the promise and is cited; archive chatter cannot cancel it',()=>{

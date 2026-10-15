@@ -1,6 +1,7 @@
 (module tibo.evidence.x-page
   (import "../platform/host.eli" Number BigInt RegExp)
   (import "./html.eli" parse-html by-tag html-text attr)
+  (import "./x-data.eli" official-relations)
   (import "../platform/util.eli" fail canonical-text ms iso match matches sorted)
   (defun snowflake-time (id)
     (unless (matches "^[0-9]{16,20}$" id) (fail "Invalid X post ID"))
@@ -39,5 +40,9 @@
                   :url (str "https://x.com/thsottiaux/status/" (get id 1)) :provenance "primary"
                   :via "official-page" :cachedAt now :truncated truncated))))))))
       (when (= (get posts :length) 0) (fail "X 抓取未返回可识别的原帖"))
+      (let ((relations (official-relations html posts)))
+        (js-call posts :forEach (lambda (post)
+          (let ((relation (js-call relations :get (get post :id))))
+            (when relation (Object/assign post relation))))))
       (sorted posts "at")))
   (export snowflake-time parse-primary))

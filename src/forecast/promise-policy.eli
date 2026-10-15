@@ -1,6 +1,6 @@
 (module tibo.forecast.promise-policy
   (import "./promise-history.eli" promise-history estimate-promise)
-  (import "../platform/util.eli" clamp)
+  (import "../platform/util.eli" clamp ms hour-ms)
   (defun apply-promise-policy (prob signals snapshot)
     (let* ((history (promise-history snapshot)) (estimate (estimate-promise snapshot signals history)))
       (put prob :promiseHistory history) (put prob :promisePolicy estimate)
@@ -9,5 +9,14 @@
       (when (get estimate :applied)
         (put prob :p24 (clamp (get (get estimate :h24) :estimate)))
         (put prob :p48 (Math/max (get prob :p24) (clamp (get (get estimate :h48) :estimate))))
-        (put prob :available t) (put prob :confidence "中") (put prob :mode "empirical-promise-history")) prob))
+        (put prob :available t) (put prob :confidence "中") (put prob :mode "empirical-promise-history"))
+      ;; An unconditional interval baseline is not a forecast conditioned on an
+      ;; explicit announcement. Keep it internally; never sell it as the result.
+      (let ((p (get signals :promise)))
+        (when (and p (get p :primary) (= (get p :kind) "global")
+          (>= (- (ms (get p :targetAt)) (ms (get snapshot :now))) (* -6 hour-ms))
+          (not (get p :fulfilled)) (not (get p :withdrawn)) (not (get estimate :applied)))
+          (put prob :available false) (put prob :p24 nil) (put prob :p48 nil)
+          (put prob :mode "announced-reset-unquantified") (put prob :confidence "中")
+          (put prob :announcement (js-object :postId (get p :postId) :targetAt (get p :targetAt))))) prob))
   (export apply-promise-policy))

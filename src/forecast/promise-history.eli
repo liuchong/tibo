@@ -1,5 +1,5 @@
 (module tibo.forecast.promise-history
-  (import "./signals.eli" analyze-signals normalize-events)
+  (import "./signals.eli" analyze-signals normalize-events target-time)
   (import "../evidence/post-features.eli" local-row)
   (import "../platform/util.eli" ms hour-ms sorted last-item)
   (defun verified-global? (e)
@@ -23,12 +23,14 @@
         (when (<= (ms (get post :at)) now)
           ;; The original publication time is used for classification, with no
           ;; future outcome supplied to the deterministic promise parser.
-          (let* ((p (get (analyze-signals (js-object :posts (js-array post) :now (get post :at)) (js-array)) :promise))
+          (let* ((p (when (target-time post) (get (analyze-signals (js-object :posts (js-call (get snapshot :posts) :filter
+            (lambda (p) (<= (ms (get p :at)) (ms (get post :at))))) :now (get post :at))
+              (js-call events :filter (lambda (e) (< (ms (get e :at)) (ms (get post :at)))))) :promise)))
             (prior (last-item (js-call globals :filter (lambda (e) (< (ms (get e :at)) (ms (get post :at))))))))
             (when (and (not p) (js-call (get (local-row post) :claims) :some (lambda (c)
               (and (= (get c :kind) "promise") (= (get c :statement) "future") (= (get c :scope) "global") (get c :timeText)))))
               (setq unresolved (+ unresolved 1)))
-            (when (and p (= (get p :kind) "global") (> (ms (get p :targetAt)) (ms (get p :at))))
+            (when (and p (= (get p :postId) (get post :id)) (= (get p :kind) "global") (> (ms (get p :targetAt)) (ms (get p :at))))
               (let* ((cycle (if prior (get prior :id) "unknown-cycle"))
                 (old (js-call rows :find (lambda (r) (= (get r :cycleId) cycle))))
                 (after (js-call globals :filter (lambda (e) (> (ms (get e :at)) (ms (get p :at))))))

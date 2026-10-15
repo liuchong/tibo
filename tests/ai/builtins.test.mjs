@@ -100,6 +100,7 @@ test('a first followup has one grounded subject; assistant references cannot aut
  expect(()=>validate_plan({...p,scope:{...scope,subject:'mixed'}},null,evidence)).toThrow('read-plan-mixed-authority');
  expect(()=>validate_plan({...p,scope:{...scope,subject:'tibo'},queries:[{command:'posts',args:{}}]},'service',evidence)).toThrow('read-plan-scope-change');
  expect(()=>validate_plan({...p,scope:{subject:'tibo',source:'user-history',quote:'Check the reset history'},queries:[{command:'history',args:{}}]},null,evidence)).toThrow('read-plan-scope-evidence');
+ expect(validate_plan({...p,scope:{subject:'service',source:'user-history',quote:'Please check'}},null,evidence).scope.source).toBe('current');
  expect(()=>validate_plan(p,null,{question:'Please check'})).toThrow('read-plan-quoted');
  const explicit={...p,scope:{subject:'mixed',source:'current',quote:'API status and Tibo posts'},queries:[...p.queries,{command:'posts',args:{limit:1}}]};
  expect(validate_plan(explicit,'service',{question:'Check API status and Tibo posts'}).queries).toHaveLength(2);
@@ -169,4 +170,9 @@ test('a semantic chat route need not echo long text into a small output budget, 
 test('user-supplied measurements in a long source discussion are preserved, while an unprovided percentage is still rejected',async()=>{
  const d=await trial(`let invented=false;globalThis.fetch=async()=>Response.json({choices:[{finish_reason:'stop',message:{content:JSON.stringify({text:invented?'The next reset is 91%.':'Your supplied measurements say 80% and 50%.'})}}]});const {chat_text}=await import(${path('presentation/chat')});const question='Discuss the 80% capacity increase and 50% speed improvement.';const good=await chat_text(question,'en',{},'The verified current post reports a 60% disk reduction.');invented=true;const bad=await chat_text('What is the chance of the next reset?','en',{},'The verified current post reports a 60% disk reduction.');console.log(JSON.stringify({good,bad}));`,'answer');
  expect(d.good.state).toBe('ok');expect(d.good.value.text).toContain('80%');expect(d.bad.state).toBe('fallback');expect(d.bad.value).toBeUndefined();
+});
+
+test('a correction can quote old conversation probabilities while current announced facts stay distinct',async()=>{
+ const d=await trial(`globalThis.fetch=async()=>Response.json({choices:[{finish_reason:'stop',message:{content:JSON.stringify({text:'The previous 21% estimate was wrong. The verified announcement says within two hours; the current outlook is high without a calibrated percentage.'})}}]});const {chat_text}=await import(${path('presentation/chat')});const thread={state:'ready',messages:[{role:'assistant',content:'The forecast is 21% in 24h and 34% in 48h.'},{role:'user',content:'But he explicitly announced a reset.'}]};const result=await chat_text('Why was that estimate low?','en',{},'A verified reset announcement has a two-hour deadline. Current outlook: high, numericAvailable=false.',thread);console.log(JSON.stringify(result));`,'answer');
+ expect(d.state).toBe('ok');expect(d.value.text).toContain('previous 21% estimate was wrong');
 });

@@ -2,7 +2,7 @@
   (import "../platform/host.eli" Date)
   (import "./runtime.eli" ai-call config)
   (import "./post-features.eli" extract-post-features)
-  (import "../forecast/features.eli" feature-state)
+  (import "../forecast/features.eli" feature-state apply-structured-promise)
   (import "../forecast/reset-timing.eli" timing-assessment)
   (import "../forecast/feature-model.eli" adjusted-risk)
   (import "../forecast/promise-policy.eli" apply-promise-policy)
@@ -68,6 +68,7 @@
       (structured (feature-state result extraction)) (prob (get result :forecast))
       (model (try (await (read-state "feature-model")) (catch error nil))))
       (put result :structuredFeatures structured) (put input :structuredFeatures structured)
+      (apply-structured-promise result structured)
       (put result :ai (js-object :features features :baseline (get input :baseline) :weight 0))
       (put features :signals (js-object :state (cond ((or skip (not (js-call (get cfg :features) :includes "signals"))) "disabled")
         ((= (get extraction :aiRows) (get (get extraction :rows) :length)) (if (> (get (get extraction :calls) :length) 0) "ok" "cached")) (t "fallback"))
@@ -83,8 +84,7 @@
           (put prob :featureAdjustment adjustment)
           (when (get adjustment :applied)
             (put prob :p24 (get adjustment :p24)) (put prob :p48 (get adjustment :p48)) (put prob :mode "feature-risk"))))
-      ;; Reapply only a supported empirical estimate after optional model work.
-      ;; Insufficient history leaves the available algorithm unchanged.
+      ;; Use the same history policy for validated semantic and fallback promises.
       (apply-promise-policy prob (get result :signals) (get result :snapshot))
       (put prob :timingAssessment (timing-assessment structured (get prob :featureAdjustment (js-object))))
       (put input :final (js-object :p24 (get prob :p24) :p48 (get prob :p48)))

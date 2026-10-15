@@ -80,7 +80,14 @@
                     (put response :text (public-text (get response :text))) response)
                 (if (= name "forecast")
                   (let ((result (await (run-report (Object/assign (js-object) options (js-object :noAi (or (get options :noAi) (get args :noAi))))))))
-                    (js-object :text (public-forecast result (get args :horizon) (get options :titleTime)) :result result :ok t))
+                    (js-object :text (public-forecast result (get args :horizon) (get options :titleTime)) :result result :ok t
+                      :data (js-object :numericAvailable (not (= (get (get result :forecast) :available) false))
+                        :p24 (get (get result :forecast) :p24) :p48 (get (get result :forecast) :p48)
+                        :asOf (get (get result :snapshot) :now)
+                        :deadlineState (when (get (get result :forecast) :announcement)
+                          (if (> (ms (get (get (get result :forecast) :announcement) :targetAt)) (ms (get (get result :snapshot) :now))) "pending" "overdue"))
+                        :announcement (get (get result :forecast) :announcement)
+                        :promise (get (get result :signals) :promise))))
                   (let* ((snapshot (await (load-snapshot (get options :snapshotPath) (get options :offline))))
                          (result (observe snapshot)) (signals (get result :signals)) (text "") (source-languages nil))
                     (cond

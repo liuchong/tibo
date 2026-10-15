@@ -33,7 +33,9 @@
         (let ((old (js-call items :get (get p :id))))
           ;; An unchanged discovery fragment must not refresh original verification
           ;; metadata or overwrite a previously restored full body.
-          (when (reusable-original? old p) (setq p old))
+          (when (reusable-original? old p)
+            (setq p (if (= (get p :parentRelationProvenance) "official-page-data")
+              (Object/assign (js-object) old (js-object :parentId (get p :parentId) :parentRelationProvenance "official-page-data")) old)))
           (when (and (not (and old (get old :expandedFromPrimary)
                        (or (and (= (get p :provenance) "archive") (not (get p :expandedFromPrimary)))
                          (and (get p :truncated) (= (get old :primaryExcerpt) (get p :text))))))
