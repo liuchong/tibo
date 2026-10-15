@@ -19,7 +19,7 @@ Lark 是独立的 Eliscript 接入程序，复用核心命令与共享报告。�
 | `im:message:send_as_bot` | 以机器人身份发送消息 |
 | `im:message.reactions:read` | 查看消息表情反应 |
 | `im:message.reactions:write_only` | 对弱相关或文字回复预算不足的群消息加轻量表情；固定 OK / SMILE / THUMBSUP 枚举 |
-| `im:chat:read` | 核实旧发送回执对应的单聊/群聊类型，使旧机器人消息也支持私聊表情上香 |
+| `im:chat:read` | 申请与确认本群订阅时读取群主、用户管理员；核实旧发送回执的单聊/群聊类型 |
 
 引用聊天复用已有的 `im:message:readonly`、`im:message:send_as_bot` 和群历史读取权限；通过固定消息详情、历史分页和回复接口延续同一引用链，不需要 SDK。会话持久化、摘要及回复方式见 [基础聊天与引用对话](chat.md)。无引用消息不会因此额外读取聊天历史。
 
@@ -43,11 +43,13 @@ Lark 是独立的 Eliscript 接入程序，复用核心命令与共享报告。�
 }
 ```
 
-管理员身份初始化若要用 union_id 查询本应用 open_id，还需 `contact:user.base:readonly` 与通讯录可见范围；查询群成员辅助验收需 `im:chat.members:read`。这些是相应接入步骤的权限，日常事件内的可信身份不依赖额外通讯录查询。授予平台权限不会扩大 Tibo 内部管理白名单；所有危险命令仍核对本人真实账号并要求二次确认。
+管理员身份初始化若要用 union_id 查询本应用 open_id，还需 `contact:user.base:readonly` 与通讯录可见范围；查询群成员辅助验收需 `im:chat.members:read`。这些是相应接入步骤的权限，日常事件内的可信身份不依赖额外通讯录查询。授予平台权限不会扩大 Tibo 系统管理白名单；系统危险命令仍核对本人真实账号并要求二次确认。本群订阅使用独立的群主、群管理员权限，只能管理当前群。
 
 按租户要求完成权限审批与应用发布，设置可用范围，把机器人加入授权群。私聊订阅者也必须在应用可用范围内。若保存长连接事件订阅时要求先有连接，先完成本地配置并前台运行，再保存、发布。
 
-准备 App ID、App Secret、操作群与报告接收群 `oc_...`，以及本应用内管理员用户 `ou_...`。被动群交互默认 `all`，也可保留显式群列表；拉机器人进群不会自动订阅报告。管理员可留空，此时只关闭危险管理操作。只允许本人管理时仅填写本人在此应用下的 open_id；可通过已登录 CLI 的 union_id 在目标应用下查询，不能直接复用 CLI 应用的 open_id。管理员只可在私聊或明确配置的操作群申请管理操作，仍需在同一会话明确二次确认。其他应用的 open_id、昵称或自称管理员不能替代真实事件身份。三个范围见 [会话接入与通知边界](conversation-access.md)。
+准备 App ID、App Secret、操作群与报告接收群 `oc_...`，以及本应用内管理员用户 `ou_...`。被动群交互默认 `all`，也可保留显式群列表；拉机器人进群不会自动订阅报告。系统管理员可留空，此时只关闭系统危险管理操作，群主或群管理员仍可在本群申请并确认群订阅。只允许本人系统管理时仅填写本人在此应用下的 open_id；可通过已登录 CLI 的 union_id 在目标应用下查询，不能直接复用 CLI 应用的 open_id。系统管理员只可在私聊或明确配置的操作群申请管理操作，仍需在同一会话明确二次确认。其他应用的 open_id、昵称或自称管理员不能替代真实事件身份。三个范围见 [会话接入与通知边界](conversation-access.md)。
+
+本群订阅通过固定 `GET /open-apis/im/v1/chats/{chat_id}?user_id_type=open_id` 查询当前群的 `owner_id`、`user_manager_id_list`，申请与确认各查一次，不缓存群管理角色。读取失败时不执行写入，只回复简短重试提示。该接口复用上表的 `im:chat:read`，不新增 SDK、模型工具或系统命令能力。
 
 机器人自身 open_id 通过官方 `GET /open-apis/bot/v3/info` 自动发现；可选配置一个预期值，启动时作一致性校验。
 
@@ -143,8 +145,8 @@ API 成功证据还需结合客户端消息核对实际可见性。不要删除�
 
 1. `check` 识别当前应用机器人，前台长连接可接到实际事件。
 2. `all` 模式下新加入的群无需修改配置，@ 查询、含 `tibo` 的无 @ 查询和🙏可使用；普通闲聊仍忽略，次级关键词按相关度和预算决定。显式群列表模式核实其他群被忽略；`all` 不授予管理权限，也不增加报告接收群。
-3. 私聊查询、不同群内与私聊里的本人订阅/退订均使用同一记录；群订阅参数仅管理员在操作群或私聊可申请并确认。🙏 文本和机器人消息上的 `THANKS` 分别测试，重复事件不计两次。
-4. 管理员申请不立刻修改，普通用户拒绝；确认需本人同一会话，数据变更前有备份。破坏性验收使用独立测试状态，不能清空日常数据。
+3. 私聊查询、不同群内与私聊里的本人订阅/退订均使用同一记录；本群群主、群管理员可申请并二次确认本群订阅，普通成员不能开通。系统管理员原私聊和操作群入口保留。🙏 文本和机器人消息上的 `THANKS` 分别测试，重复事件不计两次。
+4. 群订阅申请不立刻生效；角色撤销、接口失败、跨人、跨群和过期确认不能开通。群管理身份不能调用系统危险命令；系统管理员确认仍需本人同一会话，数据变更前有备份。破坏性验收使用独立测试状态，不能清空日常数据。含🙏的语义订阅请求应并行处理，群角色查询不阻塞上香。
 5. 在真实 09:00 或 21:00 核对群和订阅私聊正文一致、共享报告只一份、成功 message_id 可对应客户端消息。
 6. 重启后未重复执行旧消息、旧定点；无凭据或模型信息泄露。
 
@@ -154,6 +156,7 @@ API 成功证据还需结合客户端消息核对实际可见性。不要删除�
 - [接收消息事件](https://open.feishu.cn/document/server-docs/im-v1/message/events/receive)
 - [表情反应事件](https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/im-v1/message-reaction/events/created)
 - [获取指定消息](https://open.feishu.cn/document/server-docs/im-v1/message/get)：固定只读 API 获取反应对应的正文。
+- [获取群信息](https://open.larksuite.com/document/server-docs/group/chat/get)：固定只读 API 核实本群群主与用户管理员。
 - [表情枚举](https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/im-v1/message-reaction/emojis-introduce)
 - [长连接协议实现参考](https://github.com/larksuite/node-sdk/blob/main/ws-client/index.ts)：只核对协议，不安装或运行 SDK。
 

@@ -74,15 +74,17 @@ unsubscribe
 
 ## 群订阅与配置
 
-管理员在操作群或私聊可明确使用群参数：
+目标群的群主或群管理员在本群可使用群参数，无需把该群设为 Tibo 系统操作群：
 
 ```text
-subscribe group [群ID]
-unsubscribe group [群ID]
-subscription group [群ID]
+subscribe group
+unsubscribe group
+subscription group
 ```
 
-操作群可省略群 ID，表示当前群；私聊必须明确指定。新增、取消群订阅都先返回确认 ID，再由同一个人在同一会话发送 `confirm ID`。普通用户只能管理自己的个人订阅。可用命名参数 `--target group --chatId oc_目标群ID`；默认 `--target personal`。
+新增、取消群订阅都先返回确认 ID，再由同一个人在本群五分钟内发送 `confirm ID` 或 `确认 ID`；申请时不会启用订阅。申请与确认分别读取平台当前群主和管理员身份，失去群管理角色后不能确认旧申请；普通成员只能管理自己的个人订阅。群管理身份不授予 Tibo 系统管理权，也不能在私聊或其他群代管目标群。
+
+启用 router 后，“以后发现重置几率高时往本群发个提醒”也会申请本群订阅，引用消息中的明确申请同样有效；含🙏时独立并行上香。系统管理员保留原来的私聊或操作群管理入口，可用 `subscribe group 群ID` 或 `--target group --chatId oc_目标群ID` 指定目标；默认 `--target personal`。
 
 `TIBO_LARK_NOTIFY_CHAT_IDS` 可直接添加配置群订阅，不与被动交互的 `all` 混用。群与个人订阅统一存储和投递，但接收者类型严格分开。已确认的命令退订不会因未改变的配置在重启后被重新打开；配置移除再添加视为新的明确订阅。完整配置优先与操作规则见 [会话接入与通知边界](conversation-access.md)。
 

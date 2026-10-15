@@ -2,6 +2,7 @@
   (import "../platform/host.eli" Number RegExp)
   (import "../platform/privacy.eli" public-text source-free-text)
   (import "./admin.eli" is-admin)
+  (import "../im/authority.eli" group-admin?)
   (import "../capabilities/general.eli" units)
   (import "../platform/util.eli" fail ms)
   (defconst subscription-params (js-object
@@ -29,9 +30,9 @@
       (js-object :name "pray" :aliases (js-array "祈祷" "上香" "🙏") :purpose "趣味电子上香；offer祈祷一次，me查看本人档案，board查看本会话匿名功德榜，stats查看本会话愿力池、已解锁的集体彩蛋及仪式内容。询问什么集体彩蛋、十次上香效果应选stats，不选ask。集体彩蛋按会话上香次数10/50/100/233/500/1000解锁，个人功德15秒冷却；不能改变重置概率，需要可信本人身份"
         :params (js-object :action (js-object :type "string" :enum (js-array "offer" "me" "board" "stats") :default "offer")
           :limit (js-object :type "integer" :minimum 1 :maximum 20 :default 10)) :positionals (js-array "action" "limit"))
-      (js-object :name "subscribe" :aliases (js-array "订阅") :purpose "任何会话默认订阅本人私聊报告，每天北京时间09:00/21:00，另有实时重置预警与已重置确认；target=personal默认；target=group仅管理员在操作群/私聊申请群订阅并二次确认，操作群可省略chatId指当前群，私聊需指定chatId；不能代他人或自定义时间" :params subscription-params :positionals (js-array "target" "chatId"))
-      (js-object :name "unsubscribe" :aliases (js-array "退订" "取消订阅") :purpose "任何会话默认取消本人私聊订阅；target=group取消指定群订阅，仅管理员在操作群/私聊申请并二次确认，省略chatId规则同subscribe" :params subscription-params :positionals (js-array "target" "chatId"))
-      (js-object :name "subscription" :aliases (js-array "订阅状态") :purpose "任何会话默认查看本人私聊订阅；target=group仅管理员在操作群/私聊查看群订阅，省略chatId规则同subscribe" :params subscription-params :positionals (js-array "target" "chatId"))
+      (js-object :name "subscribe" :aliases (js-array "订阅") :purpose "任何会话默认订阅本人私聊报告，每天北京时间09:00/21:00，另有实时重置预警与已重置确认；target=personal默认；target=group由本群群主或群管理员申请并二次确认，本群省略chatId；系统管理员仍可在私聊/操作群明确指定目标群；不能代他人或自定义时间" :params subscription-params :positionals (js-array "target" "chatId"))
+      (js-object :name "unsubscribe" :aliases (js-array "退订" "取消订阅") :purpose "任何会话默认取消本人私聊订阅；target=group由本群群主或群管理员申请退订并二次确认，省略chatId规则同subscribe" :params subscription-params :positionals (js-array "target" "chatId"))
+      (js-object :name "subscription" :aliases (js-array "订阅状态") :purpose "任何会话默认查看本人私聊订阅；target=group由本群群主或群管理员查看本群订阅，省略chatId规则同subscribe" :params subscription-params :positionals (js-array "target" "chatId"))
       (js-object :name "ask" :aliases (js-array "问答") :purpose "了解Tibo背景的基础聊天、概念解释、文字处理或常识问答；可按需查官方服务状态、公开搜索摘要、数字计算和时间；引用时延续同一对话Thread，未引用时单轮；不能执行命令或操作账户，不提供未抓取的新事件事实"
         :params (js-object :question (js-object :type "string" :required t)) :positionals (js-array "question"))
       (js-object :name "service-status" :aliases (js-array) :purpose "查询OpenAI官方服务整体、组件与进行中事故；不同于Codex重置状态"
@@ -59,7 +60,9 @@
       (js-object :name "cancel" :aliases (js-array "取消") :purpose "取消本人在本会话的待确认操作" :admin t :explicit t
         :params (js-object :id (js-object :type "string" :maxLength 36 :required t)) :positionals (js-array "id"))))
   (defun visible-catalog (&optional context routing)
-    (js-call catalog :filter (lambda (c) (and (or (not (get c :admin)) (is-admin context)) (or (not routing) (not (get c :explicit)))))))
+    (js-call catalog :filter (lambda (c) (and (or (not (get c :admin)) (is-admin context)
+      (and (group-admin? context) (js-call (js-array "confirm" "cancel") :includes (get c :name))))
+      (or (not routing) (not (get c :explicit)))))))
   (defun definition (name) (js-call catalog :find (lambda (c) (= name (get c :name)))))
   (defun canonical (name)
     (let ((command (js-call catalog :find (lambda (c) (or (= name (get c :name)) (js-call (get c :aliases) :includes name))))))

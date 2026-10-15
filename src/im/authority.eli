@@ -1,0 +1,14 @@
+;; A platform adapter supplies this proof after reading the platform's role API.
+;; It never comes from message text or a model's interpretation.
+(module tibo.im.authority
+  (defun group-admin? (context)
+    (let ((proof (get (or context (js-object)) :groupAuthority (js-object))))
+      (and context (= (get context :authenticated) t) (= (get context :conversationType) "group")
+        (js-call (js-array "transport" "account" "actor" "scope") :every (lambda (key)
+          (and (= (value-type (get context key)) "string") (> (get (get context key) :length) 0))))
+        (= (get proof :verified) t)
+        (= (get proof :transport) (get context :transport)) (= (get proof :account) (get context :account))
+        (= (get proof :actor) (get context :actor)) (= (get proof :scope) (get context :scope))
+        (js-call (js-array "owner" "manager") :includes (get proof :role)))))
+  (defun group-action? (name) (js-call (js-array "subscribe-group" "unsubscribe-group") :includes name))
+  (export group-admin? group-action?))

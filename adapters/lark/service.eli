@@ -14,6 +14,7 @@
   (import "../../src/prayer/material.eli" prayer-material)
   (import "../../src/prayer/pray.eli" settle-festivals)
   (import "./messages.eli" markdown-post send-report)
+  (import "./authority.eli" command-context)
   (import "./celebration-delivery.eli" finish-celebration)
   (import "./thread.eli" load-thread reference-root reply-target-of message-id? thread-id? message-key)
   (import "../../src/subscriptions/schedule.eli" slot-at)
@@ -177,11 +178,15 @@
                (response (if prepared (js-object :ok t :text (get prepared :text)) (try
                   (let* ((route-start (Date/now)) (query (or (get job :internalQuery) (await (resolve-query command context options)))))
                     (put latency :routeMs (- (Date/now) route-start))
+                    (put options :context (await (command-context client query context)))
                     (when (and (= (get query :command) "ask") (get job :reference) (not (get options :noAi))
                       (> (get (get (config) :key) :length) 0)
                       (js-call (get (config) :features) :includes (if (oracle-trigger? (get (get query :args) :question)) "oracle" "answer")))
                       (let ((history-start (Date/now)) (history (await (load-thread client job (get (get process :env) :TIBO_LARK_APP_ID "")))))
                         (put options :threadConversation history)
+                        ;; Routing prepared only this message. The answer must
+                        ;; prepare against the actual quoted conversation.
+                        (put options :chatPreparation nil)
                         (put latency :threadState (get history :state)) (put latency :threadMessages (get (get history :messages) :length))
                         (put latency :threadReadMs (- (Date/now) history-start))))
                     (let ((execute-start (Date/now)))

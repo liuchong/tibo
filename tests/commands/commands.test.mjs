@@ -44,6 +44,11 @@ test('semantic subscription, cancellation and status reuse the registry, exclude
  expect(r.a.command).toBe('subscribe');expect(r.b.command).toBe('unsubscribe');expect(r.c.command).toBe('subscription');expect(r.d.command).toBe('semantic-error');
  for(const body of r.sent){const input=JSON.parse(body.messages[1].content);expect(input.commands.find(x=>x.name==='subscribe').params.target).toMatchObject({default:'personal',enum:['personal','group']});expect(JSON.stringify(body.messages)).not.toMatch(/ou_private|oc_private|private-app/);}
 });
+test('an explicit group notification request in a quoted reply routes to subscription, while a normal followup stays chat',async()=>{
+ const r=await subprocess(`let sent=[];globalThis.fetch=async(u,o)=>{const body=JSON.parse(o.body);sent.push(body);return Response.json({choices:[{finish_reason:'stop',message:{content:JSON.stringify(sent.length===1?{command:'subscribe',args:{target:'group'}}:{command:'ask',args:{}})}}]});};const {resolve_query}=await import(${module});const a=await resolve_query('以后再发现重置几率高的时候往本群里发个提醒',null,{humanInput:true,conversationMode:true}),b=await resolve_query('这句话是什么意思？',null,{humanInput:true,conversationMode:true});console.log(JSON.stringify({a,b,sent}));`);
+ expect(r.a).toMatchObject({command:'subscribe',args:{target:'group'}});expect(r.b).toMatchObject({command:'ask',args:{question:'这句话是什么意思？'}});expect(r.sent).toHaveLength(2);
+ for(const p of r.sent)expect(p.tools).toBeUndefined();
+});
 test('Lark semantic errors send one generic reply and never send supplier error bodies or configuration',async()=>{
  const r=await subprocess(`globalThis.fetch=async()=>new Response('fixture-router-secret '+process.cwd()+'/private deepseek-flash',{status:401});const {deliver}=await import(${JSON.stringify(resolve('dist/adapters/lark/service.mjs'))});let sent=[];const client={send:async m=>{sent.push(m);return {code:0,data:{message_id:'fixture'}}}};await deliver(client,'oc_fixture','message-one','帮我查询最近发言');console.log(JSON.stringify(sent));`);
  expect(r).toHaveLength(1);const text=JSON.parse(r[0].content).zh_cn.content[0][0].text;expect(text).toContain('出了问题');for(const forbidden of ['fixture-router-secret',homedir(),'deepseek','401','认证','模型','retryAt'])expect(text).not.toContain(forbidden);
