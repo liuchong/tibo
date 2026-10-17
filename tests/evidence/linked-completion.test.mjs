@@ -29,7 +29,7 @@ test('typed quote relationships survive permanent original reuse without merging
 
 test('a completion quote of a verified timed self-reply resets the clock before prediction and consumes all earlier one-shot features',()=>{
  const before=judge(input()),s=input([done]),r=judge(s);
- expect(before.forecast.promisePrior.applied).toBe(true);expect(r.signals.lastGlobal).toMatchObject({id:done.id,verified:true,completionPostIds:[promise.id,root.id]});
+ expect(before.forecast.dimensions.applied).toBe(true);expect(r.signals.lastGlobal).toMatchObject({id:done.id,verified:true,completionPostIds:[promise.id,root.id]});
  expect(r.cycle).toMatchObject({lastGlobalAt:done.at,justReset:true});expect(r.signals.promise.fulfilled).toBe(true);
  expect(r.forecast.promisePrior).toBeUndefined();expect(r.forecast.announcement).toBeUndefined();
  expect(r.forecast.p24).toBeLessThan(before.forecast.p24);expect(r.forecast.p48).toBeLessThan(before.forecast.p48);expect(r.forecast.p24).toBeGreaterThan(0);
@@ -56,6 +56,6 @@ test('later reminders of the same fulfilled promise do not move the clock; a new
  const reminder=post('2026-10-15T06:29:00Z','All done',{quotedPostId:promise.id,quotedRelationProvenance:'official-page-data'});
  const r=judge(input([done,reminder]));expect(r.signals.lastGlobal.id).toBe(done.id);expect(events_from_posts(input([done,reminder]).posts).filter(e=>e.global&&[done.id,reminder.id].includes(e.id))).toHaveLength(1);
  const newer=post('2026-10-15T06:29:30Z','Global reset landing within the next 2 hours.'),n=judge(input([done,newer]));
- expect(n.signals.promise).toMatchObject({postId:newer.id,fulfilled:false});expect(n.forecast.promisePrior.applied).toBe(true);expect(n.forecast.p24).toBeGreaterThan(r.forecast.p24);
+ expect(n.signals.promise).toMatchObject({postId:newer.id,fulfilled:false});expect(n.forecast.dimensions.applied).toBe(true);expect(n.forecast.p24).toBeGreaterThan(r.forecast.p24);
  const late=judge({...input([done]),now:'2026-11-10T00:00:00Z'});expect(late.signals.lastGlobal.id).toBe(done.id);
 });

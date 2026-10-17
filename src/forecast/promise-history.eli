@@ -1,7 +1,7 @@
 (module tibo.forecast.promise-history
   (import "./signals.eli" analyze-signals normalize-events target-time)
   (import "../evidence/post-features.eli" local-row)
-  (import "../platform/util.eli" ms hour-ms sorted last-item)
+  (import "../platform/util.eli" ms hour-ms sorted last-item matches)
   (defun verified-global? (e)
     (and e (get e :global) (get e :verified) (not (get e :observed)) (= (get e :provenance) "primary")))
   (defun covered? (snapshot from through &optional posts)
@@ -23,7 +23,8 @@
         (when (<= (ms (get post :at)) now)
           ;; The original publication time is used for classification, with no
           ;; future outcome supplied to the deterministic promise parser.
-          (let* ((p (when (target-time post) (get (analyze-signals (js-object :posts (js-call (get snapshot :posts) :filter
+          (let* ((p (when (or (target-time post) (matches "\\bday\\s+[0-9]{1,2}\\s*[/：:][^.!?]*reset" (get post :text)))
+            (get (analyze-signals (js-object :posts (js-call (get snapshot :posts) :filter
             (lambda (p) (<= (ms (get p :at)) (ms (get post :at))))) :now (get post :at))
               (js-call events :filter (lambda (e) (< (ms (get e :at)) (ms (get post :at)))))) :promise)))
             (prior (last-item (js-call globals :filter (lambda (e) (< (ms (get e :at)) (ms (get post :at))))))))
@@ -40,9 +41,7 @@
                 (finished (>= now (+ (ms (get p :targetAt)) (* 48 hour-ms))))
                 (coverage (covered? snapshot (ms (get p :at)) (ms (get p :targetAt))))
                 (ambiguous (js-call after :some (lambda (e) (and (<= (ms (get e :at)) (ms (get p :targetAt))) (not (verified-global? e)))))))
-                (if old
-                  (progn (put old :revisionCount (+ (get old :revisionCount) 1)) (setq duplicates (+ duplicates 1)))
-                  (js-call rows :push (Object/assign (js-object) p (js-object :cycleId cycle :cycleReliable (not (not (verified-global? prior)))
+                (let ((record (Object/assign (js-object) p (js-object :cycleId cycle :cycleReliable (not (not (verified-global? prior)))
                     :revisionCount 1 :leadBucket (lead-bucket p) :followingGlobals after
                     :completionAt (when (and (get p :primary) hit) (get hit :at))
                     :onTime (cond ((and (get p :primary) on-time) 1)
@@ -52,7 +51,19 @@
                       ((and (get p :primary) hit) "completion-after-deadline-observed")
                       ((and finished (get p :primary) (covered? snapshot (ms (get p :at)) (+ (ms (get p :targetAt)) (* 48 hour-ms)))
                         (not (js-call after :some (lambda (e) (<= (ms (get e :at)) (+ (ms (get p :targetAt)) (* 48 hour-ms))))))) "no-completion-in-audited-window")
-                      (t "unknown"))))))))))))
+                      (t "unknown"))))))
+                  (cond ((and old (= (get old :timePrecision) "programme-day")
+                    (not (= (get p :timePrecision) "programme-day")) (= (get p :parentId) (get old :postId))
+                    (= (get p :scopeBasis) "declared-full-reset-programme"))
+                    ;; An estimated day boundary is not an author deadline.
+                    ;; Preserve that decision, then use the first actual linked
+                    ;; deadline; later revisions still retain their audit cost.
+                    (put record :programmeDecisionPostId (get old :postId))
+                    (put record :programmeDecisionAt (get old :at))
+                    (put record :estimatedTargetAt (get old :targetAt))
+                    (Object/assign old record))
+                    (old (put old :revisionCount (+ (get old :revisionCount) 1)) (setq duplicates (+ duplicates 1)))
+                    (t (js-call rows :push record))))))))))
       (js-object :rows rows :duplicates duplicates :unresolvedDeadlines unresolved)))
   (defun wilson (successes n)
     (when (> n 0)

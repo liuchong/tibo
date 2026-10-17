@@ -2,6 +2,7 @@
   (import "./reset-text.eli" completed? conditional-reset? routine-reset?)
   (import "./reset-timing.eli" local-timing timing-lifetime)
   (import "./post-features.eli" time-text reset-scope)
+  (import "./day-plan.eli" programme-choice)
   (import "../platform/host.eli" Number)
   (import "../platform/util.eli" ms iso day-ms recent match matches sorted last-item)
   ;; Keep a declared programme for its lifetime, not just a sliding news window.
@@ -96,7 +97,7 @@
             (<= (ms (get plan :at)) (ms (get parent :at))) (matches "full reset" (get plan :text))
             (js-call (get programme :progressPostIds) :includes (get parent :id))
             (not (conditional-reset? (get parent :text))) (not (completed? (get parent :text)))
-            (matches "\\bday\\s+[0-9]+\\s*[/：:]\\s*reset\\b" (get parent :text)))))
+            (programme-choice parent programme posts))))
           (setq depth (+ depth 1))
           (when parent (js-call chain :push (get parent :id)))
           (cond ((and parent (matches "reset" (get parent :text))

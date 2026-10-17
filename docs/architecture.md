@@ -64,13 +64,13 @@ app/forecast-cache 为交互预测提供两分钟共享结果，CLI、MCP 和所
 
 evidence/cache 在公开采集入口提供两分钟共享资料，供预测、发言和状态查询共同使用，也合并不同进程的并发采集；主页发现失败时只缓存 15 秒。完整核实原文存入 ledger，无自动过期，后续刷新只为发现新帖或重新核实变化、截断的正文。采集命中时来源和原文时间不变，新的观察时钟按当前时间推进。定点报告跳过预测结果缓存，但可以使用短期公开资料缓存。完整规则与诊断字段见 [公开资料与原文缓存](evidence-cache.md)。
 
-evidence/post-context 提取有期限的条件计划、合并已见 Day 标签并选择最多 8 条相关原帖。采集核实、规则信号与 AI 共享这套背景规则；forecast 仍保留完整近 48h 信号分析，不把 AI 的帖子输入数量上限误作证据全量。
+evidence/post-context 提供计划和核实关系，八帖候选只限制单轮网络核实。evidence/dimensions 从全部永久原文构造六窗及资料窗；ai/dimensions 单次评分或本地降级；forecast/calendar 始终计算历史与日历曲线，forecast/dimensions 将未消耗分数和时间代入公式。day-plan 区分当日交付选择与完成，pacific-time 统一作者时区换算。
 
 evidence/x-page 解析官方主页及单帖页面，区分引用文章与自身正文，不执行脚本；evidence/post-body 从官方单帖页补取长帖全文，核对作者、ID 与官方截断片段后保留原文等级。forecast/cycle 区分统一完成时钟、从公告起算的 7 天参考与未知的个人刷新日期；forecast/journal 保存每份真实报告的复盘，experience 仍单独保存不重叠训练样本。im/reactions 决定是否适合轻量表情，reply-policy 统一预留预算，Lark 的固定 react 方法完成发送；核心不依赖 Lark API。
 
-没有模型服务或部分资料获取失败时，自有算法仍可运行；证据不足时明确返回未知，不填造概率。重组目录不改变概率规则、状态格式、固定推送时间、权限或模型能力。evidence/post-features 校验断言，ai/post-features 负责逐帖提取和缓存；forecast/features 管理状态与未知值，feature-model 计算有门槛的风险调整，feature-log 保存独立前瞻日志。没有经过审计的负窗口不训练，当前没有启用特征系数。详见 [结构化特征](structured-features.md)。
+没有模型或部分资料失败时，仍计算相同的时间基础层和本地发言分数，正常给出百分比。evidence/post-features 校验断言；forecast/features 管理消耗、过期和未知值，feature-log 保存独立前瞻日志。ai/post-features 与 feature-model 的独立研究接口保留，正式多维路径不逐批调用或自动拟合。没有经过审计的负窗口不训练，详见[固定设计](dimensional-forecast.md)。
 
-evidence/reset-timing 校验作者态度、时间词、明写数字与时区，forecast/reset-timing 解析可核实的预期窗口并选择相应风险段。语义理解复用逐帖提取，不另请求概率；正式承诺和非确定时间预期分别管理。没有经过验证的时间系数时，信息仍进入报告与观察日志，数值保留原有算法。
+evidence/reset-timing 校验作者态度、时间词、明写数字与时区，forecast/reset-timing 解析可核实的预期窗口。语义理解包含在单次多维提取中，不另请求概率；确定承诺和非确定时间预期分别管理。没有经过验证的一般消息系数时，不凭样本不足任意加分。
 
 详细算法见 [判断约定](decision-contract.md)，可选任务见 [AI 资料与任务](ai-research.md)。
 

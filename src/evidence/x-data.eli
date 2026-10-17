@@ -45,12 +45,24 @@
               (if (= (get (get s :text) (get s :i)) end) (setq done t) (token s ",")))
             (put s :i (+ (get s :i) 1)) (setq value row)))
         ((= c "!") (setq value (= (token s "![01]") "!0")))
+        ((or (= c "t") (= c "f")) (setq value (= (token s "true|false") "true")))
         ((matches "[0-9-]" (or c "")) (setq value (Number (token s "-?[0-9]+(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?"))))
         (t (token s "null|void 0|undefined") (setq value nil))) value))
   (defun official-relations (html posts)
     (let* ((refs (new Map)) (rows (new Map))
       (starts (js-call (Array/from (js-call html :matchAll
-        (new RegExp "\\$R\\[[0-9]+\\]=\\{(?:__isTweetResult:\"Tweet\",)?__typename:\"Tweet\"," "g"))) :slice 0 256)))
+        (new RegExp "\\$R\\[[0-9]+\\]=\\{(?:\"?__isTweetResult\"?:\"Tweet\",)?\"?__typename\"?:\"Tweet\"," "g"))) :slice 0 256)))
+      ;; New pages wrap the GraphQL response in a JSON string inside Result.Ok.
+      ;; Decode data only, then feed the same author/body verified Tweet reader.
+      (js-call (Array/from (js-call html :matchAll
+        (new RegExp "\\$R\\[[0-9]+\\]=\\{kind:\"Result.Ok\",value:" "g"))) :forEach (lambda (start)
+        (try
+          (let* ((s (js-object :text html :i (get start :index) :nodes 0 :refs refs))
+            (wrapper (data-value s 0)) (raw (get wrapper :value))
+            (data (when (and (= (value-type raw) "string") (< (get raw :length) 4000000)) (JSON/parse raw)))
+            (budget (js-object :nodes 0)))
+            (walk-records data posts rows budget 0))
+          (catch error nil))))
       (js-call starts :forEach (lambda (start)
         (try
           (let* ((s (js-object :text html :i (get start :index) :nodes 0 :refs refs))
@@ -74,4 +86,17 @@
                   (put relation :quotedPostId (get quoted :rest_id)) (put relation :quotedRelationProvenance "official-page-data"))
                 (js-call rows :set id (Object/assign (js-object) (js-call rows :get id) relation)))))
           (catch error nil)))) rows))
+  (defun walk-records (value posts rows budget depth)
+    (put budget :nodes (+ (get budget :nodes) 1))
+    (when (and value (= (value-type value) "object") (< depth 64) (< (get budget :nodes) 30000))
+      (when (= (get value :__typename) "Tweet")
+        ;; Reuse the typed literal parser and its author/body validation; the
+        ;; JSON serialization cannot contain executable syntax.
+        (let* ((literal (str "$R[0]={__typename:\"Tweet\","
+                  (js-call (JSON/stringify (Object/fromEntries (js-call (Object/entries value) :filter
+                    (lambda (pair) (not (= (get pair 0) "__typename")))))) :slice 1)))
+          (found (official-relations literal posts)))
+          (js-call found :forEach (lambda (relation id) (js-call rows :set id relation)))))
+      (js-call (Object/values value) :forEach (lambda (child)
+        (walk-records child posts rows budget (+ depth 1))))))
   (export official-relations))

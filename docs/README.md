@@ -27,6 +27,7 @@
 ## 原理与开发
 
 - [判断算法与证据约定](decision-contract.md)：global/banked、条件样本、四个候选模型、自适应权重与局限。
+- [多时间维度预测](dimensional-forecast.md)：历史日历基础层、六窗评分、一次 AI 与完成消耗。
 - [结构化特征与降级](structured-features.md)：当前提取契约、缓存、样本门槛与诊断。
 - [结构化消息特征设计](feature-forecast-design.md)：分阶段设计、风险公式、后续拟合与验证要求。
 - [历史消息关联研究](research/message-reset-study-2026-10-12.md)：有限历史样本、实际提取试验、官方原文核对及误分类发现。

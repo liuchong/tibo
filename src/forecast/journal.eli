@@ -60,6 +60,7 @@
           (not (js-call rows :some (lambda (r) (and (= (get r :at) now) (= (get r :channel) channel))))))
           (js-call rows :push (js-object :at now :p24 (get prob :p24) :p48 (get prob :p48)
             :origin "prospective-report" :channel channel :policyVersion (get prob :policyVersion)
+            :temporal (get prob :temporal) :dimensions (get prob :dimensions)
             :signal (get prob :signal) :audit (js-object))))
         (setq rows (audit-rows (js-call rows :slice -400) (get result :events) now (get (get prob :information) :historyFresh)))
         (put existing :reports rows)

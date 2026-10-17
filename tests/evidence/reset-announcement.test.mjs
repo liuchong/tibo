@@ -27,7 +27,7 @@ test('official typed reply metadata survives immutable body reuse, and no page c
 
 test('verified ellipsis inherits its reset episode and numeric relative deadline, including no-AI features',()=>{
  const s=input(),r=judge(s);expect(r.signals.promise).toMatchObject({postId:childId,parentId,kind:'global',targetAt:'2026-10-15T06:01:00.000Z',timePrecision:'deadline',scopeBasis:'declared-full-reset-programme'});
- expect(r.forecast).toMatchObject({available:true,mode:'smoothed-promise-history'});
+ expect(r.forecast).toMatchObject({available:true,mode:'dimensional-delivery'});
  const selected=post_context(s.posts,now,r.signals.lastGlobal).posts.find(p=>p.id===childId);
  expect(local_row(selected).claims[0]).toMatchObject({kind:'promise',scope:'global',statement:'future',timing:{stance:'commitment',amount:2,window:'within-hours'}});
  const text=public_forecast(r);expect(text).toMatch(/24h：[0-9]+%/);expect(text).toContain(child);expect(text).toContain(parent);expect(r.forecast.p24).toBeGreaterThan(70);

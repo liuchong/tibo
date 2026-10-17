@@ -39,4 +39,4 @@
         (js-object :policy "promise-prior-1" :applied t :calibrated false :prior prior :n n
           :baseline24 base24 :baseline48 base48 :delayHours delay :delaySamples delay-n
           :p24 (get rows 0) :p48 (Math/max (get rows 0) (get rows 1))))))
-  (export estimate-prior))
+  (export estimate-prior delivery-cdf))

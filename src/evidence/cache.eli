@@ -9,7 +9,7 @@
   (defasync ledger-signature ()
     (let ((ledger (or (await (read-state "ledger")) (js-object))))
       (js-call (js-call (createHash "sha256") :update (JSON/stringify
-        (js-object :policy "source-context-3" :events (get ledger :events (js-array)) :posts (get ledger :posts (js-array))
+        (js-object :policy "source-context-4" :events (get ledger :events (js-array)) :posts (get ledger :posts (js-array))
           :coverage (get ledger :coverage) :coverages (get ledger :coverages)))) :digest "hex")))
   (defun valid-snapshot? (snapshot)
     (and snapshot (= (get snapshot :schemaVersion) 1)

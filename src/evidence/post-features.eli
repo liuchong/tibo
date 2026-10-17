@@ -90,6 +90,8 @@
         (unless (or (negative-expectation? quote) (matches "no (?:global |full |new )?reset|not.*reset|cannot|can't|won't|won’t|can’t" quote)) (fail "post-feature-unconfirmed-negation"))
         (setq statement "negated"))
       (let ((actual (reset-scope text)))
+        (when (and (= actual "unknown") (get post :programmeChoice))
+          (setq actual "global"))
         (when (and (= actual "unknown") (= (get post :resetContextVerified) t)
           (or timing (= kind "completion")))
           (setq actual (get post :resetContextScope "unknown")))

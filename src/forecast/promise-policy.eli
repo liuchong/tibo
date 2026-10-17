@@ -3,6 +3,10 @@
   (import "./promise-prior.eli" estimate-prior)
   (import "../platform/util.eli" clamp ms hour-ms)
   (defun apply-promise-policy (prob signals snapshot)
+    (let* ((dimensions (get prob :dimensions (js-object))) (promise (get signals :promise)))
+      (if (and promise (get dimensions :applied) (= (get dimensions :at) (get snapshot :now))
+        (= (get dimensions :postId) (get promise :postId)) (= (get dimensions :targetAt) (get promise :targetAt))
+        (not (get promise :fulfilled)) (not (get promise :withdrawn))) prob
     (let* ((history (promise-history snapshot)) (estimate (estimate-promise snapshot signals history)))
       (put prob :promiseHistory history) (put prob :promisePolicy estimate)
       ;; Replace with the conditional estimate; do not add a second supposedly
@@ -20,5 +24,5 @@
             (put prob :promisePrior smoothed) (put prob :available t)
             (put prob :p24 (get smoothed :p24)) (put prob :p48 (get smoothed :p48)))
           (put prob :mode "smoothed-promise-history") (put prob :confidence "中")
-          (put prob :announcement (js-object :postId (get p :postId) :targetAt (get p :targetAt))))) prob))
+          (put prob :announcement (js-object :postId (get p :postId) :targetAt (get p :targetAt))))) prob))))
   (export apply-promise-policy))

@@ -98,7 +98,7 @@
                 :headers (js-object :Content-Type "application/json" :Authorization (str "Bearer " key))
                 :signal (AbortSignal/timeout (or timeout 15000))
                 :body (JSON/stringify (js-object :model (get cfg :model) :stream false
-                :thinking (js-object :type "disabled") :temperature (cond ((js-call (js-array "wish" "festival") :includes feature) 1.2) ((= feature "oracle") 1) (t 0)) :response_format (js-object :type "json_object") :max_tokens (cond ((= (get payload :task) "conversation-summary") 2048) ((= (get payload :task) "read-plan") 600) (t (get token-limits feature 500)))
+                :thinking (js-object :type "disabled") :temperature (cond ((js-call (js-array "wish" "festival") :includes feature) 1.2) ((= feature "oracle") 1) (t 0)) :response_format (js-object :type "json_object") :max_tokens (cond ((= (get payload :task) "dimension-assessment") 6000) ((= (get payload :task) "conversation-summary") 2048) ((= (get payload :task) "read-plan") 600) (t (get token-limits feature 500)))
                   :messages (request-messages payload)))))))
                (body nil))
           (setq status (get response :status) retry (retry-delay (js-call (get response :headers) :get "retry-after") now))
@@ -169,10 +169,10 @@
               (put state :cache (js-call cache :slice -128))
               (await (write-state "ai" state)) result))))))))
   (defasync ai-call (feature payload validator &optional timeout)
-    (let* ((cfg (config)) (key (get cfg :key)) (contract (feature-policy feature)))
+    (let* ((cfg (config)) (key (get cfg :key)) (contract (if (= (get payload :task) "dimension-assessment") "dimensions-1" (feature-policy feature))))
       (cond ((= (get key :length) 0) (js-object :state "disabled" :reason "未配置密钥"))
         ((not (js-call (get cfg :features) :includes feature)) (js-object :state "disabled" :reason "功能未启用"))
-        ((and (not (= (get payload :inputMode) "conversation"))
+        ((and (not (js-call (js-array "conversation" "dimension-assessment") :includes (get payload :inputMode)))
           (> (+ (get (JSON/stringify (get payload :evidence)) :length) (get (JSON/stringify (get payload :conversation (js-array))) :length)) 24000))
           (js-object :state "skipped" :reason "任务输入超限，保留基础判断"))
         (t (try

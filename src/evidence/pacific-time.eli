@@ -1,0 +1,18 @@
+(module tibo.evidence.pacific-time
+  (import "../platform/host.eli" Date Intl)
+  (import "../platform/util.eli" ms iso day-ms hour-ms matches)
+  ;; PST/PDT are fixed offsets. An unqualified PT uses IANA Pacific DST.
+  (defun pacific-date (at)
+    (js-call (new Intl/DateTimeFormat "en-CA" (js-object :timeZone "America/Los_Angeles" :year "numeric" :month "2-digit" :day "2-digit")) :format (new Date at)))
+  (defun pacific-target (at hour minute zone tomorrow)
+    (let* ((local (if (= zone "PT") (pacific-date at)
+                   (js-call (iso (- (ms at) (* (if (= zone "PDT") 7 8) hour-ms))) :slice 0 10)))
+           (day (+ (ms (str local "T00:00:00Z")) (if tomorrow day-ms 0)))
+           (wall (+ day (* hour hour-ms) (* minute 60000)))
+           (offset (if (= zone "PDT") 7 8)))
+      (when (= zone "PT")
+        (let* ((probe (new Date (+ wall (* 7 hour-ms))))
+               (name (js-call (new Intl/DateTimeFormat "en-US" (js-object :timeZone "America/Los_Angeles" :timeZoneName "short")) :format probe)))
+          (setq offset (if (matches "PDT" name) 7 8))))
+      (iso (+ wall (* offset hour-ms)))))
+  (export pacific-target))

@@ -34,7 +34,8 @@ test('small or imprecise cohorts use explicit smoothing while retaining the orig
   const r=available_judgment(s),base=available_judgment({...s,posts:s.posts.filter(p=>p.id!=='current')});
   expect(r.forecast.promisePolicy.applied).toBe(false);
   expect(r.forecast.base24).toBe(base.forecast.base24);
-  expect(r.forecast.p24).toBeGreaterThan(0);expect(r.forecast.available).toBe(true);expect(r.forecast.promisePrior.applied).toBe(true);
+  expect(r.forecast.p24).toBeGreaterThan(0);expect(r.forecast.available).toBe(true);expect(r.forecast.dimensions.applied).toBe(true);
+  expect(r.forecast.promisePrior.supersededBy).toBe('dimensional-delivery-1');
   expect(r.forecast.announcement.postId).toBe('current');
  }
  expect(judge(cohort(Array(12).fill(0))).forecast.p24).toBeLessThan(100);

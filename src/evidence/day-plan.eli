@@ -1,0 +1,24 @@
+(module tibo.evidence.day-plan
+  (import "../platform/host.eli" Number)
+  (import "../platform/util.eli" match matches ms)
+  (import "./reset-text.eli" completed? conditional-reset? routine-reset?)
+  (import "./pacific-time.eli" pacific-target)
+  ;; A short delivery title names the chosen outcome, rather than a completed
+  ;; event. Qualifiers and alternative outcomes keep it out of this fallback.
+  (defun programme-choice (post programme posts)
+    (let* ((text (get post :text)) (label (match "\\bday\\s+([0-9]{1,2})\\s*[/：:]\\s*(.+)$" text))
+      (n (when label (Number (get label 1))))
+      (plan (when programme (js-call posts :find (lambda (p) (= (get p :id) (get programme :postId)))))))
+      (when (and label programme plan (> n 0) (<= n (get programme :days))
+        (= (get plan :provenance) "primary") (not (get plan :truncated))
+        (= (get post :provenance) "primary") (not (get post :truncated)) (not (get post :contextMissing))
+        (>= (ms (get post :at)) (ms (get programme :at))) (< (ms (get post :at)) (ms (get programme :expiresAt)))
+        (matches "\\bfull reset\\b" (get plan :text))
+        (matches "\\b(?:limit\\s+|usage\\s+|global\\s+|full\\s+)?reset\\b" (get label 2))
+        (<= (get text :length) 160) (not (completed? text)) (not (conditional-reset? text)) (not (routine-reset? text))
+        (not (matches "\\?|\\b(?:if|either|maybe|might|may|could|hope|wish|expect|not|no|never|banked|card|only|some|tomorrow|yesterday|cancelled|canceled|delayed|postponed)\\b|won[’']t" text)))
+        (js-object :postId (get post :id) :at (get post :at) :text text :scope "global" :kind "global" :primary t
+          :targetAt (pacific-target (get post :at) 24 0 "PT" false) :timePrecision "programme-day" :programmeDay n
+          :programmePostId (get programme :postId) :scopeBasis "declared-full-reset-programme"
+          :fulfilled false :reason "每日计划中的当期明确交付选择，尚待完成公告"))))
+  (export programme-choice))
