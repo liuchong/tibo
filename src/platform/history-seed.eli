@@ -61,8 +61,8 @@
       (js-call current :forEach (lambda (row)
         (let ((seed-row (js-call items :get (get row :id))) (copy (Object/assign (js-object) row)))
           (when seed-row
-            (js-call (js-array "sameResetAs" "replacesEventIds") :forEach (lambda (key)
-              (when (and (Object/hasOwn seed-row key) (not (Object/hasOwn copy key))) (put copy key (get seed-row key))))))
+            (js-call (js-array "sameResetAs" "replacesEventIds" "state" "completionBasis" "timeBasis") :forEach (lambda (key)
+              (when (and (Object/hasOwn seed-row key) (nullish? (get copy key))) (put copy key (get seed-row key))))))
           (js-call items :set (get row :id) copy))))
       (sorted (Array/from (js-call items :values)) "at")))
   (defun merge-history (current seed)
@@ -117,6 +117,11 @@
                   (and (= (get row :id) (get e :id)) (= (get row :state) "completed")))))))))
             (validate-seed value)))
         30000 directory))))
+        ;; A release refresh is additive too: retain previously published
+        ;; reviewed history if an older installation has weaker metadata.
+        (let ((previous (try (await (load-seed target)) (catch error
+          (if (= (get error :code) "ENOENT") nil (throw error))))))
+          (when previous (setq value (merge-history value previous))))
         (await (mkdir (dirname target) (js-object :recursive t)))
         (let ((temp (join (dirname target) (str ".history-" (randomUUID) ".tmp"))))
           (await (writeFile temp (str (json value) "\n") (js-object :mode 384)))

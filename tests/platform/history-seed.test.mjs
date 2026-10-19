@@ -34,10 +34,10 @@ test('T02 fresh isolated installation and offline model use runtime ledger witho
 }));
 test('T03 reinstall is additive, idempotent and preserves runtime records, clock and unrelated user files',()=>isolated(async dir=>{
  const seed=join(dir,'seed.json');await writeFile(seed,JSON.stringify(sample()));
- await write_state('ledger',{...sample(),now:'2026-10-19T00:00:00Z',posts:[{...sample().posts[0],text:'Newer permanent original'}],custom:{keep:true}},dir);
+ const legacy=sample();delete legacy.events[0].state;await write_state('ledger',{...legacy,now:'2026-10-19T00:00:00Z',posts:[{...sample().posts[0],text:'Newer permanent original'}],custom:{keep:true}},dir);
  await write_state('pray-users',{users:['preserved']},dir);await write_state('realtime-monitor',{initializedAt:at,confirmedIds:['previous'],promiseIds:['keep']},dir);
  await install_history(seed,dir);const a=await read_state('ledger',dir);const b=await install_history(seed,dir);
- expect(a.posts[0].text).toBe('Newer permanent original');expect(a.now).toBe('2026-10-19T00:00:00Z');expect(a.custom.keep).toBe(true);
+ expect(a.events[0].state).toBe('completed');expect(a.posts[0].text).toBe('Newer permanent original');expect(a.now).toBe('2026-10-19T00:00:00Z');expect(a.custom.keep).toBe(true);
  expect((await read_state('realtime-monitor',dir)).confirmedIds).toEqual(['previous',pid]);expect((await read_state('realtime-monitor',dir)).promiseIds).toEqual(['keep']);expect(b.addedPosts).toBe(0);expect(b.addedEvents).toBe(0);expect(await read_state('pray-users',dir)).toEqual({users:['preserved']});
 }));
 test('T04 explicit roots, concurrent installs and invalid files cannot cross directories or lose events',()=>isolated(async dir=>{
@@ -49,7 +49,7 @@ test('T04 explicit roots, concurrent installs and invalid files cannot cross dir
 test('T05 export includes only public ledger fields, strips unrelated links and round trips; live ledger cannot be the export destination',()=>isolated(async dir=>{
  const source=sample();source.privateKey='never export';source.posts[0].discoverySourceUrl='https://untrusted.invalid/archive';source.posts[0].text+=' https://untrusted.invalid/private KEEP after';source.posts[0].environment='private runtime';source.documents=[{url:'https://untrusted.invalid'}];
  await write_state('ledger',source,dir);const file=join(dir,'public.json');await export_history(file,dir);
- const saved=JSON.parse(await readFile(file,'utf8'));expect(JSON.stringify(saved)).not.toContain('untrusted.invalid');expect(JSON.stringify(saved)).not.toContain('private runtime');expect(saved.privateKey).toBeUndefined();expect(saved.posts[0].text).toContain(' KEEP after');expect(saved.posts[0].text).not.toContain('sted.invalid');
+ const saved=JSON.parse(await readFile(file,'utf8'));await write_state('ledger',{...sample(),events:[],posts:[],timeline:[]},dir);await export_history(file,dir);expect(JSON.parse(await readFile(file,'utf8')).events).toHaveLength(1);await write_state('ledger',source,dir);expect(JSON.stringify(saved)).not.toContain('untrusted.invalid');expect(JSON.stringify(saved)).not.toContain('private runtime');expect(saved.privateKey).toBeUndefined();expect(saved.posts[0].text).toContain(' KEEP after');expect(saved.posts[0].text).not.toContain('sted.invalid');
  expect(validate_seed(saved).events).toHaveLength(1);await install_history(file,join(dir,'other'));expect((await read_state('ledger',join(dir,'other'))).events).toHaveLength(1);
  await expect(export_history(join(dir,'ledger.json'),dir)).rejects.toThrow();
 }));
