@@ -79,8 +79,8 @@ bun run start -- evaluate
 
 ```bash
 bun --eval 'import {snapshot} from "./tests/helpers/fixture.mjs"; await Bun.write(".tibo/example-snapshot.json", JSON.stringify(snapshot()));'
-TIBO_CONFIG_FILE=/dev/null TIBO_STATE_DIR=.tibo/example-state TIBO_AI_FEATURES='' bun bin/tibo.mjs forecast --snapshot .tibo/example-snapshot.json
-TIBO_CONFIG_FILE=/dev/null TIBO_STATE_DIR=.tibo/example-state TIBO_AI_FEATURES='' bun bin/tibo.mjs posts --snapshot .tibo/example-snapshot.json --limit 2
+TIBO_CONFIG_FILE=.tibo/absent-example.env TIBO_STATE_DIR=.tibo/example-state TIBO_AI_FEATURES='' bun bin/tibo.mjs forecast --snapshot .tibo/example-snapshot.json
+TIBO_CONFIG_FILE=.tibo/absent-example.env TIBO_STATE_DIR=.tibo/example-state TIBO_AI_FEATURES='' bun bin/tibo.mjs posts --snapshot .tibo/example-snapshot.json --limit 2
 ```
 
 快照需含 `schemaVersion: 1`、`now`、`events`、`posts`、`sources`、`unknowns`。`now` 是证据时钟；事件带 `id/at/global/banked`，帖子带 `id/at/text/author`，作者必须为 `thsottiaux`。快照和离线运行不积累前瞻预测经验，但报告状态仍可保存；实验时使用独立的 `TIBO_STATE_DIR`，避免改变日常报告比较基准。
