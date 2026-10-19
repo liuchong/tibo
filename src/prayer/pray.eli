@@ -12,6 +12,7 @@
   (import "./prose.eli" repeated?)
   (import "./festivals.eli" points unlock-festivals pending-festivals festival-text reserve-festivals settle-festival-state)
   (import "./celebration.eli" prepare-celebration enrich-celebration)
+  (import "../platform/time.eli" local-vector)
   (defconst milestones (js-array 1 3 10 30 50 100 233 500 1000))
   (defconst titles (js-array "初来香客" "在线上香员" "额度守望者" "异步祈祷工程师" "天庭 SRE" "重置玄学研究员" "首席愿力官" "赛博方丈" "功德编译器"))
   (defconst events (js-array
@@ -34,7 +35,7 @@
     (and (= (value-type text) "string") (js-call (new RegExp "🙏|\\[双手合十\\]" "u") :test text)))
   (defun only-pray? (text)
     (and (has-pray? text) (= (js-call (js-call text :replace (new RegExp "🙏[\\uFE0F\\u{1F3FB}-\\u{1F3FF}]*|\\[双手合十\\]" "gu") "") :trim) "")))
-  (defun day-at (now) (js-call (iso (+ now 28800000)) :slice 0 10))
+  (defun day-at (now) (get (local-vector now) :date))
   (defun title-at (merit)
     (let ((index 0))
       (while (and (< (+ index 1) (get milestones :length)) (>= merit (get milestones (+ index 1)))) (setq index (+ index 1)))

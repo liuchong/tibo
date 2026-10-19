@@ -73,7 +73,7 @@ test('public forecast has the fixed concise sections; full model data stays in t
  expect(fields.slice(0,3)).toEqual(['• 24h','• 48h','• 上次重置']);
  expect(report.match(/^\*\*(?:概率|参考消息|判断理由)\*\*$/gm)).toEqual(['**概率**','**参考消息**','**判断理由**']);
  expect(report).not.toMatch(/概率推导|采集|模型验证|7天参考|个人每周|AI 辅助/);expect(r.forecast.model.usableIntervals).toBeGreaterThan(0);
- expect(report).toContain('UTC 09-24 00:00');expect(report).not.toContain('09-24T');expect(report).not.toContain('http');expect(r.forecast.p48).toBeGreaterThanOrEqual(r.forecast.p24);
+ expect(report).toContain('北京时间 09-24 08:00');expect(report).not.toContain('09-24T');expect(report).not.toContain('http');expect(r.forecast.p48).toBeGreaterThanOrEqual(r.forecast.p24);
 });
 test('completion detection rejects negation and banked',()=>{
  expect(completed_QMARK_('Reset all propagated. Enjoy.')).toBe(true);expect(completed_QMARK_("We have not reset accounts.")).toBe(false);expect(completed_QMARK_('We have reset banked cards.')).toBe(false);

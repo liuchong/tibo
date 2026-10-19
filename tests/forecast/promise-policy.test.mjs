@@ -14,7 +14,7 @@ test('official EOD announcement resolves deadline and produces a smoothed numeri
  expect(target_time(promise())).toBe('2026-10-13T08:00:00.000Z');
  expect(r.signals.promise).toMatchObject({kind:'global',primary:true,fulfilled:false,timePrecision:'deadline'});
  const base=judge({...s,posts:s.posts.slice(0,-1)});
- expect(r.forecast).toMatchObject({available:true,mode:'dimensional-delivery',base24:base.forecast.base24,policyVersion:'10'});
+ expect(r.forecast).toMatchObject({available:true,mode:'dimensional-delivery',base24:base.forecast.base24,policyVersion:'11'});
  expect(r.forecast.p24).toBeGreaterThan(base.forecast.p24);expect(r.forecast.p48).toBeGreaterThanOrEqual(r.forecast.p24);
  expect(render_report(r)).toMatch(/24h：[0-9]+%/);
  expect(r.forecast.promisePolicy).toMatchObject({applied:false,n:0,reason:'insufficient-audited-cases'});
@@ -22,7 +22,7 @@ test('official EOD announcement resolves deadline and produces a smoothed numeri
  expect(f.claims.find(c=>c.postId===promise().id)).toMatchObject({kind:'promise',status:'active',targetAt:'2026-10-13T08:00:00.000Z',timePrecision:'deadline'});
  const rows=s.posts.map(local_row);rows.at(-1).claims[0].timeText='EOD PST time';
  expect(feature_state(r,{rows,aiRows:1,ruleRows:rows.length-1}).claims.at(-1).timePrecision).toBe('deadline');
- expect(render_report(r)).toContain('期限为 UTC 10-13 08:00');
+ expect(render_report(r)).toContain('期限为 北京时间 10-13 16:00');
  expect(render_report(r)).not.toContain('没有承诺具体时间');
 });
 test('PST/PDT use their stated local calendar; PT follows DST; tomorrow and end-of-day synonyms stay bounded',()=>{

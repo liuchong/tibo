@@ -3,8 +3,8 @@ import {subscription_command,active_subscribers,still_subscribed_QMARK_,sync_gro
 import {slot_at,next_slot} from '../../dist/src/subscriptions/schedule.mjs';import {ensure_bulletin,bulletin_key} from '../../dist/src/subscriptions/bulletin.mjs';
 import {read_state,write_state} from '../../dist/src/platform/state.mjs';import {create_broadcaster} from '../../dist/adapters/lark/broadcast.mjs';
 import {account_key,delivery_key} from '../../dist/adapters/lark/service.mjs';import {validate_query} from '../../dist/src/commands/index.mjs';
-async function isolated(fn){const dir=await mkdtemp(join(tmpdir(),'tibo-subscription-')),old=process.env.TIBO_STATE_DIR,nativeNow=Date.now;process.env.TIBO_STATE_DIR=dir;
-try{await fn(dir);}finally{Date.now=nativeNow;if(old===undefined)delete process.env.TIBO_STATE_DIR;else process.env.TIBO_STATE_DIR=old;await rm(dir,{recursive:true,force:true});}}
+async function isolated(fn){const dir=await mkdtemp(join(tmpdir(),'tibo-subscription-')),old=process.env.TIBO_STATE_DIR,nativeNow=Date.now,oldZone=process.env.TIBO_TIMEZONE;process.env.TIBO_TIMEZONE='Asia/Shanghai';process.env.TIBO_STATE_DIR=dir;
+try{await fn(dir);}finally{Date.now=nativeNow;if(oldZone===undefined)delete process.env.TIBO_TIMEZONE;else process.env.TIBO_TIMEZONE=oldZone;if(old===undefined)delete process.env.TIBO_STATE_DIR;else process.env.TIBO_STATE_DIR=old;await rm(dir,{recursive:true,force:true});}}
 test('only two Beijing slots exist; subscriptions are self-only, transport/account-wide, idempotent and reject time/recipient arguments',()=>isolated(async()=>{
  Date.now=()=>Date.parse('2026-10-04T00:00:00Z');const c={transport:'future-im',account:'application-one',actor:'private-member',scope:'first-room',authenticated:true,conversationType:'p2p'};
  expect((await subscription_command('subscribe',c)).text).toContain('下次定点：北京时间 10-04 09:00');

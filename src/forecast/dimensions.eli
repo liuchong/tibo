@@ -1,6 +1,7 @@
 (module tibo.forecast.dimensions
   (import "../platform/util.eli" ms hour-ms clamp)
   (import "./promise-prior.eli" delivery-cdf)
+  (import "./card.eli" card-advice)
   (defconst weights (js-object :before_last_reset 0 :after_last_reset 0.30 :last_48h 0.15
     :last_24h 0.20 :latest_three 0.15 :latest_anchored_24h 0.20 :official_context 0))
   (defconst delivery-prior (js-object :alpha 19 :beta 1 :kind "engineering-prior" :learned false))
@@ -38,7 +39,7 @@
           :dimensions rows :prior delivery-prior :strength strength :deliveryProbability q :baseline24 base24 :baseline48 base48
           :applied false :reason (if active "no-eligible-support" "no-unconsumed-commitment"))))
         (put prob :dimensions model)
-        (put prob :policyVersion "10")
+        (put prob :policyVersion "11")
         (when (get prob :promisePrior)
           (put (get prob :promisePrior) :applied false)
           (put (get prob :promisePrior) :supersededBy "dimensional-delivery-1"))
@@ -65,5 +66,6 @@
         ;; Normalised weights expose overlap without treating windows as
         ;; independent reset opportunities.
         (js-call rows :forEach (lambda (row) (put row :normalisedWeight (if (> mass 0) (/ (get row :weight) mass) 0))))
+        (put prob :cardAdvice (card-advice prob))
         result)))
   (export apply-dimensions weights language-score))

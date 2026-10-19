@@ -24,6 +24,7 @@
           :information (get (get result :forecast) :information) :featureAdjustment (get (get result :forecast) :featureAdjustment)
           :promisePolicy (get (get result :forecast) :promisePolicy)
           :promisePrior (get (get result :forecast) :promisePrior) :ratePrior (get (get result :forecast) :ratePrior)
+          :cardAdvice (get (get result :forecast) :cardAdvice)
           :temporal (get (get result :forecast) :temporal) :dimensions (get (get result :forecast) :dimensions)
           :promiseHistory (get (get result :forecast) :promiseHistory)
           :timingAssessment (get (get result :forecast) :timingAssessment)

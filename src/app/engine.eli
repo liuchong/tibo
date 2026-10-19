@@ -41,7 +41,7 @@
   (defun observe (snapshot)
     (validate-snapshot snapshot)
     (let* ((events (normalize-events snapshot)) (signals (analyze-signals snapshot events)))
-      (js-object :templateVersion "3" :snapshot snapshot :events events :signals signals
+      (js-object :templateVersion "4" :snapshot snapshot :events events :signals signals
         :cycle (reset-cycle (get signals :lastGlobal) (get snapshot :now)))))
   (defun judge (snapshot)
     (let* ((result (observe snapshot)) (history (summarize-history (get result :events) (get snapshot :now)))
@@ -59,7 +59,7 @@
           (let ((prior (sparse-prior (get observed :events) (get snapshot :now))))
             (put observed :forecast (js-object :available t :p24 (Math/round (get prior :p24)) :p48 (Math/round (get prior :p48))
               :base24 (get prior :p24) :base48 (get prior :p48) :confidence "低" :ratePrior prior
-              :mode "smoothed-event-rate" :policyVersion "10" :information (information snapshot (get observed :signals) history)
+              :mode "smoothed-event-rate" :policyVersion "11" :information (information snapshot (get observed :signals) history)
               :signal "历史事件率" :signalStrength "未知" :reasons (js-array "稀疏历史使用平滑事件率预测"))))
           (apply-calendar (get observed :forecast) history (get observed :events) (get snapshot :now))
           (apply-promise-policy (get observed :forecast) (get observed :signals) snapshot) (native-dimensions observed)))))

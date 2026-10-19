@@ -9,8 +9,8 @@ import {spawnSync} from 'node:child_process';import {resolve} from 'node:path';
 
 test('missing clock verification disables elapsed models, with rates still available; missing background is explicit',()=>{
  const known=judge(snapshot()),unverified=judge(snapshot({posts:[],sources:[{name:'status',ok:false},{name:'archive',ok:false}]}));
- expect(known.forecast.model.candidates.filter(x=>x.weight>0)).toHaveLength(4);
- expect(unverified.forecast.model.candidates.filter(x=>x.weight>0).map(x=>x.name)).toEqual(['recent-rate','decayed-rate']);
+ expect(known.forecast.model.candidates.filter(x=>x.weight>0)).toHaveLength(5);
+ expect(unverified.forecast.model.candidates.filter(x=>x.weight>0).map(x=>x.name)).toEqual(['recent-rate','decayed-rate','adaptive-rate']);
  expect(unverified.forecast.mode).toBe('history-rate-fallback');expect(unverified.forecast.information.missing).toContain('官方事故资料');
  expect(unverified.forecast.p24).toBeGreaterThan(0);expect(unverified.forecast.p48).toBeGreaterThanOrEqual(unverified.forecast.p24);
 });

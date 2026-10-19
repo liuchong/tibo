@@ -1,9 +1,10 @@
-import {test,expect} from 'bun:test';
+import {test,expect,beforeEach,afterEach} from 'bun:test';
 import {judge,available_judgment} from '../../dist/src/app/engine.mjs';
 import {render_report} from '../../dist/src/presentation/report.mjs';
 import {public_forecast} from '../../dist/src/presentation/business.mjs';
 import {report_evidence} from '../../dist/src/presentation/forecast-evidence.mjs';
 import {snapshot,post,event} from '../helpers/fixture.mjs';
+let previousZone;beforeEach(()=>{previousZone=process.env.TIBO_TIMEZONE;process.env.TIBO_TIMEZONE='Asia/Shanghai';});afterEach(()=>{if(previousZone===undefined)delete process.env.TIBO_TIMEZONE;else process.env.TIBO_TIMEZONE=previousZone;});
 const globalId='2107676072871600470',planId='2106845241357824205';
 function input(){return snapshot({now:'2026-10-07T13:07:12Z',events:[...snapshot().events,event(24,{id:globalId,at:'2026-10-07T03:35:09Z'})],posts:[
  post(24,'Reset all propagated. Enjoy.',{id:globalId,at:'2026-10-07T03:35:09Z',provenance:'archive'}),

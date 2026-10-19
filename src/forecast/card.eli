@@ -1,0 +1,13 @@
+(module tibo.forecast.card
+  (import "../platform/host.eli" Number)
+  (defun card-advice (prob)
+    (let* ((a (get prob :p24)) (b (get prob :p48))
+      (decision (cond ((or (= (get prob :available) false) (not (Number/isFinite a)) (not (Number/isFinite b))) "unknown")
+        ((>= a 65) "wait") ((or (>= a 35) (>= b 60)) "wait-if-possible") (t "use-if-needed")))
+      (text (cond ((= decision "wait") "建议先等全局重置；额度不足且急用时再用卡。")
+        ((= decision "wait-if-possible") "不急可以先等；额度不足且现在要用时再用卡。")
+        ((= decision "use-if-needed") "额度不足且现在要用，可考虑用卡；暂时够用就先留卡。")
+        (t "有即时需求再考虑用卡；当前无法比较等待收益。"))))
+      (js-object :policy "card-advice-1" :decision decision :text text :p24 a :p48 b
+        :assumption "quota-insufficient-and-immediate-need")))
+  (export card-advice))

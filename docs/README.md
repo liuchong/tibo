@@ -28,6 +28,7 @@
 ## 原理与开发
 
 - [判断算法与证据约定](decision-contract.md)：global/banked、条件样本、四个候选模型、自适应权重与局限。
+- [动态时间层与重置卡](adaptive-time.md)：近期节奏、周期权重、日内分布、时区配置和粗略用卡建议。
 - [多时间维度预测](dimensional-forecast.md)：历史日历基础层、六窗评分、一次 AI 与完成消耗。
 - [结构化特征与降级](structured-features.md)：当前提取契约、缓存、样本门槛与诊断。
 - [结构化消息特征设计](feature-forecast-design.md)：分阶段设计、风险公式、后续拟合与验证要求。

@@ -63,3 +63,8 @@ test('completion metadata added to an existing original invalidates shared sourc
  `globalThis.fetch=async()=>new Response('',{status:503});`);
  expect(r.hit).toBe('cached');expect(r.first.fulfilled).toBe(false);expect(r.after).toMatchObject({last:'linked-done',fulfilled:true,state:'fresh'});expect(r.after.p24).toBeLessThan(r.first.p24);expect(r.again).toBe('cached');expect(r.after.report).not.toContain('仍待完成公告');
 });
+
+test('all configured time zones invalidate both AI and native caches, including changes during generation',async()=>{
+ const r=await trial(`const states=[];for(const noAi of [false,true]){states.push((await cached_forecast({noAi},generate)).reuse.state);states.push((await cached_forecast({noAi},generate)).reuse.state);process.env.TIBO_FORECAST_TIMEZONE=noAi?'Asia/Tokyo':'UTC';states.push((await cached_forecast({noAi},generate)).reuse.state);process.env.TIBO_SCHEDULE_TIMEZONE=noAi?'Asia/Tokyo':'UTC';states.push((await cached_forecast({noAi},generate)).reuse.state)}await invalidate_forecast();await cached_forecast({noAi:true},async()=>{calls++;process.env.TIBO_TIMEZONE='America/New_York';return result()});const changed=await cached_forecast({noAi:true},generate);console.log(JSON.stringify({states,changed:changed.reuse.state}));`);
+ expect(r.states).toEqual(['fresh','cached','fresh','fresh','fresh','cached','fresh','fresh']);expect(r.changed).toBe('fresh');
+});
