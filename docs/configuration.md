@@ -54,6 +54,8 @@ TIBO_AI_FEATURES=
 
 文件中不要填 shell 表达式。旧 `forecast`、`review` 功能名及 `TIBO_AI_WEIGHT` 被忽略，无需修改已有凭据。关闭所有 AI 调用用空功能列表；结构化缓存、预算与失败冷却见 [AI 任务](ai-research.md) 和 [结构化特征](structured-features.md)。
 
+`brief`开关控制最终用卡理由的可选AI生成，关闭时使用五档本地文案；概率仍由算法决定。
+
 `forecast --no-ai` 禁止该次预测 AI；真实人工输入中的 `--no-ai` 同时阻止语义路由、修复和后续文字 AI。固定命令仍可使用。`--offline` / `--snapshot` 禁止该次采集和预测 AI，但不是所有文字任务的全局开关；隔离实验时显式清空 `TIBO_AI_FEATURES`。
 
 ## Lark 接入设置

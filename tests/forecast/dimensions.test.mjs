@@ -125,7 +125,7 @@ test('one provider call returns all dimensions even above old 24k input; failed/
   +'const {judge}=await import('+JSON.stringify(resolve('dist/src/app/engine.mjs'))+');const {enhance}=await import('+JSON.stringify(resolve('dist/src/ai/enhance.mjs'))+');const s='+JSON.stringify(s)+';'
   +'const a=await enhance(judge(s));const cached=await enhance(judge(s));process.env.DEEPSEEK_API_KEY="";const no=await enhance(judge(s));'
   +'console.log(JSON.stringify({calls,state:a.ai.features.signals.state,cached:cached.ai.features.signals.state,a:a.forecast.temporal,no:no.forecast.temporal,score:a.forecast.dimensions,posts:a.ai.postIds.length,noScore:no.forecast.dimensions,p:a.forecast.p24,np:no.forecast.p24}));';
- const run=spawnSync(process.execPath,['--eval',code],{encoding:'utf8',timeout:10000,env:{...process.env,TIBO_STATE_DIR:dir,DEEPSEEK_API_KEY:'fixture',TIBO_AI_FEATURES:'signals,research,search,brief'}});
+ const run=spawnSync(process.execPath,['--eval',code],{encoding:'utf8',timeout:10000,env:{...process.env,TIBO_STATE_DIR:dir,DEEPSEEK_API_KEY:'fixture',TIBO_AI_FEATURES:'signals'}});
  expect(run.stderr).toBe('');expect(run.status).toBe(0);const r=JSON.parse(run.stdout);
  expect(r.calls).toBe(1);expect(r.state).toBe('ok');expect(r.cached).toBe('cached');expect(r.posts).toBe(s.posts.length);
  expect(r.a).toEqual(r.no);expect(r.score.dimensions).toHaveLength(7);expect(r.noScore.dimensions).toHaveLength(7);
@@ -141,7 +141,7 @@ test('provider failure keeps a strong local commitment and every required window
    +'const s='+JSON.stringify(input([landing]))+';const n=judge(s),r=await enhance(judge(s));'
    +'console.log(JSON.stringify({calls,state:r.ai.features.signals.state,n:n.forecast,r:r.forecast}));';
   const run=spawnSync(process.execPath,['--eval',code],{encoding:'utf8',timeout:6000,
-   env:{...process.env,TIBO_STATE_DIR:dir,DEEPSEEK_API_KEY:'fixture',TIBO_AI_FEATURES:'signals,research,search,brief'}});
+   env:{...process.env,TIBO_STATE_DIR:dir,DEEPSEEK_API_KEY:'fixture',TIBO_AI_FEATURES:'signals'}});
   expect(run.stderr).toBe('');expect(run.status).toBe(0);const v=JSON.parse(run.stdout);
   expect(v.calls).toBe(1);expect(v.state).toBe('fallback');expect(v.r.temporal).toEqual(v.n.temporal);
   expect(v.r.p24).toBe(v.n.p24);expect(v.r.p48).toBe(v.n.p48);expect(v.r.dimensions.dimensions).toHaveLength(7);

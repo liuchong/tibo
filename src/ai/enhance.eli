@@ -1,5 +1,6 @@
 (module tibo.ai.enhance
   (import "./dimensions.eli" assess-dimensions)
+  (import "./card.eli" enhance-card)
   (import "../evidence/dimensions.eli" dimension-input)
   (import "../forecast/dimensions.eli" apply-dimensions)
   (import "../forecast/features.eli" feature-state apply-structured-promise)
@@ -72,8 +73,10 @@
         :ruleRows (get extraction :ruleRows) :calls (get extraction :calls) :value (js-object :rows (get extraction :rows))))
       (js-call (js-array "forecast" "review") :forEach (lambda (name)
         (put features name (js-object :state "retired" :reason "概率由自有算法计算"))))
-      (js-call (js-array "search" "research" "brief") :forEach (lambda (name)
+      (js-call (js-array "search" "research") :forEach (lambda (name)
         (put features name (js-object :state (if (js-call (js-array "ok" "cached") :includes (get extraction :state)) "merged" "skipped")))))
+      (let ((card (await (enhance-card result skip))))
+        (put features :brief (js-object :state (get card :aiState) :task "card-advice" :source (get card :source))))
       (put (get prob :information) :ai (if (js-call (js-array "ok" "cached") :includes (get extraction :state)) "维度评分可用" "规则维度降级"))
       (put result :ai (js-object :features features :baseline (js-object :p24 (get prob :base24) :p48 (get prob :base48))
         :weight 0 :documents (get input :documents) :windows (get input :windows)

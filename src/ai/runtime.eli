@@ -11,7 +11,7 @@
   (defconst token-limits (js-object :signals 1100 :research 1400 :search 220 :brief 650 :router 280 :translate 2800 :answer 1200 :repair 400 :oracle 380 :wish 160 :trigger 120 :festival 240 :read 600))
   (defconst output-policy "2")
   (defun feature-policy (feature)
-    (cond ((= feature "festival") "festival-1") ((= feature "trigger") "trigger-1") ((= feature "wish") "wish-4") ((= feature "oracle") "oracle-2") ((= feature "repair") "repair-2") ((= feature "router") "language-3")
+    (cond ((= feature "brief") "card-2") ((= feature "festival") "festival-1") ((= feature "trigger") "trigger-1") ((= feature "wish") "wish-4") ((= feature "oracle") "oracle-2") ((= feature "repair") "repair-2") ((= feature "router") "language-3")
       ((= feature "signals") "post-claims-3") ((= feature "read") "read-plan-2") ((= feature "answer") "chat-6") ((= feature "translate") "text-3") (t output-policy)))
   (defun digest (text) (js-call (js-call (createHash "sha256") :update text) :digest "hex"))
   (defun config ()
@@ -98,7 +98,7 @@
                 :headers (js-object :Content-Type "application/json" :Authorization (str "Bearer " key))
                 :signal (AbortSignal/timeout (or timeout 15000))
                 :body (JSON/stringify (js-object :model (get cfg :model) :stream false
-                :thinking (js-object :type "disabled") :temperature (cond ((js-call (js-array "wish" "festival") :includes feature) 1.2) ((= feature "oracle") 1) (t 0)) :response_format (js-object :type "json_object") :max_tokens (cond ((= (get payload :task) "dimension-assessment") 6000) ((= (get payload :task) "conversation-summary") 2048) ((= (get payload :task) "read-plan") 600) (t (get token-limits feature 500)))
+                :thinking (js-object :type "disabled") :temperature (cond ((= (get payload :task) "card-advice") 0.6) ((js-call (js-array "wish" "festival") :includes feature) 1.2) ((= feature "oracle") 1) (t 0)) :response_format (js-object :type "json_object") :max_tokens (cond ((= (get payload :task) "card-advice") 220) ((= (get payload :task) "dimension-assessment") 6000) ((= (get payload :task) "conversation-summary") 2048) ((= (get payload :task) "read-plan") 600) (t (get token-limits feature 500)))
                   :messages (request-messages payload)))))))
                (body nil))
           (setq status (get response :status) retry (retry-delay (js-call (get response :headers) :get "retry-after") now))
