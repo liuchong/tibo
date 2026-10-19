@@ -17,8 +17,9 @@ test('T01 repository ledger preserves all researched announcements and only comp
  expect(seed.posts.length).toBeGreaterThanOrEqual(55);expect(seed.timeline.length).toBeGreaterThanOrEqual(55);
  expect(seed.posts.some(p=>p.id==='2076365965915467978')).toBe(true);
  expect(seed.events.some(e=>e.id===pid&&e.global)).toBe(true);
- const result=available_judgment({...seed,sources:[],unknowns:[]});expect(result.signals.lastGlobal).toMatchObject({id:pid,verified:true});
- const withMillis={...seed,posts:seed.posts.map(p=>p.id===pid?{...p,at:'2026-10-17T21:12:21.411Z'}:p),sources:[],unknowns:[]};expect(available_judgment(withMillis).signals.lastGlobal.verified).toBe(true);
+ const latest=seed.events.filter(e=>e.global).toSorted((a,b)=>Date.parse(a.at)-Date.parse(b.at)).at(-1);
+ const result=available_judgment({...seed,sources:[],unknowns:[]});expect(result.signals.lastGlobal).toMatchObject({id:latest.id,verified:true});
+ const withMillis={...seed,posts:seed.posts.map(p=>p.id===pid?{...p,at:'2026-10-17T21:12:21.411Z'}:p),sources:[],unknowns:[]};expect(available_judgment(withMillis).events.find(e=>e.id===pid).verified).toBe(true);
  expect(seed.events.some(e=>e.id==='2076365965915467978'&&e.global)).toBe(false);
  expect(result.events.filter(e=>e.global&&['2086972802457063486','2086972933566857393'].includes(e.id))).toHaveLength(1);
  const serialized=JSON.stringify(seed);expect(serialized).not.toMatch(/https?:\/\/(?!x\.com\/|twitter\.com\/|t\.co\/|(?:www\.)?openai\.com\/)/);
