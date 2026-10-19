@@ -13,7 +13,7 @@
             (not (matches "will|tomorrow|not |no " text)))))
           (when (and (or global banked) (= (get p :provenance) "primary") (not (get p :truncated)))
             (js-call result :push (js-object :id (get p :id) :at (get p :at) :global global :banked banked
-              :observed false :url (get p :url) :scope "以原文对象为准" :provenance "primary"
+              :state "completed" :observed false :url (get p :url) :scope "以原文对象为准" :provenance "primary"
               :completionBasis (when (and global (not direct)) (get context :resetContextBasis))
               :completionPostIds (when (and global (not direct)) (get context :resetContextPostIds))))
             (when global (setq last-global-at (ms (get p :at)))))))) result))

@@ -9,7 +9,7 @@
   },
   "scripts": {
     "build": "bun tools/build.mjs",
-    "compile": "bun run build && bun build --compile bin/tibo.mjs --outfile .tibo/bin/tibo && bun build --compile adapters/lark/start.mjs --outfile .tibo/bin/tibo-lark",
+    "compile": "bun run build && bun build --compile bin/tibo.mjs --outfile .tibo/bin/tibo && bun build --compile adapters/lark/start.mjs --outfile .tibo/bin/tibo-lark && bun tools/package-history.mjs",
     "service:install": "bun run compile && .tibo/bin/tibo service install",
     "test": "bun run check:architecture && bun run build && bun test tests",
     "start": "bun bin/tibo.mjs",

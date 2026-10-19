@@ -46,7 +46,7 @@ test('native WebSocket topic prayers, THANKS and business replies use HTTP reply
   expect(sent[5].id).toBe('om_quote');expect(sent[5].body.reply_in_thread).toBe(false);
   expect(sent[6].id).toBe('om_question');expect(sent[6].body.reply_in_thread).toBe(true);
   expect(sent[2].body.content).toContain('累计🙏 2');expect(sent[3].body.content).toContain('累计🙏 3');
-  expect(reads).toHaveLength(1);expect((await readdir(dir)).some(f=>f.startsWith('conversation-'))).toBe(false);
+  expect(reads).toHaveLength(1);expect((await readdir(dir,{withFileTypes:true})).some(f=>f.isFile()&&f.name.startsWith('conversation-'))).toBe(false);
   console.log('Native topic trial: 7 HTTP replies/sends from 7 WebSocket events; topic prayers, reactions and help stay in topic; no AI or history reads.');
  }finally{if(child){child.kill('SIGTERM');await closed;}server.stop(true);await rm(dir,{recursive:true,force:true});}
 },15000);

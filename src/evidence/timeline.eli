@@ -1,0 +1,22 @@
+(module tibo.evidence.timeline
+  (import "./post-events.eli" events-from-posts)
+  (import "./reset-text.eli" completion-update? conditional-reset? routine-reset?)
+  (import "../platform/util.eli" matches sorted)
+  ;; Public announcement history uses the same runtime ledger as reset events.
+  ;; A future or conditional statement never becomes a completed global event.
+  (defun timeline-from-posts (posts &optional events)
+    (let ((completed (js-call (js-call (or events (js-array)) :filter (lambda (e) (= (get e :state) "completed"))) :concat (events-from-posts posts))))
+      (js-call (js-call (sorted posts "at") :filter (lambda (p)
+        (and (= (get p :author) "thsottiaux") (= (get p :provenance) "primary")
+          (or (matches "reset|banked" (get p :text))
+            (and (completion-update? (get p :text)) (js-call completed :some (lambda (e) (and (= (get e :id) (get p :id)) (get e :global)))))) (not (routine-reset? (get p :text)))))) :map (lambda (p)
+        (let* ((text (get p :text)) (event (js-call completed :find (lambda (e)
+          (and (= (get e :id) (get p :id)) (get e :global) (not (get p :truncated))))))
+          (banked (or (and event (get event :banked)) (and (matches "banked|reset card" text) (not event))))
+          (future (or (get p :truncated) (conditional-reset? text) (matches "\\bwill\\b|tomorrow|landing|incoming|next hour|should land" text))))
+          (js-object :id (get p :id) :at (get p :at) :url (get p :url)
+            :kind (if (and banked (not event)) "banked" "global") :state (cond (event "completed") ((conditional-reset? text) "conditional")
+              ((or future (matches "day [0-9]+.*/|day [0-9]+/" text)) "announced")
+              ((matches "(?:are|is|we.re) reset|reset.*propagat|reset button pressed" text) "processing") (t "hint"))
+            :global (not (not event)) :banked (not (not banked)) :provenance "primary"))))) )
+  (export timeline-from-posts))

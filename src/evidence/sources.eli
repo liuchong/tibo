@@ -2,7 +2,9 @@
   (import "../platform/host.eli" Date Promise Map encodeURIComponent)
   (import "./html.eli" parse-html by-tag by-class html-text)
   (import "./transport.eli" request request-json)
-  (import "../platform/state.eli" read-state write-state with-lock)
+  (import "../platform/state.eli" read-state write-state)
+  (import "../platform/transaction.eli" state-transaction)
+  (import "./timeline.eli" timeline-from-posts)
   (import "./reset-text.eli" completed?)
   (import "./post-events.eli" events-from-posts)
   (import "./post-context.eli" post-context)
@@ -129,13 +131,15 @@
       (let ((documents (documents-from (js-object :now now :sources sources))))
       (unless offline
         (when (or fresh-original (> (get documents :length) 0))
-          (await (with-lock "ledger" (async ()
+          (await (state-transaction "ledger" (async ()
             (let ((latest (or (await (read-state "ledger")) (js-object))))
               (await (write-state "ledger" (Object/assign (js-object) latest (js-object :schemaVersion 1 :now now
                 :events (merge-events (get latest :events (js-array)) events)
                 :posts (merge-posts (get latest :posts (js-array)) posts)
+                :timeline (merge-events (get latest :timeline (js-array)) (timeline-from-posts posts events))
                 :documents (merge-documents (get latest :documents (js-array)) documents now))))))))))))
       (js-object :schemaVersion 1 :now now :events events :posts posts :cachedAt nil
+        :timeline (merge-events (get ledger :timeline (js-array)) (timeline-from-posts posts events))
         :localLedgerAt (get ledger :now) :coverage (get ledger :coverage) :coverages (get ledger :coverages (js-array))
         :crossChecks (js-array) :sources sources :unknowns unknowns)))
   (defasync collect-sources (&optional clock offline)

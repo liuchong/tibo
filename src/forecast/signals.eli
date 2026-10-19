@@ -50,7 +50,15 @@
                   (when (and (not (completed? text)) (matches "landing|will reset|reset tomorrow|reset next week|reset.*by EOD" text))
                     (put copy :global false)))
                 (put copy :verified (not (not (and post (not (get post :truncated))
-                  (completed-post? post (completion-context post posts))))))
+                  (or (completed-post? post (completion-context post posts))
+                    ;; An installation record can carry a reviewed public
+                    ;; completion without inventing a typed quote relationship.
+                    (and (= (get event :state) "completed")
+                      (= (get event :completionBasis) "reviewed-public-announcement")
+                      (= (get event :provenance) "primary") (= (get post :provenance) "primary")
+                      (= (get post :author) "thsottiaux")
+                      (= (Math/floor (/ (ms (get post :at)) 1000)) (Math/floor (/ (ms (get event :at)) 1000)))
+                      (= (get post :url) (get event :url))))))))
                 (when post (put copy :provenance (get post :provenance)))
                 (put copy :verifiedBanked (not (not (and post (matches "banked|reset card" text)))))
                 (put copy :text text)

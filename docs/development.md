@@ -59,6 +59,10 @@ TIBO_CONFIG_FILE=.tibo/absent-example.env TIBO_STATE_DIR=.tibo/example-state TIB
 
 新增 IM 遵守 [IM 接入契约](im-adapters.md)，不把核心变成某平台专用机器人。
 
+## 安装历史资料
+
+公开安装种子位于 `data/history/ledger.json`；维护入口、字段和更新时间口径见 [历史预填充](history-bootstrap.md)。模型与证据采集模块只读取运行目录 ledger，不能增加指向仓库种子的导入或后备加载。`tools/package-history.mjs` 只负责打包侧车，业务导入和导出保持 Eliscript 实现。
+
 ## 交付与文档维护
 
 文档按主题维护：命令变更更新 commands，配置变更更新 configuration，部署变更更新 operations；其他文档链接到对应规范，避免复制多份参数表。README 保持项目入口，docs/README 保持阅读导航。
