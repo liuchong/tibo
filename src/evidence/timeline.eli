@@ -15,6 +15,7 @@
           (banked (or (and event (get event :banked)) (and (matches "banked|reset card" text) (not event))))
           (future (or (get p :truncated) (conditional-reset? text) (matches "\\bwill\\b|tomorrow|landing|incoming|next hour|should land" text))))
           (js-object :id (get p :id) :at (get p :at) :url (get p :url)
+            :eventId (get p :sameResetAs (get p :id))
             :kind (if (and banked (not event)) "banked" "global") :state (cond (event "completed") ((conditional-reset? text) "conditional")
               ((or future (matches "day [0-9]+.*/|day [0-9]+/" text)) "announced")
               ((matches "(?:are|is|we.re) reset|reset.*propagat|reset button pressed" text) "processing") (t "hint"))

@@ -49,6 +49,13 @@
                     (put copy :global false) (put copy :banked t))
                   (when (and (not (completed? text)) (matches "landing|will reset|reset tomorrow|reset next week|reset.*by EOD" text))
                     (put copy :global false)))
+                ;; Explicit reviewed event identities preserve observations and
+                ;; repeated announcements without counting another reset.
+                (when (or (and post (get post :sameResetAs) (js-call records :has (get post :sameResetAs)))
+                  (and (get event :observed) (js-call (Array/from (js-call records :values)) :some (lambda (candidate)
+                    (and (= (get candidate :state) "completed") (= (get candidate :provenance) "primary")
+                      (get candidate :global) (js-call (get candidate :replacesEventIds (js-array)) :includes (get event :id)))))))
+                  (put copy :global false) (put copy :banked false))
                 (put copy :verified (not (not (and post (not (get post :truncated))
                   (or (completed-post? post (completion-context post posts))
                     ;; An installation record can carry a reviewed public

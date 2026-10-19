@@ -57,7 +57,7 @@
   (defun merge-events (old fresh)
     (let ((items (new Map)))
       (js-call old :forEach (lambda (e) (js-call items :set (get e :id) e)))
-      (js-call fresh :forEach (lambda (e) (js-call items :set (get e :id) e)))
+      (js-call fresh :forEach (lambda (e) (js-call items :set (get e :id) (Object/assign (js-object) (js-call items :get (get e :id)) e))))
       (sorted (Array/from (js-call items :values)) "at")))
   (defun merge-documents (old fresh now)
     (let ((items (new Map)))

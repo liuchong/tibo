@@ -30,7 +30,7 @@ bun run compile
 .tibo/bin/tibo service install --history data/history/ledger.json
 ```
 
-安装使用配置中的实际 `TIBO_STATE_DIR`。全新实例直接获得历史；旧实例按条目 ID 只补缺项，已有同 ID 原帖、事件、较新数据时钟及其他实例状态优先保留。读改写使用与采集相同的 ledger 事务锁，写入采用临时文件加原子替换；连续导入不会重复追加。导入收据保存到运行目录的 `history-install.json`。已核对的历史完成表述使用 `completionBasis: reviewed-public-announcement` 记录，保留官方作者、原帖 ID、时间及地址，不伪造引用关系；模型核对这些字段后将其视为已核对历史。已有实时监测实例会把这批历史 ID 合入已知列表，避免重装后向订阅者补发旧重置确认。
+安装使用配置中的实际 `TIBO_STATE_DIR`。全新实例直接获得历史；旧实例按条目 ID 只补缺项，已有同 ID 原帖、事件、较新数据时钟及其他实例状态优先保留；只补入经核对的缺失 `sameResetAs` / `replacesEventIds` 关联。重复公告共享同一个事件身份；官方完成公告取代早先观测的计数地位，观测原记录仍保留。读改写使用与采集相同的 ledger 事务锁，写入采用临时文件加原子替换；连续导入不会重复追加。导入收据保存到运行目录的 `history-install.json`。已核对的历史完成表述使用 `completionBasis: reviewed-public-announcement` 记录，保留官方作者、原帖 ID、时间及地址，不伪造引用关系；模型核对这些字段后将其视为已核对历史。已有实时监测实例会把这批历史帖子的 ID 合入已知列表，避免重装后向订阅者补发旧重置确认。
 
 Lark 安装不重复导入；服务普通启动、重启和预测不会重新读取安装数据。删除仓库文件不影响已导入实例继续工作。不要通过覆盖整个状态目录来“更新历史”。
 

@@ -28,8 +28,8 @@
         (ms (get row :at))
         (let ((copy (fields row (if (= kind "posts")
           (js-array "id" "at" "author" "provenance" "cachedAt" "truncated" "parentId" "parentRelationProvenance"
-            "quotedPostId" "quotedRelationProvenance" "referenceMetadataVerified")
-          (js-array "id" "at" "global" "banked" "observed" "provenance" "kind" "state" "completionBasis" "completionPostIds" "timeBasis")))))
+            "quotedPostId" "quotedRelationProvenance" "referenceMetadataVerified" "sameResetAs")
+          (js-array "id" "at" "global" "banked" "observed" "provenance" "kind" "state" "completionBasis" "completionPostIds" "timeBasis" "replacesEventIds" "eventId")))))
           (put copy :url url)
           (when (= kind "posts")
             (unless (= (get row :author) "thsottiaux") (fail "历史帖子作者无效"))
@@ -58,7 +58,12 @@
   (defun merge-rows (seed current)
     (let ((items (new Map)))
       (js-call seed :forEach (lambda (row) (js-call items :set (get row :id) row)))
-      (js-call current :forEach (lambda (row) (js-call items :set (get row :id) row)))
+      (js-call current :forEach (lambda (row)
+        (let ((seed-row (js-call items :get (get row :id))) (copy (Object/assign (js-object) row)))
+          (when seed-row
+            (js-call (js-array "sameResetAs" "replacesEventIds") :forEach (lambda (key)
+              (when (and (Object/hasOwn seed-row key) (not (Object/hasOwn copy key))) (put copy key (get seed-row key))))))
+          (js-call items :set (get row :id) copy))))
       (sorted (Array/from (js-call items :values)) "at")))
   (defun merge-history (current seed)
     (setq current (or current (js-object)))
@@ -90,8 +95,8 @@
           (let ((monitor (await (read-state "realtime-monitor" directory))))
             (when monitor
               (let ((known (get monitor :confirmedIds (js-array))))
-                (js-call (get seed :events) :forEach (lambda (event)
-                  (when (and (get event :global) (not (js-call known :includes (get event :id))))
+                (js-call (get seed :posts) :forEach (lambda (event)
+                  (when (not (js-call known :includes (get event :id)))
                     (js-call known :push (get event :id)))))
                 (put monitor :confirmedIds known)
                 (await (write-state "realtime-monitor" monitor directory))))) result))
@@ -106,8 +111,10 @@
             ;; Old imported type labels are not evidence of completion. Keep
             ;; them in public posts/timeline unless the runtime confirmed them.
             (put value :events (js-call (get value :events) :filter (lambda (e)
-              (or (= (get e :state) "completed") (js-call (get value :timeline) :some (lambda (row)
-                (and (= (get row :id) (get e :id)) (= (get row :state) "completed"))))))))
+              (and (not (js-call (get value :posts) :some (lambda (p)
+                  (and (= (get p :id) (get e :id)) (get p :sameResetAs)))))
+                (or (= (get e :state) "completed") (js-call (get value :timeline) :some (lambda (row)
+                  (and (= (get row :id) (get e :id)) (= (get row :state) "completed")))))))))
             (validate-seed value)))
         30000 directory))))
         (await (mkdir (dirname target) (js-object :recursive t)))

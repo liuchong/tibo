@@ -20,6 +20,7 @@ test('T01 repository ledger preserves all researched announcements and only comp
  const result=available_judgment({...seed,sources:[],unknowns:[]});expect(result.signals.lastGlobal).toMatchObject({id:pid,verified:true});
  const withMillis={...seed,posts:seed.posts.map(p=>p.id===pid?{...p,at:'2026-10-17T21:12:21.411Z'}:p),sources:[],unknowns:[]};expect(available_judgment(withMillis).signals.lastGlobal.verified).toBe(true);
  expect(seed.events.some(e=>e.id==='2076365965915467978'&&e.global)).toBe(false);
+ expect(result.events.filter(e=>e.global&&['2086972802457063486','2086972933566857393'].includes(e.id))).toHaveLength(1);
  const serialized=JSON.stringify(seed);expect(serialized).not.toMatch(/https?:\/\/(?!x\.com\/|twitter\.com\/|t\.co\/|(?:www\.)?openai\.com\/)/);
  expect(seed.posts.map(p=>p.at)).toEqual(seed.posts.map(p=>p.at).toSorted());
  expect(new Set(seed.posts.map(p=>p.id)).size).toBe(seed.posts.length);
@@ -71,4 +72,13 @@ test('T08 installation sidecar is packaged separately and never imported from a 
  const pkg=JSON.parse(await readFile('package.json','utf8'));expect(pkg.scripts.compile).toContain('package-history');
  const service=await readFile('src/platform/service.eli','utf8');expect(service).toContain('install-history');expect(service).not.toContain('"ledger.json" "experience.json"');
  for(const name of ['src/evidence/sources.eli','src/app/engine.eli','src/forecast/forecast.eli'])expect(await readFile(name,'utf8')).not.toContain('data/history');
+});
+
+test('reviewed event identities suppress duplicate announcements and superseded observations while preserving their original records',()=>{
+ const seed=JSON.parse(require('node:fs').readFileSync('data/history/ledger.json','utf8'));
+ const old={...seed,posts:seed.posts.map(p=>{const copy={...p};delete copy.sameResetAs;return copy;}),events:[...seed.events,{id:'observed-2097043464538264003',at:'2026-09-08T01:56:57.501Z',global:true,banked:false,observed:true}]};
+ const merged=merge_history(old,seed),r=available_judgment({...merged,sources:[],unknowns:[]});
+ expect(merged.events.some(e=>e.id==='observed-2097043464538264003')).toBe(true);
+ expect(r.events.find(e=>e.id==='observed-2097043464538264003').global).toBe(false);
+ expect(r.events.filter(e=>e.global&&['2086972802457063486','2086972933566857393'].includes(e.id))).toHaveLength(1);
 });

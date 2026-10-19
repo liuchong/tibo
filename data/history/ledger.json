@@ -387,7 +387,10 @@
       "provenance": "primary",
       "timeBasis": "official-announcement",
       "observed": false,
-      "completionBasis": "reviewed-public-announcement"
+      "completionBasis": "reviewed-public-announcement",
+      "replacesEventIds": [
+        "observed-2097043464538264003"
+      ]
     },
     {
       "id": "2097752790177370535",
@@ -957,7 +960,8 @@
       "url": "https://x.com/thsottiaux/status/2086972933566857393",
       "provenance": "primary",
       "cachedAt": "2026-10-19T08:34:31.000Z",
-      "truncated": false
+      "truncated": false,
+      "sameResetAs": "2086972802457063486"
     },
     {
       "id": "2087423996115681767",
@@ -1087,7 +1091,8 @@
       "url": "https://x.com/thsottiaux/status/2094252447271366730",
       "provenance": "primary",
       "cachedAt": "2026-10-19T08:34:31.000Z",
-      "truncated": false
+      "truncated": false,
+      "sameResetAs": "2094251180121854309"
     },
     {
       "id": "2095651088502591861",
