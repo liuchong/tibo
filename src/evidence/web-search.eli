@@ -1,4 +1,4 @@
-;; Fixed search transports. Result URLs are citations, never fetch targets.
+;; Fixed search transports. This search transport returns citations; web-page owns optional body reads.
 (module tibo.evidence.web-search
   (import "node:crypto" createHash)
   (import "../platform/host.eli" Date URL RegExp Promise encodeURIComponent)
@@ -13,7 +13,7 @@
       (and (= (get u :protocol) "https:") (= (get u :port) "") (= (get u :username) "") (= (get u :password) "")
         (= (source-free-text address) address)
         (matches "^[a-z0-9-]+(?:\\.[a-z0-9-]+)*\\.[a-z]{2,}$" (get u :hostname))
-        (not (matches "^(?:localhost|.*\\.local|.*\\.localhost|www\\.google\\.com|www\\.baidu\\.com|www\\.bing\\.com)$" (get u :hostname)))))
+        (not (matches "^(?:localhost|.*\\.local|.*\\.localhost|(?:.*\\.)?(?:google\\.com|baidu\\.com|bing\\.com|duckduckgo\\.com))$" (get u :hostname)))))
       (catch error false)))
   (defun safe-query (query)
     (unless (and (= (value-type query) "string") (>= (get query :length) 3) (<= (get query :length) 200)
@@ -53,7 +53,7 @@
   (defasync search-engine (engine query &optional timeout)
     (safe-query query)
     (unless (js-call (js-array "google" "baidu" "duckduckgo" "bing") :includes engine) (fail "search-engine"))
-    (let ((key (str "web-search-" (js-call (js-call (createHash "sha256") :update (str "web-1:" engine ":" query)) :digest "hex"))))
+    (let ((key (str "web-search-" (js-call (js-call (createHash "sha256") :update (str "web-2:" engine ":" query)) :digest "hex"))))
       (await (state-transaction key (async ()
         (let ((saved (await (read-state key))))
           (if (and saved (> (get saved :until) (Date/now))) (Object/assign (js-object) saved (js-object :cached t))

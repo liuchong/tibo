@@ -26,7 +26,7 @@ Tibo 是一个独立应用。CLI、MCP 和 IM 共用业务能力，IM 接入放�
 - ai 依赖 platform、evidence 与 forecast，提供可选的结构化提取和解释任务，数值调整由 forecast 独立计算。证据校验与算法保持可独立运行。
 - chat 只依赖 chat、ai 和 platform，提供跨接入方式的会话隔离、导入去重、追加提交、容量摘要与串行处理。它不解析平台原始事件，不读取平台 API，不生成平台回复参数。
 - presentation 负责输出与文字处理；prayer 负责档案、角色和吉祥话；subscriptions 负责订阅、定点、共享报告及平台无关的实时通知。需要编排多个能力时，通过明确模块调用完成。
-- capabilities 只依赖 evidence、platform 与自身，按需准备聊天所需的固定状态、搜索、计算和时间；模型不定义调用流程。
+- capabilities 只依赖 evidence、platform 与自身，按需准备聊天所需的固定状态、搜索、网页原文、计算和时间；模型不定义调用流程。
 - commands 组合业务能力，并分离目录、固定解析、语义路由、执行和管理确认。app 负责进程入口和预测编排。
 - im 提供跨平台触发规则；adapters/lark 实现平台身份认证、事件读取与投递。src 内的模块不能导入具体适配器。
 
@@ -76,7 +76,7 @@ evidence/reset-timing 校验作者态度、时间词、明写数字与时区，f
 
 presentation/forecast-evidence 选择公开参考与必要理由，presentation/report 渲染唯一固定模板，business 复用此模板。CLI、MCP 和订阅生成不维护各自的报告版本；完整数据仍保留在本地 JSON 中。evidence/public-posts 为受限搜索核实固定官方 X 账户的补充原帖，不引入任意抓取或系统执行能力。报告约定见 [预测报告格式](forecast-report.md)。
 
-`src/capabilities/` 负责一般聊天的信息准备：固定状态、搜索、计算和时间；不依赖 IM，不提供模型工具接口。
+`src/capabilities/` 负责一般聊天的信息准备：固定状态、搜索、网页原文、计算和时间；不依赖 IM，不提供模型工具接口。
 
 ## 扩展与维护
 
@@ -85,3 +85,5 @@ presentation/forecast-evidence 选择公开参考与必要理由，presentation/
 新增 IM 实现放在 `adapters/<平台>/`，复用 commands、im 和 prayer 接口。新增命令先更新 catalog；新增管道先更新 syntax；新增 AI 任务进入 runtime 的固定任务机制。共用 fixture 在 `tests/helpers/fixture.mjs`，测试按职责分组，独立协议试用保持在 im 与 app 测试中。
 
 目录或接口变动后运行架构检查和相关测试，再运行完整测试、编译独立程序并实际试用。影响已安装代码时按 [安装与运维](operations.md) 重装两个服务，保留配置与运行数据。
+
+网页读取模块位于 `src/evidence/`：`web-policy` 校验 URL/IP/DNS，`web-egress` 提供原生公网代理，`page-extract` 用 HTMLRewriter 和 Eliscript 评分提取正文，`page-render` 封装固定 WebView 操作，`web-page` 负责抓取、来源状态、共享缓存和搜索结果读取。`commands/chat-plan` 只做一次资料计划；`capabilities/read` 执行固定方法；IM 适配器不直接访问网页。业务逻辑和请求/缓存/渲染生命周期均为 Eliscript，无新增 npm 运行依赖。

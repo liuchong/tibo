@@ -1,5 +1,10 @@
 ;; Host symbols only. Business code remains in ordinary Eliscript forms.
 (module tibo.host
+  (defconst URL (js* "globalThis.URL"))
+  (defconst Bun (js* "globalThis.Bun"))
+  (defconst HTMLRewriter (js* "globalThis.HTMLRewriter"))
+  (defconst Reflect (js* "globalThis.Reflect"))
+  (defconst Buffer (js* "globalThis.Buffer"))
   (defconst Error (js* "globalThis.Error"))
   (defconst Date (js* "globalThis.Date"))
   (defconst Promise (js* "globalThis.Promise"))
@@ -16,8 +21,7 @@
   (defconst TextEncoder (js* "globalThis.TextEncoder"))
   (defconst TextDecoder (js* "globalThis.TextDecoder"))
   (defconst WebSocket (js* "globalThis.WebSocket"))
-  (defconst URL (js* "globalThis.URL"))
   (defconst URLSearchParams (js* "globalThis.URLSearchParams"))
   (defconst encodeURIComponent (js* "globalThis.encodeURIComponent"))
   (defconst parseInt (js* "globalThis.parseInt"))
-  (export Error Date Promise RegExp Map Set Number Intl fetch AbortSignal AbortController BigInt Uint8Array TextEncoder TextDecoder WebSocket URL URLSearchParams encodeURIComponent parseInt))
+  (export Bun HTMLRewriter Buffer Reflect Error Date Promise RegExp Map Set Number Intl fetch AbortSignal AbortController BigInt Uint8Array TextEncoder TextDecoder WebSocket URL URLSearchParams encodeURIComponent parseInt))

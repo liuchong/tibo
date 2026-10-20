@@ -46,7 +46,7 @@ search/research不作为正式预测的后续模型阶段，诊断标merged或sk
 
 Google / 百度无可用结果时，在剩余预算内依次使用固定 DuckDuckGo HTML、Bing RSS 查询，仍按相同官方来源白名单核实原页；后备不会扩大预测来源范围。验证码、动态页面或网络拦截会导致 unavailable / empty，不能宣称已检索全网，也不绕过访问限制。搜索不能作为发现全部 Tibo 新帖的保证。失败或空结果缓存 15 分钟，成功取数缓存 6 小时。
 
-基础聊天的搜索是另一个固定只读方法：最多四条摘要和原始链接，不自动读取结果页，因此不会把摘要标成已核实正文。成功结果缓存 15 分钟，失败或空结果缓存 60 秒；每次总预算 8 秒。官方服务状态读取固定 summary 和必要的 incidents 接口，成功缓存 60 秒、失败 30 秒；同类并发合并。read 是一次独立的输入语义解析，时限 6 秒；程序取数后 answer 只生成一次回答，没有模型 function call 或工具循环。read 的开关、缓存和失败冷却独立，关闭或失败不会阻断 answer；关闭 answer 仍可直接展示 read 取得的结果。详见 [内置信息能力](chat-builtins.md)。
+基础聊天的搜索是另一个固定只读方法：最多四条摘要和原始链接，默认继续读取最多两篇正文；只有标题或空摘要不能支持具体规则。搜索入口成功缓存 15 分钟、失败 60 秒，入口预算 8 秒；正文另有 18 秒共享预算、30 分钟缓存和条件重验证，详情见 [网页读取](design/web-reading.md)。官方服务状态读取固定 summary 和必要的 incidents 接口，成功缓存 60 秒、失败 30 秒；同类并发合并。read 是一次独立的输入语义解析，时限 6 秒；程序取数后 answer 只生成一次回答，没有模型 function call 或工具循环。read 的开关、缓存和失败冷却独立，关闭或失败不会阻断 answer；关闭 answer 仍可直接展示 read 取得的结果。详见 [内置信息能力](chat-builtins.md)。
 
 ## 交互文字与修复
 
@@ -98,3 +98,5 @@ tibo diagnose
 当前官方 API 参考：[首次调用](https://api-docs.deepseek.com/zh-cn/)、[错误代码](https://api-docs.deepseek.com/zh-cn/quick_start/error_codes)。具体本地开关见 [配置参考](configuration.md)，失败定位见 [故障排查](troubleshooting.md)。
 
 角色神谕使用独立的官方消息缓存与可选受限搜索；Anthropic 官方域名只用于该娱乐任务，不放宽预测搜索范围。完整触发、引用与降级规则见 [角色实现约定](oracle.md)。祈祷 AI 吉祥话使用 wish 独立开关、短预算和本地兜底，仅上传当前脱敏正文素材，不上传身份或个人档案，不重复记账。关键词过滤的门槛、成本与降敏规则见 [IM 触发过滤](im-triggers.md)。
+
+普通聊天 answer 使用单次 Markdown 正文返回，由程序封装文字和校验隐私/数字；兼容历史单 text JSON 包装。无需让模型把自然语言另转成 JSON，read 等结构化计划仍严格 JSON 校验。该调整不增加模型请求或执行入口。

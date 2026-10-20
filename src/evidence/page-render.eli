@@ -1,0 +1,46 @@
+(module tibo.evidence.page-render
+  (import "node:process" :default process)
+  (import "node:timers" setTimeout clearTimeout)
+  (import "../platform/host.eli" Bun Promise Date)
+  (import "../platform/util.eli" fail)
+  (import "./web-policy.eli" public-url)
+  (import "./web-egress.eli" egress-proxy)
+  (defconst queue (js-object :tail (Promise/resolve nil)))
+  ;; Page input cannot define code or browser options. These expressions only read DOM.
+  (defconst read-size "document.body ? document.body.innerText.length : 0")
+  (defconst read-html "document.documentElement ? document.documentElement.outerHTML.slice(0,2000000) : ''")
+  (defasync render-once (address timeout signal)
+    (public-url address)
+    (unless (and Bun (get Bun :WebView) (not (= (get (get process :env) :TIBO_WEB_RENDER "1") "0"))) (fail "page-render-unavailable"))
+    (let ((view nil) (timer nil) (cancel nil) (deadline (+ (Date/now) timeout)))
+      (try
+        (when signal (js-call signal :throwIfAborted))
+        (let ((proxy (await (egress-proxy))))
+          (setq view (new Bun/WebView (js-object :dataStore "ephemeral"
+            :backend (js-object :type "chrome" :url false :argv (js-array
+              (str "--proxy-server=" proxy) "--proxy-bypass-list=<-loopback>" "--disable-quic"
+              "--force-webrtc-ip-handling-policy=disable_non_proxied_udp" "--disable-features=ServiceWorker,SharedWorker"
+              "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1")))))
+          (setq cancel (lambda () (when view (js-call view :close))))
+          (setq timer (setTimeout cancel timeout))
+          (when signal (js-call signal :addEventListener "abort" cancel (js-object :once t)))
+          (await (js-call view :navigate address))
+          (public-url (get view :url))
+          (let ((previous -1) (stable 0) (steps 0))
+            (while (and (< stable 2) (< steps 8) (< (Date/now) (- deadline 100)))
+              (let ((size (await (js-call view :evaluate read-size))))
+                (setq stable (if (and (> size 120) (= size previous)) (+ stable 1) 0) previous size steps (+ steps 1)))
+              (await (new Promise (lambda (resolve) (setTimeout resolve 200))))))
+          (js-object :body (await (js-call view :evaluate read-html)) :url (get view :url)))
+        (finally
+          (when timer (clearTimeout timer))
+          (when (and signal cancel) (js-call signal :removeEventListener "abort" cancel))
+          (when view (js-call view :close) (js-call (get Bun :WebView) :closeAll))))))
+  (defasync render-page (url timeout &optional signal)
+    (let* ((deadline (+ (Date/now) (or timeout 12000)))
+      (job (js-call (get queue :tail) :then (lambda ()
+        (when (<= deadline (Date/now)) (fail "page-render-timeout"))
+        (render-once url (Math/max 1 (- deadline (Date/now))) signal)))))
+      (put queue :tail (js-call job :catch (lambda (error) nil)))
+      (await job)))
+  (export render-page))

@@ -114,3 +114,12 @@ CLI 管理员由 `TIBO_LOCAL_ADMIN_UID` 与进程真实 UID 比较，不能传�
 上香和订阅的身份、行为规则见 [上香与订阅](pray-subscriptions.md)。原文、翻译、多步操作见 [语言与管道](language-pipelines.md)。
 
 单位代码：长度 m/km/cm/mm/in/ft/mi；质量 kg/g/lb；时长 s/min/h/d；数据 bit/B/KB/MB/GB/KiB/MiB/GiB；温度 C/F/K。数据单位区分大小写，KB/MB/GB 用十进制，KiB/MiB/GiB 用二进制；不是汇率工具。日期接受 YYYY-MM-DD 或带 Z 的 UTC ISO，拒绝非法日期，不猜个人时区。
+
+## 公开网页原文
+
+| 命令 | 参数 | 用途 |
+| --- | --- | --- |
+| `read-page` / `读网页` | `url` 必填，公开 HTTP(S) 网页 | 获取正文、来源和读取状态；必要时原生 WebView 渲染 |
+| `search` | `query` 必填；`read` 默认 true | 搜索并读取最多两篇原页；false 仅保留标题与摘要 |
+
+CLI 示例：`tibo query 'read-page https://example.com/guide'`；`tibo query 'search --query 产品额度规则 --read false'`。自然语言“读取这篇原文”可沿显式引用链使用已有来源链接；没有链接时由固定搜索方法搜索并读页，不增加模型工具循环。正文获取失败会保留原始搜索结果及失败等级。
