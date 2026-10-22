@@ -47,3 +47,16 @@ test('missed deadline becomes pending confirmation, and a new completion consume
  const doneId=id('2026-10-15T04:10:00Z');s.posts.push({id:doneId,at:'2026-10-15T04:10:00Z',author:'thsottiaux',provenance:'primary',text:'Global reset has been processed.'});s.events.push({id:doneId,at:'2026-10-15T04:10:00Z',global:true,banked:false});
  const done=judge(s);expect(done.signals.promise.fulfilled).toBe(true);expect(done.forecast.announcement).toBeUndefined();
 });
+
+test('Day 17 reset-day announcement with secondary onboarding reminder and Lands tomorrow before 10am PST self-reply establishes a global deadline promise',()=>{
+ const day15={id:'2112432076767289678',at:'2026-10-20T06:33:48.848Z',author:'thsottiaux',provenance:'primary',text:"Day 15/ Nevermind, we're still cooking... and reset. Enjoy.",truncated:false};
+ const day17={id:'2113162277688070445',at:'2026-10-22T06:55:22.314Z',author:'thsottiaux',provenance:'primary',text:'Day 17/ Bet you thought we forgot, but no, it’s reset day today. Also good time to remind you to get Daybreak Blue access, it only takes 15 mins and you don’t want to have to do it in the middle of an incident.',truncated:false};
+ const reply={id:'2113162413008884099',at:'2026-10-22T06:55:54.577Z',author:'thsottiaux',provenance:'primary',text:'Lands tomorrow before 10am PST.',parentId:day17.id,parentRelationProvenance:'official-page-data',truncated:false};
+ const s=snapshot({now:'2026-10-22T06:59:00Z',posts:[...snapshot().posts,plan,day15,day17,reply]});
+ const r=judge(s);
+ expect(r.signals.lastGlobal).toMatchObject({id:day15.id,verified:true});
+ expect(r.signals.promise).toMatchObject({postId:reply.id,parentId:day17.id,kind:'global',scope:'global',targetAt:'2026-10-22T18:00:00.000Z',timePrecision:'deadline',fulfilled:false});
+ expect(r.signals.compensation).toBeNull();
+ expect(r.forecast.p24).toBeGreaterThan(85);
+ expect(r.forecast.cardAdvice.decision).toBe('wait');
+});

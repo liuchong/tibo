@@ -5,11 +5,11 @@
     "": {
       "name": "tibo",
       "devDependencies": {
-        "eliscript": "0.0.1",
+        "eliscript": "0.0.2",
       },
     },
   },
   "packages": {
-    "eliscript": ["eliscript@0.0.1", "", { "bin": { "eliscript": "bootstrap/host/eliscript-cli.mjs", "eliscript-build": "bootstrap/host/eliscript-cli.mjs", "eliscript-check": "bootstrap/host/eliscript-cli.mjs", "eliscript-format": "bootstrap/host/eliscript-cli.mjs", "eliscript-eval": "bootstrap/host/eliscript-cli.mjs", "eliscript-watch": "bootstrap/host/eliscript-cli.mjs" } }, "sha512-ZsKx/djY4L4B/Z1JcVs9ctjgnIEPSeVBLDewhjaCWwan9x623BEiJs/RIaHfjvWGo6Oc1NZwb33HC3yRSaAJPw=="],
+    "eliscript": ["eliscript@0.0.2", "", { "bin": { "eliscript": "bootstrap/host/eliscript-cli.mjs", "eliscript-eval": "bootstrap/host/eliscript-cli.mjs", "eliscript-build": "bootstrap/host/eliscript-cli.mjs", "eliscript-check": "bootstrap/host/eliscript-cli.mjs", "eliscript-watch": "bootstrap/host/eliscript-cli.mjs", "eliscript-format": "bootstrap/host/eliscript-cli.mjs", "eliscript-compiler": "bootstrap/host/eliscript-cli.mjs" } }, "sha512-yKZzteBN+Q8uF9bPtziBmsOBNbQyRtuASnaaVtXa+mdbAKqRAZDEklHycmi2VogGHwmCQp+cg2JSbKTJNDwNew=="],
   }
 }

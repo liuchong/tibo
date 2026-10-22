@@ -11,6 +11,8 @@ test('completion survives an unrelated future-tense farewell or later promise', 
     'Put the reset in the bag. All propagated. https://t.co/example',
     "What would you like with your side of reset? It's done.",
     'The global reset. It is completed.',
+    "Day 15/ Nevermind, we're still cooking... and reset. Enjoy.",
+    'And we reset. Enjoy!',
   ]) expect(completed_QMARK_(text)).toBe(true);
 });
 test('future, conditional, negated, banked and weekly wording never proves global completion', () => {
@@ -25,7 +27,17 @@ test('future, conditional, negated, banked and weekly wording never proves globa
     'The global reset would be nice. It is done.', 'A banked reset card. It is done.',
     'The global reset. Some maths. It is done.',
     'The global reset. It is not done.', 'The global reset will land tomorrow. It is done.',
+    'Day 17/ Bet you thought we forgot, but no, it’s reset day today. Enjoy.',
+    'Tomorrow we reset. Enjoy.',
+    'If we reset... Enjoy.',
+    'A banked reset card... and reset. Enjoy.',
   ]) expect(completed_QMARK_(text)).toBe(false);
+});
+test('Day 15 cooking ellipsis reset announcement is discovered as a verified global reset event', () => {
+  const post={id:'2112432076767289678',at:'2026-10-20T06:33:48.848Z',author:'thsottiaux',provenance:'primary',text:"Day 15/ Nevermind, we're still cooking... and reset. Enjoy."};
+  const events=events_from_posts([post]);
+  expect(events).toHaveLength(1);
+  expect(normalize_events({posts:[post],events,now:'2026-10-20T07:00:00Z'})[0]).toMatchObject({id:post.id,global:true,verified:true});
 });
 test('an adjacent reset completion reply updates the clock and consumes the previous deadline',()=>{
  const post={id:'2109873287853707513',at:'2026-10-13T05:06:06Z',author:'thsottiaux',provenance:'primary',text:"What would you like with your side of reset? It's done."};

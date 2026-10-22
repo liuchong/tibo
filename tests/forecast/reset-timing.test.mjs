@@ -28,6 +28,8 @@ test('numeric time windows align risk segments; vague dates and inferred quantit
  expect(parsed.rows[0].claims[0].timing).toMatchObject({amount:null,zone:'unknown'});
  expect(result('Global reset should land in 6 hours.').structuredFeatures.claims.at(-1).expectedWindow.through).toBe('2026-09-25T07:00:00.000Z');
  expect(result('I hope for a global reset tomorrow UTC.').structuredFeatures.claims.at(-1).expectedWindow).toMatchObject({from:'2026-09-26T00:00:00.000Z',through:'2026-09-27T00:00:00.000Z',resolution:'calendar-window'});
+ const lands=post(25,'Lands tomorrow before 10am PST.',{id:'2113162413008884099',at:'2026-10-22T06:55:54.577Z',resetContextVerified:true,resetContextScope:'global',resetContextText:'Day 17/ Bet you thought we forgot, but no, it’s reset day today.'});
+ expect(local_row(lands).claims[0]).toMatchObject({kind:'promise',scope:'global',timeText:'tomorrow before 10am PST',timing:{stance:'commitment',window:'tomorrow',zone:'PST'}});
 });
 test('a direct announcement stays a commitment even when cached AI describes it as an expectation',()=>{
  const x=p('Global reset landing by EOD PST time. Enjoy');

@@ -50,6 +50,24 @@ test('newly verified completion relationships regenerate predictions and enqueue
  expect((await pending_alerts()).map(a=>a.kind)).toEqual(['confirmed']);
  await watch_tick(900,async()=>s,generate);expect(calls).toBe(2);expect((await pending_alerts()).map(a=>a.kind)).toEqual(['confirmed']);
 }));
+test('stale completions older than 24h update confirmedIds and clock without emitting a delayed confirmation alert, while current promise alerts still fire',()=>isolated(async()=>{
+ let now=Date.parse('2026-10-22T06:59:00Z'),calls=0;Date.now=()=>now;
+ const plan=post(25,'Over the next 28 days, each day we will either ship a clear improvement or ship a full reset.',{id:'2106845241357824205',at:'2026-10-04T20:33:00Z'});
+ const day15=post(25,"Day 15/ Nevermind, we're still cooking... and reset. Enjoy.",{id:'2112432076767289678',at:'2026-10-20T06:33:48.848Z'});
+ const day17=post(25,'Day 17/ Bet you thought we forgot, but no, it’s reset day today. Also good time to remind you to get Daybreak Blue access, it only takes 15 mins and you don’t want to have to do it in the middle of an incident.',{id:'2113162277688070445',at:'2026-10-22T06:55:22.314Z'});
+ const reply=post(25,'Lands tomorrow before 10am PST.',{id:'2113162413008884099',at:'2026-10-22T06:55:54.577Z',parentId:day17.id,parentRelationProvenance:'official-page-data'});
+ let s=snapshot({now:new Date(now).toISOString(),posts:[...snapshot().posts,plan]});
+ const generate=async x=>{calls++;return{...judge(x),report:'**Codex 重置预测**\n• 24h：91%\n• 48h：94%'};};
+ await watch_tick(900,async()=>s,generate);expect(await pending_alerts()).toEqual([]);
+ now+=60000;s={...s,now:new Date(now).toISOString(),posts:[...s.posts,day15,day17,reply]};
+ const tick=await watch_tick(900,async()=>s,generate);
+ expect(tick.result.signals.lastGlobal.id).toBe(day15.id);
+ expect(tick.state.confirmedIds).toContain(day15.id);
+ expect(tick.state.promiseIds).toContain(reply.id);
+ const alerts=await pending_alerts();
+ expect(alerts.map(a=>a.kind)).toEqual(['promise']);
+ expect(alerts[0].evidenceAt).toBe(reply.at);
+}));
 test('high probabilities notify once per cycle without modifying numbers; unavailable probabilities are not treated as high',()=>isolated(async()=>{
  const r={...judge(snapshot()),report:'24h 75% / 48h 88%'};r.forecast.p24=75;r.forecast.p48=88;
  const a=await forecast_alert(r,[],null);expect(a.highCycle).toBe('event-24');await forecast_alert(r,[],a.highCycle);expect(await pending_alerts()).toHaveLength(1);

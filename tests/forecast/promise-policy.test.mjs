@@ -34,6 +34,7 @@ test('PST/PDT use their stated local calendar; PT follows DST; tomorrow and end-
  expect(target_time({...promise(),text:'Global reset by EOD.'})).toBeNull();
  expect(target_time({...p,at:'2026-11-01T10:00:00Z',text:'Global reset by EOD PT.'})).toBe('2026-11-02T08:00:00.000Z');
  expect(target_time({...p,at:'2026-03-08T12:00:00Z',text:'Global reset by EOD PT.'})).toBe('2026-03-09T07:00:00.000Z');
+ expect(target_time({...p,at:'2026-10-22T06:55:54.577Z',text:'Lands tomorrow before 10am PST.'})).toBe('2026-10-22T18:00:00.000Z');
 });
 test('a deadline alone has no probability floor; weak, partial, archived, unresolved and conditional evidence keeps baseline',()=>{
  const s=input(),base=judge({...s,posts:s.posts.slice(0,-1)});

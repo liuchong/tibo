@@ -130,7 +130,7 @@
       (when (get ledger :now) (unknown unknowns (str "本地历史累计到 " (utc (get ledger :now)) "；旧证据不代表本次采集成功")))
       (let ((documents (documents-from (js-object :now now :sources sources))))
       (unless offline
-        (when (or fresh-original (> (get documents :length) 0))
+        (when (or fresh-original (> (get documents :length) 0) (> (get events :length) (get (get ledger :events (js-array)) :length)))
           (await (state-transaction "ledger" (async ()
             (let ((latest (or (await (read-state "ledger")) (js-object))))
               (await (write-state "ledger" (Object/assign (js-object) latest (js-object :schemaVersion 1 :now now

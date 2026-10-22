@@ -2,9 +2,9 @@
   (import "../platform/host.eli" RegExp)
   (import "../platform/util.eli" matches)
   (defun statements (text)
-    ;; Decimal labels and times stay intact; unrelated sentences cannot negate
-    ;; a completed claim merely because they contain a future-tense farewell.
-    (js-call text :split (new RegExp "[!?。！？;；\\n]+|\\.(?![0-9])" "u")))
+    ;; Decimal labels, times and ellipses stay intact; unrelated sentences cannot
+    ;; negate a completed claim merely because they contain a future-tense farewell.
+    (js-call text :split (new RegExp "[!?。！？;；\\n]+|(?<!\\.)\\.(?![0-9.])" "u")))
   (defun routine-reset? (text)
     (and (matches "automatic|automatically|every (?:7|seven) days|weekly (?:reset|refresh)|自动|每周|七天|7天" text)
       (not (matches "(?:we|I)(?:'ve| have)? reset|global" text))))
@@ -15,6 +15,9 @@
           (when (and (not (routine-reset? before))
             (or (and (matches "reset" before) (matches "^\\s*all propagated\\s*$" after)
               (not (matches "banked|reset card|\\b(?:if|not|never|will|would|might|may|tomorrow)\\b|next week|by EOD" before)))
+              (and (matches "(?:\\.\\.\\.|…|\\band)\\s+(?:we(?:[’']ve|\\s+have)?\\s+)?(?:(?:full|global)\\s+)?reset\\s*$" before)
+                (matches "^\\s*enjoy\\b" after)
+                (not (matches "banked|reset card|reset\\s+day|\\b(?:if|when|not|never|will|would|might|may|could|should|hope|expect|tomorrow|today|soon)\\b|next week|by EOD" before)))
               (and (matches "(?:global|full) reset|(?:your|a|the) side of (?:a |the )?reset" before)
                 (matches "^\\s*it(?:[’']s| is) (?:done|complete|completed|processed)\\s*$" after)
                 (not (matches "banked|reset card|\\b(?:if|when|not|never|will|might|may|could|tomorrow)\\b|next week|by EOD" before))
@@ -29,7 +32,7 @@
           (matches "reset[^.!?]*\\b(?:not|never)\\b[^.!?]*(?:complete|processed|propagat)|reset[^.!?]*(?:failed|cancelled|canceled)" s))))
         (or (linked-completion? claims) (js-call claims :some (lambda (s)
           (and (not (routine-reset? s))
-            (not (matches "\\bnot\\b.*reset|can't.*reset|can’t.*reset|cannot.*reset|won't.*reset|won’t.*reset|\\bnot\\b|\\bnever\\b|reset.*(?:will|would|might|may) (?:be|have)|\\bif\\b.*reset" s))
+            (not (matches "\\bnot\\b.*reset|can't.*reset|can’t.*reset|cannot.*reset|won't.*reset|won’t.*reset|\\bnot\\b|\\bnever\\b|\\btomorrow\\b|next week|by EOD|reset.*(?:will|would|might|may) (?:be|have)|\\bif\\b.*reset" s))
             (matches "reset all propagated|resets?[^.!?]*(?:complete|propagated)|reset has been processed|(?:we(?:'ve| have)?|I(?:'ve| have)?) reset|(?:usage|limits|accounts).*(?:have been|has been|were|are now) reset" s)
             (not (matches "banked|reset card" s)))))))))
   (defun conditional-reset? (text)

@@ -14,6 +14,10 @@ test('release and personal goals cannot become reset features; scope and context
    expect(()=>parse(p,claim(p.text))).toThrow();
  const p=post(25,'I promised a reset for Tuesday.');
  expect(parse(p,claim(p.text)).claims[0].scope).toBe('unknown');
+ const day17=post(25,'Day 17/ Bet you thought we forgot, but no, it’s reset day today. Also good time to remind you to get Daybreak Blue access, it only takes 15 mins and you don’t want to have to do it in the middle of an incident.',{id:'2113162277688070445'});
+ expect(parse(day17,claim('Day 17/ Bet you thought we forgot, but no, it’s reset day today.',{timeText:'today',timing:{stance:'commitment',window:'today',amount:null,zone:'unknown'}})).claims[0]).toMatchObject({kind:'promise',scope:'global',statement:'future'});
+ const semDone=post(25,"Day 15/ Nevermind, we're still cooking... and reset. Enjoy.",{id:'2112432076767289678'});
+ expect(parse(semDone,claim(semDone.text,{kind:'completion',statement:'completed'})).claims[0]).toMatchObject({kind:'completion',scope:'global',statement:'completed'});
  const fixed=post(25,'All fixed.',{parentId:'missing'});
  expect(()=>parse(fixed,claim(fixed.text,{kind:'completion',statement:'completed'}))).toThrow();
  expect(()=>parse(p,claim('Invented quote'))).toThrow();

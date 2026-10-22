@@ -71,9 +71,9 @@ Tibo 预测的是未来 24h / 48h 内是否出现新的 global 完成公告，�
 
 ## 承诺、事故与催化
 
-规则识别对象、时间、承诺/完成与条件计划。支持带 today/tomorrow、am/pm、PST/PDT/PT 的明确时间；tomorrow 按旧金山日期，PST=UTC−8、PDT=UTC−7，PT 根据该日期的 IANA 夏令时换算。不能解析时不编造目标时刻。
+规则识别对象、时间、承诺/完成与条件计划。支持带 today/tomorrow、at/by/before/around、am/pm、PST/PDT/PT 的明确时间与截止时间；tomorrow 按旧金山日期，PST=UTC−8、PDT=UTC−7，PT 根据该日期的 IANA 夏令时换算。不能解析时不编造目标时刻。
 
-完成 global 消耗此前相关信号；banked 是否兑现承诺要检查明确关联，不能把所有 reset 措辞或发布都自动看作 global。`either improvement or reset` 是条件计划，不能推成每天必重置；`updates or a reset` 也按条件计划识别。出现 `Or both` 时，更新和重置可以同日发生。事故已修复、部分账户问题和新补偿承诺也要区分。
+完成 global 消耗此前相关信号；banked 是否兑现承诺要检查明确关联，不能把所有 reset 措辞或发布都自动看作 global。`either improvement or reset` 是条件计划，不能推成每天必重置；`updates or a reset` 也按条件计划识别。出现 `Or both` 时，更新和重置可以同日发生。在有效每日计划中，`Day N/` 首句明确选择当日为 reset day，即使后句顺带提醒用户提前配置权限或预防事故，仍作为当期 global 交付决定，不会被后句中的 `only takes 15 mins` 或 `incident` 误降级为部分账户或事故补偿线索。省略号加口语完成宣告（如 `... and reset. Enjoy.`）与经语义校验的 primary 完成断言同样推进 global 时钟，超过 24h 的历史补认更新 `confirmedIds` 而不补发过期确认推送。事故已修复、部分账户问题和新补偿承诺也要区分。
 
 ### 完成确认与旧预告失效
 

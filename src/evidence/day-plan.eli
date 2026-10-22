@@ -6,17 +6,18 @@
   ;; A short delivery title names the chosen outcome, rather than a completed
   ;; event. Qualifiers and alternative outcomes keep it out of this fallback.
   (defun programme-choice (post programme posts)
-    (let* ((text (get post :text)) (label (match "\\bday\\s+([0-9]{1,2})\\s*[/：:]\\s*(.+)$" text))
-      (n (when label (Number (get label 1))))
+    (let* ((text (get post :text)) (label (match "\\bday\\s+([0-9]{1,2})\\s*[/：:]\\s*([^.\\n!]+)" text))
+      (n (when label (Number (get label 1)))) (headline (when label (js-call (get label 2) :trim)))
       (plan (when programme (js-call posts :find (lambda (p) (= (get p :id) (get programme :postId)))))))
       (when (and label programme plan (> n 0) (<= n (get programme :days))
         (= (get plan :provenance) "primary") (not (get plan :truncated))
         (= (get post :provenance) "primary") (not (get post :truncated)) (not (get post :contextMissing))
         (>= (ms (get post :at)) (ms (get programme :at))) (< (ms (get post :at)) (ms (get programme :expiresAt)))
         (matches "\\bfull reset\\b" (get plan :text))
-        (matches "\\b(?:limit\\s+|usage\\s+|global\\s+|full\\s+)?reset\\b" (get label 2))
-        (<= (get text :length) 160) (not (completed? text)) (not (conditional-reset? text)) (not (routine-reset? text))
-        (not (matches "\\?|\\b(?:if|either|maybe|might|may|could|hope|wish|expect|not|no|never|banked|card|only|some|tomorrow|yesterday|cancelled|canceled|delayed|postponed)\\b|won[’']t" text)))
+        (matches "\\b(?:limit\\s+|usage\\s+|global\\s+|full\\s+)?reset(?:\\s+day)?\\b" headline)
+        (<= (get headline :length) 160) (not (completed? text)) (not (conditional-reset? text)) (not (routine-reset? text))
+        (not (matches "\\?|\\b(?:if|either|maybe|might|may|could|hope|wish|expect|never|banked|card|only|some|tomorrow|yesterday|cancelled|canceled|delayed|postponed)\\b|\\bno\\s+(?:global\\s+|full\\s+|limit\\s+|usage\\s+|new\\s+)?reset\\b|\\bnot\\s+(?:a\\s+)?(?:global\\s+|full\\s+|limit\\s+|usage\\s+)?reset\\b|won[’']t" headline))
+        (not (matches "\\b(?:banked|reset card)\\b|\\bno\\s+(?:global\\s+|full\\s+|limit\\s+|usage\\s+|new\\s+)?reset\\b|\\breset\\b[^.!?]*\\b(?:cancelled|canceled|delayed|postponed)\\b" text)))
         (js-object :postId (get post :id) :at (get post :at) :text text :scope "global" :kind "global" :primary t
           :targetAt (pacific-target (get post :at) 24 0 "PT" false) :timePrecision "programme-day" :programmeDay n
           :programmePostId (get programme :postId) :scopeBasis "declared-full-reset-programme"

@@ -17,7 +17,8 @@
     ;; describes its future tense as an expectation. Qualifiers stay semantic.
     (and (not (expectation-stance text)) (not (negative-expectation? text))
       (not (matches "\\b(?:if|either|might|may|could|would|not|never)\\b" text))
-      (matches "^\\s*(?:a\\s+)?(?:global|full)\\s+reset\\s+(?:(?:is\\s+)?landing\\b|will\\s+(?:land|happen|arrive)\\b|is\\s+going\\s+to\\s+(?:land|happen|arrive)\\b)" text)))
+      (or (matches "^\\s*(?:a\\s+)?(?:global|full)\\s+reset\\s+(?:(?:is\\s+)?landing\\b|lands\\b|will\\s+(?:land|happen|arrive)\\b|is\\s+going\\s+to\\s+(?:land|happen|arrive)\\b)" text)
+        (matches "^\\s*(?:lands|landing|drops|arriving)\\s+(?:today|tomorrow|by\\b|before\\b|within\\b|in\\s+[0-9])" text))))
   (defun local-timing (kind text time)
     (when (and time (js-call (js-array "promise" "hint" "programme" "negation") :includes kind))
       (let* ((relative (match "(?:within|next|in)\\s+(?:the\\s+)?([0-9]{1,3})\\s*(hours?|days?)" time))

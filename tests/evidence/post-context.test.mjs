@@ -70,3 +70,16 @@ test('public report keeps related programme and intent but omits casual posts an
  const text=public_forecast(r,'both');expect(text).toContain('每日');expect(text).toContain(intent.text);
  expect(text).not.toMatch(/实际融合权重|最终整数概率|Ordinary conversation|普通发布即完成/);
 });
+
+test('Day 17 multi-sentence reset-day choice and Lands tomorrow before 10am PST self-reply inherit global programme context',()=>{
+ const pPlan=post(25,'Over the next 28 days, each day we’ll either ship one thing that is a clear improvement or ship a full reset.',{id:'2106845241357824205',at:'2026-10-04T20:33:00Z'});
+ const day15=post(25,"Day 15/ Nevermind, we're still cooking... and reset. Enjoy.",{id:'2112432076767289678',at:'2026-10-20T06:33:48.848Z'});
+ const day16=post(25,'Day 16/ Default speeds improved.',{id:'2112800000000000000',at:'2026-10-21T06:00:00Z'});
+ const day17=post(25,'Day 17/ Bet you thought we forgot, but no, it’s reset day today. Also good time to remind you to get Daybreak Blue access, it only takes 15 mins and you don’t want to have to do it in the middle of an incident.',{id:'2113162277688070445',at:'2026-10-22T06:55:22.314Z'});
+ const reply=post(25,'Lands tomorrow before 10am PST.',{id:'2113162413008884099',at:'2026-10-22T06:55:54.577Z',parentId:day17.id,parentRelationProvenance:'official-page-data'});
+ const day18=post(25,'Day 18.1/ Minor note',{id:'2113162500000000000',at:'2026-10-22T06:56:00Z'});
+ const day19=post(25,'Day 19.1/ Another note',{id:'2113162600000000000',at:'2026-10-22T06:57:00Z'});
+ const ctx=post_context([pPlan,day15,day16,day17,reply,day18,day19],'2026-10-22T06:59:00Z',{id:day15.id,at:day15.at});
+ const cReply=ctx.posts.find(p=>p.id===reply.id);
+ expect(cReply).toMatchObject({resetContextVerified:true,resetContextScope:'global',resetContextBasis:'declared-full-reset-programme',programmePostId:pPlan.id});
+});

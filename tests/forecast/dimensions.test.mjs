@@ -67,6 +67,14 @@ test('a programme day selects delivery without inventing completion or a precise
   const r=judge({...input(),posts:[plan,{...title,text}]});expect(r.forecast.dimensions.applied).toBe(false);
  }
  expect(judge({...input(),posts:[title]}).signals.promise).toBeNull();
+ const day17=make('2113162277688070445','2026-10-22T06:55:22.314Z','Day 17/ Bet you thought we forgot, but no, it’s reset day today. Also good time to remind you to get Daybreak Blue access, it only takes 15 mins and you don’t want to have to do it in the middle of an incident.');
+ const lands=make('2113162413008884099','2026-10-22T06:55:54.577Z','Lands tomorrow before 10am PST.',{parentId:day17.id,parentRelationProvenance:'official-page-data'});
+ const day17Only=judge({...input(),now:'2026-10-22T06:59:00Z',posts:[...snapshot().posts,plan,day17]});
+ expect(day17Only.signals.promise).toMatchObject({postId:day17.id,timePrecision:'programme-day',programmeDay:17,fulfilled:false});
+ expect(day17Only.forecast.p24).toBeGreaterThanOrEqual(90);
+ const day17Timed=judge({...input(),now:'2026-10-22T06:59:00Z',posts:[...snapshot().posts,plan,day17,lands]});
+ expect(day17Timed.signals.promise).toMatchObject({postId:lands.id,parentId:day17.id,targetAt:'2026-10-22T18:00:00.000Z',timePrecision:'deadline',fulfilled:false});
+ expect(day17Timed.forecast.p24).toBeGreaterThan(85);
 });
 test('a completion consumes all earlier boosts despite shuffled posts and malicious stale AI scores; a later new promise remains possible',()=>{
  const s=input([landing]),before=judge(s);

@@ -3,14 +3,14 @@
   (import "../platform/host.eli" Date Number)
   (import "../platform/state.eli" read-state write-state)
   (import "../platform/transaction.eli" state-transaction)
-  (import "../platform/util.eli" iso ms)
+  (import "../platform/util.eli" iso ms day-ms)
   (import "../evidence/sources.eli" collect-sources)
   (import "./engine.eli" observe run-report)
   (import "../subscriptions/alerts.eli" confirmed-global? confirm-alert forecast-alert)
   (defun post-signature (snapshot)
     (let ((rows (js-call (get snapshot :posts) :filter (lambda (p) (= (get p :provenance) "primary")))))
       (js-call (js-call (createHash "sha256") :update (JSON/stringify
-        (js-object :policy "reset-completion-2" :posts
+        (js-object :policy "reset-completion-3" :posts
           (js-call rows :map (lambda (p) (js-array (get p :id) (get p :text) (get p :truncated false)
             (get p :parentId) (get p :parentRelationProvenance) (get p :quotedPostId) (get p :quotedRelationProvenance))))))) :digest "hex")))
   (defasync watch-tick (maintenance-seconds &optional collect generate)
@@ -35,7 +35,9 @@
             (while (< i (get confirmations :length))
               (let ((event (get confirmations i)))
                 (unless (js-call known :includes (get event :id))
-                  (await (confirm-alert event)) (js-call known :push (get event :id))))
+                  (when (<= (- (ms (get snapshot :now)) (ms (get event :at))) day-ms)
+                    (await (confirm-alert event)))
+                  (js-call known :push (get event :id))))
               (setq i (+ i 1)))))
         ;; Persist completed confirmations before optional forecast AI work.
         (when (> (get confirmations :length) 0)

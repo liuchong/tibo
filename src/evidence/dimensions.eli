@@ -56,7 +56,7 @@
               :ids (js-call selected :map (lambda (p) (get p :id))))))))
         (js-call windows :push (js-object :name "official_context" :count (get documents :length)
           :coverage "available-sources" :ids (js-call documents :map (lambda (d) (get d :id)))))
-        (js-object :contract "dimensions-1" :now now :timeBucket (Math/floor (/ clock (* 5 60000)))
+        (js-object :contract "dimensions-2" :now now :timeBucket (Math/floor (/ clock (* 5 60000)))
           :posts posts :windows windows :documents documents :programme programme
           :lastGlobal (when global (js-object :id (get global :id) :at (get global :at) :verified (get global :verified)))
           :temporal (Object/fromEntries (js-call (Object/entries (get (get result :forecast) :temporal)) :filter
