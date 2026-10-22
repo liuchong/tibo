@@ -21,6 +21,6 @@
     "bun": ">=1.4.0"
   },
   "devDependencies": {
-    "eliscript": "0.0.2"
+    "eliscript": "0.1.0"
   }
 }
