@@ -9,7 +9,7 @@
   (import "../ai/runtime.eli" reset-ai)
   (import "../app/forecast-cache.eli" invalidate-forecast)
   (import "../forecast/experience.eli" accuracy)
-  (import "../subscriptions/registry.eli" group-subscription namespace-key parse-subscription-items describe-items all-subscription-items)
+  (import "../subscriptions/registry.eli" group-subscription namespace-key parse-subscription-items describe-items)
   (import "../platform/util.eli" iso fail)
   (defun cli-context () (js-object :transport "cli" :actor (str "uid:" (js-call process :getuid)) :scope "local"))
   (defun is-bot-admin (context)
@@ -43,8 +43,13 @@
   (defconst actions (js-object :clear-history "清空本地历史缓存（下一次联网采集会重建）"
                               :clear-experience "清空本地预测经验与成绩"
                               :reset-ai "清除AI暂停与缓存，允许后续重新调用"
-                              :subscribe-group "订阅目标群的早晚报告"
-                              :unsubscribe-group "取消目标群的早晚报告"))
+                              :subscribe-group "订阅目标群的通知"
+                              :unsubscribe-group "取消目标群的通知"))
+  (defun action-summary (name &optional args)
+    (if (js-call (js-array "subscribe-group" "unsubscribe-group") :includes name)
+      (let ((items (parse-subscription-items (get (or args (js-object)) :items "all"))))
+        (str (get actions name) "（订阅项目：" (describe-items items) "）"))
+      (get actions name)))
   (defun ticket-key (id)
     (unless (and (= (value-type id) "string") (js-call (new RegExp "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$") :test id)) (fail "确认ID不合法"))
     (str "confirm-" id))
@@ -82,16 +87,14 @@
       (js-object :ok false :text "仅管理员可申请或确认系统写操作；本群群主、群管理员或Tibo管理员只能管理本群订阅。")
       (await (with-lock "admin-actions" (async ()
         (if (Object/hasOwn actions name)
-          (let* ((id (randomUUID)) (group-action (js-call (js-array "subscribe-group" "unsubscribe-group") :includes name))
-                 (items (when group-action (parse-subscription-items (get args :items "all"))))
-                 (custom-items (and group-action (not (= (get items :length) (get (all-subscription-items) :length))))))
+          (let* ((id (randomUUID)) (group-action (js-call (js-array "subscribe-group" "unsubscribe-group") :includes name)))
+            (when group-action (parse-subscription-items (get args :items "all")))
             (when (and group-action (not (and (= (get context :transport) "lark")
               (js-call (new RegExp "^oc_[A-Za-z0-9]+$") :test (get args :chatId ""))))) (fail "群订阅目标无效"))
             (await (write-state (ticket-key id) (js-object :state "pending" :action name :actor (get context :actor)
               :scope (get context :scope) :transport (get context :transport) :account (get context :account)
               :args (if group-action (js-object :chatId (get args :chatId) :items (get args :items "all")) (js-object)) :expiresAt (+ (Date/now) 300000))))
-            (js-object :ok t :text (str "写操作尚未执行：" (get actions name)
-              (if custom-items (str "（项目：" (describe-items items) "）") "")
+            (js-object :ok t :text (str "写操作尚未执行：" (action-summary name args)
               "。\n确认ID：" id
               (if group-action (str "\n目标群确认尾码：" (js-call (get args :chatId) :slice -6)) "")
               "\n五分钟内发送“确认 " id "”执行，或“取消 " id "”。确认仅对本申请人和当前会话有效。")))
@@ -111,7 +114,7 @@
                     (when (and (get ticket :account) (not (= (get ticket :account) (get context :account)))) (fail "确认应用不匹配"))
                     (await (apply-action (get ticket :action) id (get ticket :args) context))
                     (put ticket :state "completed") (await (write-state key ticket))
-                    (js-object :ok t :text (str "已完成：" (get actions (get ticket :action)) "。操作前数据已在本地备份。"))
+                    (js-object :ok t :text (str "已完成：" (action-summary (get ticket :action) (get ticket :args)) "。操作前数据已在本地备份。"))
                     (catch error
                       (put ticket :state "failed-or-uncertain") (await (write-state key ticket))
                       (js-object :ok false :text "写操作暂时出了问题，此确认ID不再重试；请在本地检查结果。")))))))))))))

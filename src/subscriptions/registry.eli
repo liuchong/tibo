@@ -154,10 +154,13 @@
           (put m :source "command")
           (await (write-state (namespace-key transport account) state))))))))
   (defasync group-subscription-status (transport account id)
-    (let ((member (js-call (await (active-recipients transport account)) :find (lambda (m) (and (= (get m :kind) "group") (= (get m :id) id))))))
+    (let* ((member (js-call (await (active-recipients transport account)) :find (lambda (m) (and (= (get m :kind) "group") (= (get m :id) id)))))
+           (items (member-items member)))
       (js-object :ok t :text (str "**群报告订阅**\n"
-        (if member (str "目标群当前已订阅。\n• 订阅项目：" (describe-items (member-items member))) "目标群当前未订阅。")
-        "\n• 周期：" (zone-label (get (time-settings) :scheduleZone)) "每天09:00、21:00。"
+        (if member (str "目标群当前已订阅。\n• 订阅项目：" (describe-items items)) "目标群当前未订阅。")
+        (if (and member (not (js-call items :includes "daily")))
+          "\n• 每日定点报告：未包含（仅推送所选实时通知）。"
+          (str "\n• 周期：" (zone-label (get (time-settings) :scheduleZone)) "每天09:00、21:00。"))
         "\n• 另有高概率/明确承诺预警与独立已重置确认。"
         "\n• 可选项目：all（全部）、alerts（仅重置预警与确认）、daily（仅每日定点）、promise（明确承诺预警）、probability（高概率预警）、confirmed（已重置确认）。"))))
   (defasync subscription-command (name context &optional raw-items)

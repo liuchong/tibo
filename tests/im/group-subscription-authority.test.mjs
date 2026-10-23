@@ -28,7 +28,8 @@ test('cancellation and unsubscribe use separate confirmations and account-level 
 
 test('Tibo administrator can subscribe and manage current ordinary group even when not group owner, without unlocking global destructive commands in that group',async()=>{
  const r=await trial(`role='member';const botAdmin={...ctx,actor:'ou_system'};const p=await execute('subscribe group alerts',botAdmin),id=p.text.match(/确认ID：([0-9a-f-]+)/)[1];const proof=await command_context(client,fixed_query('subscribe group alerts'),botAdmin);const system=await execute_query(fixed_query('clear-history'),{context:proof});const cross=await execute_query(fixed_query('subscribe group oc_other'),{context:proof});const help=visible_catalog(proof).map(x=>x.name);const confirmed=await execute('confirm '+id,botAdmin);const status=await execute('subscription group',botAdmin);const afterAll=await active_recipients('lark',ctx.account);const afterDaily=await active_recipients('lark',ctx.account,'daily');const afterPromise=await active_recipients('lark',ctx.account,'promise');console.log(JSON.stringify({p,system,cross,help,confirmed,status,reads,systemAdmin:is_admin(proof),afterAll,afterDaily,afterPromise}));`);
- expect(r.p.ok).toBe(true);expect(r.confirmed.ok).toBe(true);expect(r.reads).toBe(0);
+ expect(r.p.ok).toBe(true);expect(r.p.text).toContain('订阅目标群的通知（订阅项目：仅重置预警与已重置确认');expect(r.p.text).not.toContain('早晚报告');
+ expect(r.confirmed.ok).toBe(true);expect(r.confirmed.text).toContain('已完成：订阅目标群的通知（订阅项目：仅重置预警与已重置确认');expect(r.confirmed.text).not.toContain('早晚报告');expect(r.reads).toBe(0);
  expect(r.system.ok).toBe(false);expect(r.cross.ok).toBe(false);expect(r.systemAdmin).toBe(false);
  expect(r.help).toContain('confirm');expect(r.help).not.toContain('clear-history');
  expect(r.afterAll).toHaveLength(1);expect(r.afterAll[0].items).toEqual(['promise','probability','confirmed']);
