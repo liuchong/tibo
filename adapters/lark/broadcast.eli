@@ -23,7 +23,7 @@
                 (or (and (= (get target :kind) "group") (js-call (new RegExp "^oc_[A-Za-z0-9]+$") :test (get target :id "")))
                     (and (= (get target :kind) "dm") (js-call (new RegExp "^ou_[A-Za-z0-9]+$") :test (get target :id ""))
                          (= (value-type (get target :revision)) "string")))))) (fail "定点分发档案不可读")) saved)
-          (let* ((subscribers (js-call (await (active-recipients "lark" account)) :sort (lambda (a b)
+          (let* ((subscribers (js-call (await (active-recipients "lark" account "daily")) :sort (lambda (a b)
                     (if (= (get a :kind) (get b :kind)) 0 (if (= (get a :kind) "group") -1 1))))) (targets (js-array)))
             (js-call subscribers :forEach (lambda (member)
               ;; Subscriptions start strictly after the subscription request.
@@ -32,11 +32,11 @@
                 (js-call targets :push (js-object :kind (get member :kind) :id (get member :id) :revision (get member :revision))))))
             (let ((plan (js-object :schemaVersion 1 :slotAt (get slot :at) :cursor 0 :targets targets :state "pending")))
               (await (write-state (plan-key account slot) plan)) plan))))))))
-  (defasync send-target (client groups account slot target bulletin)
+  (defasync send-target (client groups account slot target bulletin &optional item)
     (let* ((id (get target :id))
            (eligible (if (and (= (get target :kind) "group") (not (get target :revision)))
                (js-call groups :includes id) ;; Legacy plans still require explicit notification configuration.
-               (await (still-recipient? "lark" account (get target :kind) id (get target :revision))))))
+               (await (still-recipient? "lark" account (get target :kind) id (get target :revision) (or item "daily"))))))
       (when (and eligible (not (await (read-state (delivery-key id (get slot :key))))))
         (try (await (deliver client id (get slot :key) nil nil nil bulletin))
           (catch error

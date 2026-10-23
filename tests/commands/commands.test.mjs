@@ -5,8 +5,14 @@ test('one command registry defines aliases, defaults, bounds and rejects all ope
  expect(fixed_query('预测 48')).toEqual({command:'forecast',args:{horizon:'48',noAi:false}});
  expect(fixed_query('发言 5 reset --hours 24')).toEqual({command:'posts',args:{limit:5,hours:24,keyword:'reset'}});
  expect(fixed_query('历史 3 global').args).toEqual({limit:3,kind:'global'});expect(fixed_query('forecast --no-ai').args.noAi).toBe(true);
+ expect(fixed_query('subscribe alerts')).toEqual({command:'subscribe',args:{target:'personal',items:'alerts'}});
+ expect(fixed_query('subscribe group alerts')).toEqual({command:'subscribe',args:{target:'group',items:'alerts'}});
+ expect(fixed_query('subscribe group oc_room alerts')).toEqual({command:'subscribe',args:{target:'group',chatId:'oc_room',items:'alerts'}});
+ expect(fixed_query('subscribe group alerts oc_room')).toEqual({command:'subscribe',args:{target:'group',chatId:'oc_room',items:'alerts'}});
+ expect(fixed_query('unsubscribe daily')).toEqual({command:'unsubscribe',args:{target:'personal',items:'daily'}});
+ expect(fixed_query('subscribe promise,confirmed')).toEqual({command:'subscribe',args:{target:'personal',items:'promise,confirmed'}});
  expect(fixed_query('posts --limit 11').command).toBe('invalid');expect(fixed_query('service restart')).toBeNull();
- for(const q of [{command:'service',args:{}},{command:'posts',args:{limit:0}},{command:'posts',args:{limit:'3'}},{command:'forecast',args:{horizon:'72'}},{command:'status',args:{since:'today'}},{command:'posts',args:{path:join(homedir(),'private')}},{command:'help',args:{},model:'forbidden'}])expect(()=>validate_query(q)).toThrow();
+ for(const q of [{command:'service',args:{}},{command:'posts',args:{limit:0}},{command:'posts',args:{limit:'3'}},{command:'forecast',args:{horizon:'72'}},{command:'status',args:{since:'today'}},{command:'subscribe',args:{items:'invalid-item'}},{command:'posts',args:{path:join(homedir(),'private')}},{command:'help',args:{},model:'forbidden'}])expect(()=>validate_query(q)).toThrow();
 });
 test('posts filters and orders evidence; history/banked/signals/stats use existing core and work without AI',async()=>{
  const dir=await mkdtemp(join(tmpdir(),'tibo-queries-')),file=join(dir,'snapshot.json');const s=snapshot({posts:[post(23,'reset older'),post(25,'reset newest'),post(24,'unrelated')],events:[event(1),event(3),event(6),event(10),event(13),event(18),event(24),event(25,{global:false,banked:true})]});await writeFile(file,JSON.stringify(s));

@@ -25,3 +25,13 @@ test('cancellation and unsubscribe use separate confirmations and account-level 
  const r=await trial(`let p=await execute('subscribe group'),id=p.text.match(/确认ID：([0-9a-f-]+)/)[1];const cancelled=await execute('cancel '+id),replay=await execute('confirm '+id);p=await execute('subscribe group');await execute('confirm '+p.text.match(/确认ID：([0-9a-f-]+)/)[1]);p=await execute('unsubscribe group');const before=await active_recipients('lark',ctx.account);await execute('confirm '+p.text.match(/确认ID：([0-9a-f-]+)/)[1]);console.log(JSON.stringify({cancelled,replay,before,after:await active_recipients('lark',ctx.account)}));`);
  expect(r.cancelled.ok).toBe(true);expect(r.replay.ok).toBe(false);expect(r.before).toHaveLength(1);expect(r.after).toEqual([]);
 });
+
+test('Tibo administrator can subscribe and manage current ordinary group even when not group owner, without unlocking global destructive commands in that group',async()=>{
+ const r=await trial(`role='member';const botAdmin={...ctx,actor:'ou_system'};const p=await execute('subscribe group alerts',botAdmin),id=p.text.match(/确认ID：([0-9a-f-]+)/)[1];const proof=await command_context(client,fixed_query('subscribe group alerts'),botAdmin);const system=await execute_query(fixed_query('clear-history'),{context:proof});const cross=await execute_query(fixed_query('subscribe group oc_other'),{context:proof});const help=visible_catalog(proof).map(x=>x.name);const confirmed=await execute('confirm '+id,botAdmin);const status=await execute('subscription group',botAdmin);const afterAll=await active_recipients('lark',ctx.account);const afterDaily=await active_recipients('lark',ctx.account,'daily');const afterPromise=await active_recipients('lark',ctx.account,'promise');console.log(JSON.stringify({p,system,cross,help,confirmed,status,reads,systemAdmin:is_admin(proof),afterAll,afterDaily,afterPromise}));`);
+ expect(r.p.ok).toBe(true);expect(r.confirmed.ok).toBe(true);expect(r.reads).toBe(0);
+ expect(r.system.ok).toBe(false);expect(r.cross.ok).toBe(false);expect(r.systemAdmin).toBe(false);
+ expect(r.help).toContain('confirm');expect(r.help).not.toContain('clear-history');
+ expect(r.afterAll).toHaveLength(1);expect(r.afterAll[0].items).toEqual(['promise','probability','confirmed']);
+ expect(r.afterDaily).toEqual([]);expect(r.afterPromise).toHaveLength(1);
+ expect(r.status.text).toContain('仅重置预警');
+});

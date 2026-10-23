@@ -1,7 +1,7 @@
 ;; Live platform role lookup belongs to the adapter; core code sees only a
 ;; scoped proof and never receives an API client or raw group member list.
 (module tibo.lark.authority
-  (import "../../src/commands/admin.eli" is-admin ticket-key)
+  (import "../../src/commands/admin.eli" is-admin is-bot-admin ticket-key)
   (import "../../src/im/authority.eli" group-action?)
   (import "../../src/platform/state.eli" read-state)
   (import "../../src/platform/util.eli" fail)
@@ -18,7 +18,7 @@
             (setq needed (and ticket (group-action? (get ticket :action))
               (= (get ticket :actor) (get context :actor)) (= (get ticket :scope) (get context :scope))
               (= (get ticket :account) (get context :account))))))
-        (when (and needed (not (is-admin context)))
+        (when (and needed (not (is-admin context)) (not (is-bot-admin context)))
           (try
             (let* ((info (await (js-call client :chatInfo (get context :scope))))
               (owner (get info :owner_id)) (managers (get info :user_manager_id_list)) (role nil))

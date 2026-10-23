@@ -49,7 +49,7 @@ Lark 是独立的 Eliscript 接入程序，复用核心命令与共享报告。�
 
 准备 App ID、App Secret、操作群与报告接收群 `oc_...`，以及本应用内管理员用户 `ou_...`。被动群交互默认 `all`，也可保留显式群列表；拉机器人进群不会自动订阅报告。系统管理员可留空，此时只关闭系统危险管理操作，群主或群管理员仍可在本群申请并确认群订阅。只允许本人系统管理时仅填写本人在此应用下的 open_id；可通过已登录 CLI 的 union_id 在目标应用下查询，不能直接复用 CLI 应用的 open_id。系统管理员只可在私聊或明确配置的操作群申请管理操作，仍需在同一会话明确二次确认。其他应用的 open_id、昵称或自称管理员不能替代真实事件身份。三个范围见 [会话接入与通知边界](conversation-access.md)。
 
-本群订阅通过固定 `GET /open-apis/im/v1/chats/{chat_id}?user_id_type=open_id` 查询当前群的 `owner_id`、`user_manager_id_list`，申请与确认各查一次，不缓存群管理角色。读取失败时不执行写入，只回复简短重试提示。该接口复用上表的 `im:chat:read`，不新增 SDK、模型工具或系统命令能力。
+本群订阅支持群主、群管理员或本应用 Tibo 管理员在本群内直接申请并确认（支持 `subscribe group alerts` 等按项目订阅）。非 Tibo 管理员通过固定 `GET /open-apis/im/v1/chats/{chat_id}?user_id_type=open_id` 查询当前群的 `owner_id`、`user_manager_id_list`，申请与确认各查一次，不缓存群管理角色。读取失败时不执行写入，只回复简短重试提示。该接口复用上表的 `im:chat:read`，不新增 SDK、模型工具或系统命令能力。
 
 机器人自身 open_id 通过官方 `GET /open-apis/bot/v3/info` 自动发现；可选配置一个预期值，启动时作一致性校验。
 

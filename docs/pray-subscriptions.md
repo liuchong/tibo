@@ -58,33 +58,52 @@ Lark 的“双手合十”反应类型为 `THANKS`。接入层分别处理两种
 
 平台权限或群设置可能不交付未 @ 的消息，程序不会凭空读取它。反应可指向本机器人或群成员消息，正文只作为祝词参考；无法读取和核实会话的消息、未授权群的反应不会记账。详见 [Lark 接入](lark.md)。
 
-## 订阅私聊报告
+## 订阅私聊报告与精细化项目
 
 在已接入的 IM 中发送固定指令，或启用 router 后用语义请求：
 
 ```text
 subscribe
+subscribe alerts
+subscribe promise,confirmed
 subscription
+unsubscribe daily
 unsubscribe
 帮我订阅早晚报告
+只给我发重置预警，不订阅每日预测
 取消我的订阅
 ```
 
-默认订阅只操作本人；在群和私聊发送同一命令，都是个人私聊订阅，也可显式使用 `subscribe personal`。不能代他人订阅。CLI 和 MCP 没有可用的 IM 私聊身份，因此不能创建订阅。Lark 的身份由实际事件获得，订阅按应用账户隔离，在同一应用的不同群里仍是同一份本人订阅。
+订阅支持按原子项目单独订阅、组合订阅、原地切换或按项退订：
+
+| 项目 / 预设 | 含义 |
+| --- | --- |
+| `all`（默认） | 全部项目：`daily` + `promise` + `probability` + `confirmed` |
+| `alerts` | 仅重置预警与确认：`promise` + `probability` + `confirmed`（不接收每天 09:00/21:00 每日定点预测） |
+| `warnings` | 仅重置前预警：`promise` + `probability` |
+| `daily` | 每天 09:00、21:00 早晚定点预测报告 |
+| `promise` | 发现明确 global 重置时间承诺时的实时预警 |
+| `probability` | 24h≥70% 或 48h≥85% 时的实时高概率预警 |
+| `confirmed` | 官方宣布 global 重置完成时的独立确认通知 |
+
+默认订阅只操作本人；在群和私聊发送同一命令，都是个人私聊订阅，也可显式使用 `subscribe personal` 或 `subscribe personal alerts`。不能代他人订阅。CLI 和 MCP 没有可用的 IM 私聊身份，因此不能创建订阅。Lark 的身份由实际事件获得，订阅按应用账户隔离，在同一应用的不同群里仍是同一份本人订阅。
 
 ## 群订阅与配置
 
-目标群的群主或群管理员在本群可使用群参数，无需把该群设为 Tibo 系统操作群：
+目标群的群主、群管理员，或本应用的 Tibo 管理员（`TIBO_LARK_ADMIN_OPEN_IDS`）在本群内均可使用群参数管理本群订阅，无需把该群设为 Tibo 系统操作群：
 
 ```text
 subscribe group
+subscribe group alerts
+subscribe group promise,confirmed
+unsubscribe group daily
 unsubscribe group
 subscription group
 ```
 
-新增、取消群订阅都先返回确认 ID，再由同一个人在本群五分钟内发送 `confirm ID` 或 `确认 ID`；申请时不会启用订阅。申请与确认分别读取平台当前群主和管理员身份，失去群管理角色后不能确认旧申请；普通成员只能管理自己的个人订阅。群管理身份不授予 Tibo 系统管理权，也不能在私聊或其他群代管目标群。
+新增、修改或取消群订阅都先返回确认 ID，再由同一个人在本群五分钟内发送 `confirm ID` 或 `确认 ID`；申请时不会启用订阅。群主和群管理员在申请与确认时分别读取平台当前群角色，失去群管理角色后不能确认旧申请；Tibo 管理员在本群内直接凭已认证管理员身份操作本群订阅，无需在飞书群内担任群主，但普通群内仍不开放 `clear-history` 等全局危险指令，也不能跨群管理其他群。普通群成员只能管理自己的个人订阅。
 
-启用 router 后，“以后发现重置几率高时往本群发个提醒”也会申请本群订阅，引用消息中的明确申请同样有效；含🙏时独立并行上香。系统管理员保留原来的私聊或操作群管理入口，可用 `subscribe group 群ID` 或 `--target group --chatId oc_目标群ID` 指定目标；默认 `--target personal`。
+启用 router 后，“以后发现重置几率高时往本群发个提醒”“在本群只订阅重置预警，不要每日预测”也会申请本群对应项目的订阅，引用消息中的明确申请同样有效；含🙏时独立并行上香。系统管理员保留原来的私聊或操作群管理入口，可用 `subscribe group 群ID [items]` 或 `--target group --chatId oc_目标群ID --items alerts` 指定目标；默认 `--target personal --items all`。
 
 `TIBO_LARK_NOTIFY_CHAT_IDS` 可直接添加配置群订阅，不与被动交互的 `all` 混用。群与个人订阅统一存储和投递，但接收者类型严格分开。已确认的命令退订不会因未改变的配置在重启后被重新打开；配置移除再添加视为新的明确订阅。完整配置优先与操作规则见 [会话接入与通知边界](conversation-access.md)。
 

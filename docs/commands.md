@@ -37,9 +37,9 @@ tibo query 'help'
 | `date-diff` | `from to` 必填 | 有符号秒/小时/天差；纯日期为 UTC 零点，时间须带 Z |
 | `convert` | `value from to` 必填 | 长度、质量、时长、数据容量和温度换算；拒绝跨维度 |
 | `pray`，别名 `祈祷/上香/🙏` | `action limit`；action offer/me/board/stats 默认 offer；limit 1..20 默认 10 | 上香、本人档案、当前会话榜单与愿力池 |
-| `subscribe`，别名 `订阅` | `target=personal/group`，默认 personal；可选 `chatId` | 默认订阅本人私聊；group 由本群群主或群管理员申请并二次确认 |
-| `unsubscribe`，别名 `退订/取消订阅` | 同 subscribe | 默认取消本人订阅；group 由本群群主或群管理员申请并二次确认 |
-| `subscription`，别名 `订阅状态` | 同 subscribe | 默认查看本人订阅；group 查看本群订阅，要求本群群主或群管理员 |
+| `subscribe`，别名 `订阅` | `target=personal/group`，默认 personal；`items=all/alerts/warnings/daily/promise/probability/confirmed`（支持逗号组合），默认 all；可选 `chatId` | 默认订阅本人私聊；group 由本群群主、群管理员或 Tibo 管理员申请并二次确认；支持按项目单独或组合订阅（如 `alerts` 仅订阅重置预警与确认，不收每日定点预测） |
+| `unsubscribe`，别名 `退订/取消订阅` | 同 subscribe | 默认取消本人订阅；group 由本群群主、群管理员或 Tibo 管理员申请并二次确认；指定 `items` 可单独退订某项并保留其余项目 |
+| `subscription`，别名 `订阅状态` | `target=personal/group`；可选 `chatId` | 默认查看本人订阅及已选项目；group 查看本群订阅，要求本群群主、群管理员或 Tibo 管理员 |
 
 `posts --postId` 只查询已知记录中的指定帖子，忽略 hours 窗口；不会凭任意 ID 新建抓取任务。条数是上限，公开来源没有足够匹配记录时返回更少条。状态查询不会读取你的 Codex 账户额度。
 
@@ -65,7 +65,7 @@ tibo query 'service-history 5 14'
 
 固定命令直接运行；其他输入使用语义路由。引用追问进入聊天，由 read 结合引用链选择固定只读方法，程序取数后回答；没有针对特定自然语言问法的快捷正则。AI 不可用时使用固定命令，计算、时间、单位、日期仍可用，网络方法保留真实失败状态。
 
-Lark 引用/话题中的固定指令仍优先；启用 router 后，本轮明确业务请求也会语义路由，例如“以后发现重置几率高时往本群发提醒”申请本群订阅。普通引用追问进入聊天并沿用引用上下文；历史命令和机器人建议本身不会触发新业务。路由不可用时可使用固定命令。群主、群管理员权限仅限本群订阅，不能指定其他群或操作系统管理；Tibo 系统管理员保留在私聊或操作群显式指定目标群的原入口。
+Lark 引用/话题中的固定指令仍优先；启用 router 后，本轮明确业务请求也会语义路由，例如“以后发现重置几率高时往本群发提醒”或“在本群只订阅重置预警，不订阅每日预测”申请本群对应项目订阅。普通引用追问进入聊天并沿用引用上下文；历史命令和机器人建议本身不会触发新业务。路由不可用时可使用固定命令。本群订阅可由本群群主、群管理员或 Tibo 管理员在本群内直接申请并二次确认（省略群 ID），普通群内不解锁全局系统危险命令或跨群代管；Tibo 系统管理员保留在私聊或操作群显式指定目标群 ID 的原入口。
 
 CLI 的 `tibo ask '问题'` 是交互入口，与 `tibo query '问题'` 一样先尝试解析业务查询。要直接调用业务文字问答，使用上面的 `query 'ask "..."'` 写法。已识别命令的错误参数可在真实人工输入时请求 AI 修复，详见 [语言与管道](language-pipelines.md)。
 

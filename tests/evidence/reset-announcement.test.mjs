@@ -108,4 +108,16 @@ test('overdue silent fulfillment presumes delivery after grace window or Day adv
  expect(rescheduled.signals.promise).toMatchObject({postId:rescheduledPost.id,targetAt:'2026-10-23T03:00:00.000Z',fulfilled:false});
  expect(rescheduled.signals.lastGlobal.id).toBe(day15.id);
  expect(rescheduled.forecast.p24).toBeGreaterThan(75);
+
+ // 5. Consecutive cycle promise (Day 18 reset promise arriving after Day 17 deadline) settles Day 17 as presumed lastGlobal while keeping Day 18 as active promise
+ const day18Reset={id:'2113492187770175603',at:'2026-10-23T04:46:19.007Z',author:'thsottiaux',provenance:'primary',text:'Day 18/ Decisions API is GA, OpenResponses joined the Linux Foundation, we shipped some performance improvements and Uber is going all-in on codex & work. But yes… that’s a reset!',truncated:false};
+ const day18Reply={id:'2113492502355562875',at:'2026-10-23T04:47:34.010Z',author:'thsottiaux',provenance:'primary',parentId:day18Reset.id,parentRelationProvenance:'official-page-data',text:'Landing tomorrow before 10am PST together with a small ship.',truncated:false};
+ const consecutive=judge(snapshot({now:'2026-10-23T04:50:00Z',posts:[...basePosts,day18Reset,day18Reply]}));
+ expect(consecutive.signals.lastGlobal).toMatchObject({id:`presumed-${reply.id}`,at:'2026-10-22T18:00:00.000Z',presumed:true,global:true,verified:true});
+ expect(consecutive.signals.promise).toMatchObject({postId:day18Reply.id,parentId:day18Reset.id,targetAt:'2026-10-23T18:00:00.000Z',fulfilled:false});
+ expect(consecutive.forecast.p24).toBeGreaterThan(85);
+ expect(consecutive.forecast.cardAdvice.decision).toBe('wait');
+ const consecutiveText=public_forecast(consecutive);
+ expect(consecutiveText).toContain('北京时间 10-23 02:00（按预告期限推定交割）');
+ expect(consecutiveText).toContain('北京时间 10-24 02:00');
 });

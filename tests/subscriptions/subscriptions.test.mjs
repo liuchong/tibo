@@ -1,7 +1,8 @@
 import {test,expect} from 'bun:test';import {mkdtemp,rm} from 'node:fs/promises';import {tmpdir} from 'node:os';import {join} from 'node:path';
-import {subscription_command,active_subscribers,still_subscribed_QMARK_,sync_group_subscriptions,active_recipients,namespace_key,still_recipient_QMARK_} from '../../dist/src/subscriptions/registry.mjs';
+import {subscription_command,active_subscribers,still_subscribed_QMARK_,sync_group_subscriptions,active_recipients,namespace_key,still_recipient_QMARK_,parse_subscription_items} from '../../dist/src/subscriptions/registry.mjs';
 import {slot_at,next_slot} from '../../dist/src/subscriptions/schedule.mjs';import {ensure_bulletin,bulletin_key} from '../../dist/src/subscriptions/bulletin.mjs';
 import {read_state,write_state} from '../../dist/src/platform/state.mjs';import {create_broadcaster} from '../../dist/adapters/lark/broadcast.mjs';
+import {create_alert_delivery} from '../../dist/adapters/lark/alerts.mjs';import {enqueue_alert} from '../../dist/src/subscriptions/alerts.mjs';
 import {account_key,delivery_key} from '../../dist/adapters/lark/service.mjs';import {validate_query} from '../../dist/src/commands/index.mjs';
 async function isolated(fn){const dir=await mkdtemp(join(tmpdir(),'tibo-subscription-')),old=process.env.TIBO_STATE_DIR,nativeNow=Date.now,oldZone=process.env.TIBO_TIMEZONE;process.env.TIBO_TIMEZONE='Asia/Shanghai';process.env.TIBO_STATE_DIR=dir;
 try{await fn(dir);}finally{Date.now=nativeNow;if(oldZone===undefined)delete process.env.TIBO_TIMEZONE;else process.env.TIBO_TIMEZONE=oldZone;if(old===undefined)delete process.env.TIBO_STATE_DIR;else process.env.TIBO_STATE_DIR=old;await rm(dir,{recursive:true,force:true});}}
@@ -70,3 +71,57 @@ test('37 targets use one report outside the 32-job inbox; late subscriptions, un
   console.log('Subscription trial: 35 subscribers + 2 groups, one generation, identical Markdown, unsubscribe before send, isolated recipient failure and no restart replay.');
  }finally{await worker?.stop();}
 }),15000);
+
+test('fine-grained subscription items support individual selection, presets, in-place updates, partial unsubscribe, and isolated broadcast vs alert fan-out',()=>isolated(async()=>{
+ let now=Date.parse('2026-10-04T00:00:00Z');Date.now=()=>now;const account=account_key();
+ const user=id=>({transport:'lark',account,actor:id,scope:'oc_private'+id.replace(/^ou_/,''),conversationType:'p2p',authenticated:true});
+ expect(parse_subscription_items('all')).toEqual(['daily','promise','probability','confirmed']);
+ expect(parse_subscription_items('alerts')).toEqual(['promise','probability','confirmed']);
+ expect(parse_subscription_items('warnings')).toEqual(['promise','probability']);
+ expect(parse_subscription_items('promise,confirmed')).toEqual(['promise','confirmed']);
+ expect(parse_subscription_items('每日预测')).toEqual(['daily']);
+ expect(()=>parse_subscription_items('unknown-item')).toThrow();
+
+ // u1 starts with all, then switches in-place to alerts, and can also reach alerts via partial unsubscribe of daily
+ await subscription_command('subscribe',user('ou_all'));
+ const updated=await subscription_command('subscribe',user('ou_all'),'alerts');
+ expect(updated.text).toContain('已更新订阅');
+ expect((await active_recipients('lark',account,'daily')).map(m=>m.id)).not.toContain('ou_all');
+ expect((await active_recipients('lark',account,'promise')).map(m=>m.id)).toContain('ou_all');
+
+ // u2 subscribes to all, then unsubscribes only daily -> keeps promise, probability, confirmed
+ await subscription_command('subscribe',user('ou_unsubDaily'));
+ const partial=await subscription_command('unsubscribe',user('ou_unsubDaily'),'daily');
+ expect(partial.text).toContain('已退订');
+ expect((await active_recipients('lark',account)).find(m=>m.id==='ou_unsubDaily').items).toEqual(['promise','probability','confirmed']);
+
+ // u3 subscribes only to daily; u4 subscribes only to promise; u5 subscribes only to probability; u6 subscribes only to confirmed
+ await subscription_command('subscribe',user('ou_onlyDaily'),'daily');
+ await subscription_command('subscribe',user('ou_onlyPromise'),'promise');
+ await subscription_command('subscribe',user('ou_onlyProb'),'probability');
+ await subscription_command('subscribe',user('ou_onlyConfirmed'),'confirmed');
+
+ // Test 09:00 daily broadcast fan-out: only ou_onlyDaily should receive it!
+ now=Date.parse('2026-10-04T01:00:02Z');
+ const broadcastSent=[];
+ const client={send:async(body)=>{broadcastSent.push(body.receive_id);return {code:0,data:{message_id:'om_'+broadcastSent.length}};}};
+ const slot=slot_at(new Date(now).toISOString());
+ const broadcaster=create_broadcaster(client,[],async()=>'**每日定点**\n• 24h：15%');
+ await broadcaster.tick(slot);await broadcaster.stop();
+ expect(broadcastSent).toEqual(['ou_onlyDaily']);
+
+ // Test realtime alerts fan-out per alert kind
+ const alertSent=[];
+ const alertClient={send:async(body)=>{alertSent.push({to:body.receive_id,text:body.content});return {code:0,data:{message_id:'om_alert_'+alertSent.length}};}};
+ now+=1000;
+ await enqueue_alert('promise','p-1','**🔔 明确承诺预警**',new Date(now).toISOString(),new Date(now+3600000).toISOString());
+ await enqueue_alert('high-probability','hp-1','**🔔 高概率预警**',new Date(now).toISOString(),new Date(now+3600000).toISOString());
+ await enqueue_alert('confirmed','c-1','**✅ 已重置确认**');
+ const alertWorker=create_alert_delivery(alertClient,[]);
+ await alertWorker.tick();await alertWorker.stop();
+
+ const recipientsFor=snippet=>alertSent.filter(x=>x.text.includes(snippet)).map(x=>x.to).sort();
+ expect(recipientsFor('明确承诺预警')).toEqual(['ou_all','ou_onlyPromise','ou_unsubDaily']);
+ expect(recipientsFor('高概率预警')).toEqual(['ou_all','ou_onlyProb','ou_unsubDaily']);
+ expect(recipientsFor('已重置确认')).toEqual(['ou_all','ou_onlyConfirmed','ou_unsubDaily']);
+}));

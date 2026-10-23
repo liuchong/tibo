@@ -15,6 +15,6 @@
       "\n集体彩蛋有六级大型庆典，达到10/50/100/233/500/1000次上香解锁，随机图案配token祝词；一次最多额外两条庆典消息。祈祷、功德和神谕是娱乐功能，不影响真实的重置概率，也不会实际重置账户。"
       "\n语言别名cn、zh-cn、zh-CN、汉语可直接使用。开启repair后仅修复人工输入中实际出错的命令或管道段，不重新执行前序步骤；内部调用不启用。"
       "\n开启AI后可自然聊天；引用消息时延续同一引用链的多轮对话，不引用时单轮，不带此前私聊历史。群聊仍需满足@、点名或关键词触发规则。|ask只处理当前前序文字，不建立历史。"
-      "\n订阅默认针对本人私聊，在群或私聊发送 subscribe / unsubscribe / subscription 效果相同；也可显式使用 personal 参数。群订阅可由本群群主或群管理员在本群申请：subscribe group；unsubscribe group；subscription group；也可说“发现重置几率高的时候往本群提醒”。申请与确认都核实当前群角色，收到确认ID后五分钟内由本人在本群发送“确认 ID”。不能代管其他群；Tibo系统管理员仍可从原管理入口明确指定群ID。不能自定义推送时间。"
+      "\n订阅默认针对本人私聊，在群或私聊发送 subscribe / unsubscribe / subscription 效果相同；也可显式使用 personal 参数。群订阅可由本群群主、群管理员或Tibo管理员在本群申请：subscribe group；unsubscribe group；subscription group；收到确认ID后五分钟内由本人在本群发送“确认 ID”（Tibo系统管理员也可在私聊或操作群显式指定群ID）。支持按项目精细化单独或组合订阅/退订：all（默认全部）、alerts（仅重置预警与确认，不含每日预测）、warnings（仅重置前预警）、daily（仅每日09:00/21:00定点预测）、promise（明确承诺预警）、probability（高概率重置预警）、confirmed（已重置确认），例如：subscribe alerts、subscribe group alerts、subscribe promise,confirmed、unsubscribe daily。不能自定义推送时间。"
       (if (is-admin context) "\n管理员写操作：clear-history / clear-experience / reset-ai 仅申请；收到确认ID后，使用 confirm ID（确认 ID）或 cancel ID（取消 ID）。五分钟有效，绑定申请人与当前会话。" "")))
   (export help-text))
