@@ -6,7 +6,7 @@
       (let ((copy (Object/assign (js-object) row)))
         (when (and (not (get row :outcome)) (>= (ms now) (+ (ms (get row :at)) (* 2 day-ms) 600000)))
           (let* ((start (ms (get row :at)))
-                 (after (js-call events :filter (lambda (e) (and (get e :global) (> (ms (get e :at)) start)
+                 (after (js-call events :filter (lambda (e) (and (get e :global) (not (get e :presumed)) (> (ms (get e :at)) start)
                                                    (<= (ms (get e :at)) (+ start (* 2 day-ms))))))))
             (unless (js-call after :some (lambda (e) (or (= (get e :verified) false) (get e :observed))))
             (put copy :outcome (js-object

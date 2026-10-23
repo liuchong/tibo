@@ -19,7 +19,7 @@
       (let ((copy (Object/assign (js-object) row)) (audit (js-object)))
         (js-call (js-array 24 48) :forEach (lambda (hours)
           (let* ((end (+ (ms (get row :at)) (* (/ hours 24) day-ms)))
-            (window (js-call events :filter (lambda (e) (and (get e :global)
+            (window (js-call events :filter (lambda (e) (and (get e :global) (not (get e :presumed))
               (> (ms (get e :at)) (ms (get row :at))) (<= (ms (get e :at)) end) (<= (ms (get e :at)) (ms now))))))
             (hit (js-call window :find (lambda (e) (and (get e :verified) (not (get e :observed))))))
             (y (cond (hit 1) ((and fresh (>= (ms now) (+ end 600000)) (= (get window :length) 0)) 0) (t nil))))

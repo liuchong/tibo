@@ -41,3 +41,21 @@ test('thread discovery is bounded, refreshes conversations and degrades without 
  const r=await trial(code);expect(r.failed.source).toMatchObject({ok:false,attempted:2});expect(r.failed.posts).toEqual([]);
  expect(r.consumed.source.attempted).toBe(0);expect(r.a.posts).toHaveLength(2);expect(r.b.posts).toHaveLength(2);expect(r.calls).toBe(3);
 });
+test('secondary timing self-reply thread is polled for depth-2 completion replies even after presumed deadline delivery',async()=>{
+ const day17='2113162277688070445',lands='2113162413008884099',done='2113400000000000001';
+ const code=`const calls=[];globalThis.fetch=async u=>{calls.push(String(u));
+ if(u==='https://x.com/thsottiaux/status/${lands}')return new Response(${JSON.stringify(article(lands,'Lands tomorrow before 10am PST.')+article(done,'Done and dusted'))});
+ return new Response(${JSON.stringify(article(day17,'Day 17/ Bet you thought we forgot, but no, it is reset day today.'))});};
+ const {collect_threads}=await import(${JSON.stringify(resolve('dist/src/evidence/post-thread.mjs'))});
+ const posts=[
+  {id:'${day17}',author:'thsottiaux',provenance:'primary',at:'2026-10-22T06:55:22.314Z',text:'Day 17/ Bet you thought we forgot, but no, it is reset day today.'},
+  {id:'${lands}',author:'thsottiaux',provenance:'primary',parentId:'${day17}',at:'2026-10-22T06:55:54.577Z',text:'Lands tomorrow before 10am PST.'}
+ ];
+ const presumed=[{id:'presumed-${lands}',at:'2026-10-22T18:00:00.000Z',global:true,presumed:true}];
+ const res=await collect_threads(posts,presumed,'2026-10-23T01:30:00Z');
+ console.log(JSON.stringify({calls,found:res.posts.map(p=>p.id),attempted:res.source.attempted}));`;
+ const r=await trial(code);
+ expect(r.attempted).toBe(2);
+ expect(r.calls).toContain(`https://x.com/thsottiaux/status/${lands}`);
+ expect(r.found).toContain(done);
+});

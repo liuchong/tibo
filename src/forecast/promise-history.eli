@@ -3,7 +3,7 @@
   (import "../evidence/post-features.eli" local-row)
   (import "../platform/util.eli" ms hour-ms sorted last-item matches)
   (defun verified-global? (e)
-    (and e (get e :global) (get e :verified) (not (get e :observed)) (= (get e :provenance) "primary")))
+    (and e (get e :global) (get e :verified) (not (get e :observed)) (not (get e :presumed)) (= (get e :provenance) "primary")))
   (defun covered? (snapshot from through &optional posts)
     (try
       (js-call (js-call (get snapshot :coverages (js-array)) :concat

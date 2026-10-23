@@ -31,7 +31,7 @@
             (future (delivery-cdf (+ now (* hours hour-ms)) at deadline delay))
             ;; Condition on no completion observed yet. The deadline naturally
             ;; affects both horizons; overdue promises lose mass continuously.
-            (delivery (/ (* q (Math/max 0 (- future seen))) (- 1 (* q seen))))
+            (delivery (/ (* q (Math/max 0 (- future seen))) (Math/max 0.000001 (- 1 (* q (Math/min seen (get prior :onTimeShare)))))))
             (model (- 1 (* (- 1 base) (- 1 delivery))))
             (hits (get (get audit (if (= index 0) :h24 :h48) (js-object)) :successes 0))
             (estimate (/ (+ hits (* (get prior :cohortMass) model)) (+ n (get prior :cohortMass)))))

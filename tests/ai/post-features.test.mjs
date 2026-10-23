@@ -43,3 +43,63 @@ test('semantic completion claims and parent-reply promise threads advance the re
  expect(r.p24).toBeGreaterThan(80);
  expect(r.card.decision).toBe('wait');
 });
+
+test('AI semantic extraction supersedes presumed fulfillment on unlinked late completion and revokes presumption on colloquial delay',async()=>{
+ const r=await trial(`
+  let handler;globalThis.fetch=(u,o)=>handler(u,o);
+  const {snapshot}=await import(${JSON.stringify(resolve('tests/helpers/fixture.mjs'))});
+  const {available_judgment}=await import(${JSON.stringify(resolve('dist/src/app/engine.mjs'))});
+  const {enhance}=await import(${JSON.stringify(resolve('dist/src/ai/enhance.mjs'))});
+  const plan={id:'2106845241357824205',at:'2026-10-04T00:00:00Z',author:'thsottiaux',provenance:'primary',text:'Over the next 28 days, each day we will either ship a clear improvement or ship a full reset.'};
+  const day15={id:'2112432076767289678',at:'2026-10-20T06:33:48.848Z',author:'thsottiaux',provenance:'primary',text:"Day 15/ Nevermind, we're still cooking... and reset. Enjoy."};
+  const day17={id:'2113162277688070445',at:'2026-10-22T06:55:22.314Z',author:'thsottiaux',provenance:'primary',text:'Day 17/ Bet you thought we forgot, but no, it is reset day today.'};
+  const reply={id:'2113162413008884099',at:'2026-10-22T06:55:54.577Z',author:'thsottiaux',provenance:'primary',parentId:day17.id,parentRelationProvenance:'official-page-data',text:'Lands tomorrow before 10am PST.'};
+  const unlinkedDone={id:'2113600000000000001',at:'2026-10-23T02:00:00Z',author:'thsottiaux',provenance:'primary',text:'Done and dusted'};
+  const colloquialDelay={id:'2113600000000000002',at:'2026-10-22T19:00:00Z',author:'thsottiaux',provenance:'primary',text:'Hang tight everyone, we hit a snag and need a few extra hours before tonight’s drop lands.'};
+
+  // Case 1: unlinked completion after presumed deadline
+  handler=async(u,o)=>{
+   const input=JSON.parse(JSON.parse(o.body).messages.at(-1).content);
+   return Response.json({choices:[{finish_reason:'stop',message:{content:JSON.stringify({
+    dimensions:input.windows.map(w=>({name:w.name,support:0,opposition:0,commitment:0,imminence:0,citations:[]})),
+    rows:[{postId:unlinkedDone.id,claims:[{kind:'completion',subject:'codex-usage',scope:'global',statement:'completed',quote:'Done and dusted',timeText:null,timing:null,contextMissing:false}]}]
+   })}}]});
+  };
+  const s1=snapshot({now:'2026-10-23T03:00:00Z',posts:[...snapshot().posts,plan,day15,day17,reply,unlinkedDone]});
+  const native1=available_judgment(s1);
+  const beforePresumed=native1.signals.lastGlobal.presumed;
+  const ai1=await enhance(native1);
+
+  // Case 2: colloquial delay revokes presumed deadline
+  handler=async(u,o)=>{
+   const input=JSON.parse(JSON.parse(o.body).messages.at(-1).content);
+   return Response.json({choices:[{finish_reason:'stop',message:{content:JSON.stringify({
+    dimensions:input.windows.map(w=>({name:w.name,support:w.ids.includes(colloquialDelay.id)?0.8:0,opposition:0,commitment:w.ids.includes(colloquialDelay.id)?0.8:0,imminence:w.ids.includes(colloquialDelay.id)?0.8:0,citations:w.ids.includes(colloquialDelay.id)?[{postId:colloquialDelay.id,quote:colloquialDelay.text}]:[]})),
+    rows:[{postId:colloquialDelay.id,claims:[{kind:'hint',subject:'codex-usage',scope:'global',statement:'future',quote:colloquialDelay.text,timeText:'few extra hours',timing:{stance:'intention',window:'soon',amount:null,zone:'unknown'},contextMissing:false}]}]
+   })}}]});
+  };
+  const s2=snapshot({now:'2026-10-23T01:00:00Z',posts:[...snapshot().posts,plan,day15,day17,reply,colloquialDelay]});
+  const native2=available_judgment(s2);
+  const beforePresumed2=native2.signals.lastGlobal.presumed;
+  const ai2=await enhance(native2);
+
+  console.log(JSON.stringify({
+   beforePresumed,
+   after1LastGlobal:ai1.signals.lastGlobal,
+   after1PresumedCount:ai1.events.filter(e=>e.presumed).length,
+   after1Intervals:ai1.history.intervals.length,
+   native1Intervals:native1.history.intervals.length,
+   beforePresumed2,
+   after2LastGlobal:ai2.signals.lastGlobal,
+   after2Promise:ai2.signals.promise
+  }));
+ `);
+ expect(r.beforePresumed).toBe(true);
+ expect(r.after1LastGlobal).toMatchObject({id:'2113600000000000001',verified:true,global:true});
+ expect(r.after1LastGlobal.presumed).toBeFalsy();
+ expect(r.after1PresumedCount).toBe(0);
+ expect(r.after1Intervals).toBe(r.native1Intervals);
+ expect(r.beforePresumed2).toBe(true);
+ expect(r.after2LastGlobal.id).toBe('2112432076767289678');
+ expect(r.after2Promise).toMatchObject({fulfilled:false,delayed:true});
+});

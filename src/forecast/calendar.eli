@@ -10,7 +10,7 @@
   (defun calendar-vector (at zone) (local-vector at zone))
   (defun temporal-history (events now)
     (let* ((settings (time-settings)) (zone (get settings :forecastZone))
-      (globals (sorted (js-call events :filter (lambda (e) (and (get e :global) (<= (ms (get e :at)) (ms now))))) "at"))
+      (globals (sorted (js-call events :filter (lambda (e) (and (get e :global) (not (get e :presumed)) (<= (ms (get e :at)) (ms now))))) "at"))
       (rows (js-array)) (previous nil))
       (js-call globals :forEach (lambda (event)
         (let ((gap (when previous (- (ms (get event :at)) (ms (get previous :at))))))

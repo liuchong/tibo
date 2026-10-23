@@ -7,12 +7,15 @@
   ;; A post body is immutable cache material; its visible conversation is not.
   ;; Read a bounded set of official detail pages, without recursive crawling.
   (defasync collect-threads (posts events now)
-    (let* ((globals (js-call events :filter (lambda (e) (and (get e :global) (<= (ms (get e :at)) (ms now))))))
+    (let* ((globals (js-call events :filter (lambda (e) (and (get e :global) (not (get e :presumed)) (<= (ms (get e :at)) (ms now))))))
       (last-at (js-call globals :reduce (lambda (latest e) (Math/max latest (ms (get e :at)))) 0))
       (roots (js-call (js-call (sorted posts "at") :filter (lambda (p)
         (and (= (get p :author) "thsottiaux") (matches "^[0-9]{16,20}$" (get p :id ""))
           (recent (get p :at) now 48) (> (ms (get p :at)) last-at)
-          (not (get p :truncated)) (matches "reset" (get p :text))
+          (not (get p :truncated))
+          (or (matches "reset" (get p :text))
+            (and (get p :parentId) (js-call posts :some (lambda (parent)
+              (and (= (get parent :id) (get p :parentId)) (matches "reset" (get parent :text)))))))
           (not (completed? (get p :text))) (not (routine-reset? (get p :text)))))) :slice -2))
       (latest (last-item (sorted (js-call posts :filter (lambda (p)
         (and (= (get p :author) "thsottiaux") (= (get p :provenance) "primary")

@@ -112,8 +112,8 @@
            (verified (and event (get event :verified)))
            (new-reset (and event since (> (ms (get event :at)) (ms since)))))
       (js-object :now (get (get result :snapshot) :now) :latestGlobal event
-        :state (if (not event) "unknown" (if verified (if (= (get event :provenance) "primary") "confirmed-announcement" "archived-announcement") "unverified-record"))
-        :newSince (if (not event) "unknown" (if since (if new-reset (if verified (if (= (get event :provenance) "primary") "confirmed" "archived") "unverified") "none-in-evidence") "not-requested"))
+        :state (if (not event) "unknown" (if (get event :presumed) "presumed-deadline" (if verified (if (= (get event :provenance) "primary") "confirmed-announcement" "archived-announcement") "unverified-record")))
+        :newSince (if (not event) "unknown" (if since (if new-reset (if (get event :presumed) "presumed" (if verified (if (= (get event :provenance) "primary") "confirmed" "archived") "unverified")) "none-in-evidence") "not-requested"))
         :accountApplied "unknown" :cycle (get result :cycle) :latestBanked (get (get result :signals) :lastBanked)
         :unknowns (get (get result :snapshot) :unknowns))))
   (export validate-snapshot observe judge available-judgment load-snapshot run-report save-report reset-status))

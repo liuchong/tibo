@@ -15,13 +15,19 @@
           (<= (ms (get c :through)) (ms (get snapshot :now)))) (catch error false))))) "audited" "unknown"))
   (defun dimension-input (result)
     (let* ((snapshot (get result :snapshot)) (now (get snapshot :now)) (clock (ms now))
-      (global (get (get result :signals) :lastGlobal)) (boundary (when global (ms (get global :at))))
+      (global (get (get result :signals) :lastGlobal))
+      (confirmed-global (last-item (sorted (js-call (get result :events (js-array)) :filter (lambda (e) (and (get e :global) (not (get e :presumed))))) "at")))
+      (boundary-event (if (and global (get global :presumed)) confirmed-global global))
+      (boundary (when boundary-event (ms (get boundary-event :at))))
+      (promise (get (get result :signals) :promise))
+      (cycle-promise-at (when (and promise (get promise :primary) (= (get promise :kind) "global")
+        (or (not (get promise :fulfilled)) (get promise :presumed))) (ms (get promise :at))))
       (unique (new Map)) (windows (js-array)) (documents (documents-from snapshot)))
       (js-call (get snapshot :posts) :forEach (lambda (post)
         (when (<= (ms (get post :at)) clock) (js-call unique :set (get post :id) post))))
       (let* ((visible (sorted (Array/from (js-call unique :values)) "at")) (latest (last-item visible))
         (anchor (when latest (ms (get latest :at))))
-        (programme (active-programme visible now global))
+        (programme (active-programme visible now boundary-event))
         (posts (js-call visible :map (lambda (post)
           (let* ((post-plan (active-programme visible (get post :at)))
             (p (Object/assign (js-object) post (linked-reset-context post visible post-plan)))
@@ -29,6 +35,10 @@
             (choice (programme-choice p post-plan visible)))
             (when (and parent (= (get parent :provenance) "primary") (< (ms (get parent :at)) (ms (get p :at))))
               (put p :parentText (get parent :text)) (put p :parentAuthor (get parent :author)) (put p :parentProvenance "primary"))
+            (when (and cycle-promise-at (= (get p :author) "thsottiaux") (= (get p :provenance) "primary")
+              (not (get p :truncated)) (> (ms (get p :at)) cycle-promise-at))
+              (put p :cyclePromiseContext t)
+              (unless (get p :resetContextScope) (put p :resetContextScope "global")))
             (put p :programmeChoice choice)
             ;; Only public source fields leave the ledger; discovery URLs,
             ;; collection errors and machine configuration never enter prompts.
@@ -36,7 +46,7 @@
               (js-call (js-array "id" "at" "author" "text" "provenance" "truncated" "contextMissing"
                 "parentId" "parentText" "parentAuthor" "parentProvenance" "quoteText"
                 "resetContextVerified" "resetContextText" "resetContextPostIds" "resetContextAt" "resetContextScope"
-                "resetContextBasis" "programmePostId" "programmeText" "programmeChoice") :includes (get pair 0)))))))))
+                "resetContextBasis" "programmePostId" "programmeText" "programmeChoice" "cyclePromiseContext") :includes (get pair 0)))))))))
         (specs (js-array
           (js-array "before_last_reset" nil boundary)
           (js-array "after_last_reset" boundary clock)
@@ -58,7 +68,7 @@
           :coverage "available-sources" :ids (js-call documents :map (lambda (d) (get d :id)))))
         (js-object :contract "dimensions-2" :now now :timeBucket (Math/floor (/ clock (* 5 60000)))
           :posts posts :windows windows :documents documents :programme programme
-          :lastGlobal (when global (js-object :id (get global :id) :at (get global :at) :verified (get global :verified)))
+          :lastGlobal (when global (js-object :id (get global :id) :at (get global :at) :verified (get global :verified) :presumed (get global :presumed false)))
           :temporal (Object/fromEntries (js-call (Object/entries (get (get result :forecast) :temporal)) :filter
             (lambda (pair) (js-call (js-array "policy" "events" "recent" "elapsedMs" "elapsedHours" "elapsedDays" "now") :includes (get pair 0)))))
           :promise (get (get result :signals) :promise)))))

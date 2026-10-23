@@ -13,7 +13,7 @@
             (get coverage :from) (get coverage :through)
             (<= (ms (get coverage :from)) at) (>= (ms (get coverage :through)) (+ at (* 48 hour-ms)))) (catch error false)))
           (events (js-call (get result :events) :filter (lambda (e)
-            (and (get e :global) (> (ms (get e :at)) at) (<= (ms (get e :at)) (+ at (* 48 hour-ms)))))))
+            (and (get e :global) (not (get e :presumed)) (> (ms (get e :at)) at) (<= (ms (get e :at)) (+ at (* 48 hour-ms)))))))
           (hit (js-call events :filter (lambda (e) (and (get e :verified) (not (get e :observed))
             (= (get e :provenance) "primary")))))
           (ambiguous (js-call events :some (lambda (e) (or (not (get e :verified)) (get e :observed)

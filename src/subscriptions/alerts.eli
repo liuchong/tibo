@@ -29,7 +29,7 @@
           (and (> (ms (get a :expiresAt)) (Date/now))
             (or (not (get monitor :lastConfirmedAt)) (> (ms (get a :evidenceAt)) (ms (get monitor :lastConfirmedAt)))))))))))
   (defun confirmed-global? (event)
-    (and (get event :global) (get event :verified) (= (get event :provenance) "primary")
+    (and (get event :global) (get event :verified) (not (get event :presumed)) (= (get event :provenance) "primary")
       (not (get event :observed)) (not (get event :banked)) (not (get event :automaticWeekly))))
   (defasync confirm-alert (event)
     (await (enqueue-alert "confirmed" (get event :id)

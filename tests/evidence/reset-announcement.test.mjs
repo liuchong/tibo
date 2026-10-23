@@ -2,8 +2,9 @@ import {test,expect} from 'bun:test';
 import {parse_primary,merge_posts} from '../../dist/src/evidence/sources.mjs';
 import {post_context} from '../../dist/src/evidence/post-context.mjs';
 import {local_row} from '../../dist/src/evidence/post-features.mjs';
-import {judge} from '../../dist/src/app/engine.mjs';
+import {judge,reset_status} from '../../dist/src/app/engine.mjs';
 import {public_forecast} from '../../dist/src/presentation/business.mjs';
+import {confirmed_global_QMARK_} from '../../dist/src/subscriptions/alerts.mjs';
 import {snapshot} from '../helpers/fixture.mjs';
 const at='2026-10-15T04:00:00Z',now='2026-10-15T04:20:00Z';
 const id=(time,n=0)=>String((BigInt(Date.parse(time)-1288834974657)<<22n)+BigInt(n));
@@ -59,4 +60,52 @@ test('Day 17 reset-day announcement with secondary onboarding reminder and Lands
  expect(r.signals.compensation).toBeNull();
  expect(r.forecast.p24).toBeGreaterThan(85);
  expect(r.forecast.cardAdvice.decision).toBe('wait');
+});
+
+test('overdue silent fulfillment presumes delivery after grace window or Day advance, while late official announcement supersedes without double-counting and delay posts block presumption',()=>{
+ const day15={id:'2112432076767289678',at:'2026-10-20T06:33:48.848Z',author:'thsottiaux',provenance:'primary',text:"Day 15/ Nevermind, we're still cooking... and reset. Enjoy.",truncated:false};
+ const day17={id:'2113162277688070445',at:'2026-10-22T06:55:22.314Z',author:'thsottiaux',provenance:'primary',text:'Day 17/ Bet you thought we forgot, but no, it’s reset day today. Also good time to remind you to get Daybreak Blue access, it only takes 15 mins and you don’t want to have to do it in the middle of an incident.',truncated:false};
+ const reply={id:'2113162413008884099',at:'2026-10-22T06:55:54.577Z',author:'thsottiaux',provenance:'primary',text:'Lands tomorrow before 10am PST.',parentId:day17.id,parentRelationProvenance:'official-page-data',truncated:false};
+ const basePosts=[...snapshot().posts,plan,day15,day17,reply];
+
+ // 1. At +7h past deadline (2026-10-23T01:00:00Z = 09:00 Beijing), presumed fulfillment advances clock and returns to baseline
+ const presumed=judge(snapshot({now:'2026-10-23T01:00:00Z',posts:basePosts}));
+ expect(presumed.signals.promise).toMatchObject({postId:reply.id,fulfilled:true,presumed:true,fulfillmentBasis:'presumed-deadline'});
+ expect(presumed.signals.lastGlobal).toMatchObject({id:`presumed-${reply.id}`,at:'2026-10-22T18:00:00.000Z',presumed:true,verified:true});
+ expect(presumed.cycle).toMatchObject({lastGlobalAt:'2026-10-22T18:00:00.000Z',justReset:true});
+ expect(presumed.forecast.p24).toBeLessThan(25);
+ expect(presumed.forecast.cardAdvice.decision).toBe('use-now');
+ expect(confirmed_global_QMARK_(presumed.signals.lastGlobal)).toBe(false);
+ expect(reset_status(presumed).state).toBe('presumed-deadline');
+ const text=public_forecast(presumed);
+ expect(text).toContain('（按预告期限推定交割）');
+ expect(text).toContain('按计划推定已按期交割');
+
+ // 2. Programme advancing to Day 18 after deadline also triggers presumed fulfillment before +6h
+ const day18={id:'2113300000000000001',at:'2026-10-22T20:00:00Z',author:'thsottiaux',provenance:'primary',text:'Day 18/ Shipped faster indexing across large repos.',truncated:false};
+ const byDayAdvance=judge(snapshot({now:'2026-10-22T20:30:00Z',posts:[...basePosts,day18]}));
+ expect(byDayAdvance.signals.promise).toMatchObject({fulfilled:true,presumed:true});
+ expect(byDayAdvance.signals.lastGlobal).toMatchObject({at:'2026-10-22T18:00:00.000Z',presumed:true});
+
+ // 3. Late official completion announcement (+10h after deadline) supersedes the presumed event without double-counting
+ const lateOfficial={id:'2113500000000000002',at:'2026-10-23T04:00:00Z',author:'thsottiaux',provenance:'primary',text:'Global reset has been processed. All propagated.',truncated:false};
+ const superseded=judge(snapshot({now:'2026-10-23T04:30:00Z',posts:[...basePosts,lateOfficial]}));
+ expect(superseded.signals.lastGlobal).toMatchObject({id:lateOfficial.id,at:lateOfficial.at,verified:true});
+ expect(superseded.signals.lastGlobal.presumed).toBeFalsy();
+ expect(superseded.events.some(e=>e.presumed)).toBe(false);
+ expect(superseded.history.intervals).toHaveLength(presumed.history.intervals.length);
+ expect(confirmed_global_QMARK_(superseded.signals.lastGlobal)).toBe(true);
+
+ // 4. Delay post blocks presumed fulfillment; rescheduled post updates targetAt
+ const delayedPost={id:'2113400000000000003',at:'2026-10-22T17:30:00Z',author:'thsottiaux',provenance:'primary',text:'Global reset is delayed a bit while we finish a migration, still working on it.',truncated:false};
+ const delayed=judge(snapshot({now:'2026-10-23T01:00:00Z',posts:[...basePosts,delayedPost]}));
+ expect(delayed.signals.promise).toMatchObject({postId:reply.id,fulfilled:false,delayed:true,delayedPostId:delayedPost.id});
+ expect(delayed.signals.lastGlobal.id).toBe(day15.id);
+ expect(public_forecast(delayed)).toContain('推迟');
+
+ const rescheduledPost={id:'2113400000000000004',at:'2026-10-22T23:00:00Z',author:'thsottiaux',provenance:'primary',text:'Sorry the global reset was delayed, now landing within the next 4 hours.',truncated:false};
+ const rescheduled=judge(snapshot({now:'2026-10-23T01:00:00Z',posts:[...basePosts,rescheduledPost]}));
+ expect(rescheduled.signals.promise).toMatchObject({postId:rescheduledPost.id,targetAt:'2026-10-23T03:00:00.000Z',fulfilled:false});
+ expect(rescheduled.signals.lastGlobal.id).toBe(day15.id);
+ expect(rescheduled.forecast.p24).toBeGreaterThan(75);
 });
