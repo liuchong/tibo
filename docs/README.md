@@ -58,3 +58,5 @@
 | 为什么关键词只回表情、如何避免刷屏 | [三级与轻量表情](im-triggers.md#三级低优先级与轻量表情) |
 
 文档示例中 `tibo` 指已安装的 `~/.local/lib/tibo/tibo`，`tibo-lark` 指同目录下的 Lark 可执行文件；源码运行可以分别替换为 `bun bin/tibo.mjs` 和 `bun adapters/lark/start.mjs`。固定的安装路径在运维文档中写出。
+
+- [重置语义识别与可靠恢复](design/reset-semantics.md)：结构化主分析、事件链核对、有限重试、事实落库和通知一致性。

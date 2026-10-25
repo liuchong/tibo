@@ -1,0 +1,29 @@
+import {test,expect} from 'bun:test';
+import {build_semantic_input,decode_semantic} from '../../dist/src/ai/semantic-contract.mjs';
+import {available_judgment} from '../../dist/src/app/engine.mjs';
+import {dimension_input} from '../../dist/src/evidence/dimensions.mjs';
+import {makeSnapshot,done,title,claim,response,post} from '../helpers/reset-semantic.mjs';
+const input=()=>build_semantic_input(dimension_input(available_judgment(makeSnapshot())));
+test('T01 valid completion survives invalid dimension and document row; unknown refs are locally rejected',()=>{
+ const i=input(),v=response(i);v.dimensions[0]={...v.dimensions[0],support:1,citations:[{postId:done.id,quote:done.text}]};
+ v.rows.push({postId:'incident-missing',claims:[claim(done)]});
+ const out=decode_semantic(v,i,'main');expect(out.claims.find(c=>c.postId===done.id)).toMatchObject({kind:'completion',scope:'global',semanticValidated:true});
+ expect(out.errors.some(e=>e.code==='semantic-window-reference')).toBe(true);expect(out.errors.some(e=>e.code==='semantic-source-reference')).toBe(true);expect(out.dimensions).toHaveLength(6);
+ const bad=decode_semantic({rows:[{postId:'unknown',claims:[claim(done)]}]},i,'chain');expect(bad.claims).toHaveLength(0);
+});
+test('T02 one confirmed boundary, every required window and stable references carry no runtime data',()=>{
+ const i=input();expect(i.windows).toHaveLength(7);expect(i.boundary.confirmedAt).toBe(i.lastGlobal.at);
+ expect(i.windows[0].throughEpochMs).toBe(Date.parse(i.boundary.confirmedAt));
+ expect(i.posts.find(p=>p.id===done.id).ref).toMatch(/^p/);expect(i.posts.every(p=>Array.isArray(p.windows))).toBe(true);
+ expect(JSON.stringify(i)).not.toContain('TIBO_STATE_DIR');
+});
+test('T05 semantic decisions are not vetoed by keyword matching or future farewell; references and chronology still matter',()=>{
+ const i=input(),p=i.posts.find(p=>p.id===done.id);
+ const out=decode_semantic({postClaims:[{ref:p.ref,...claim(done)}]},i,'main');expect(out.claims[0].statement).toBe('completed');
+ for(const text of ['There is nothing left to wait for.','It would be wrong to say the reset has not finished.']){
+  const j=structuredClone(i);j.posts.find(p=>p.id===done.id).text=text;
+  expect(decode_semantic({postClaims:[{ref:p.ref,...claim({...done,text})}]},j,'main').claims[0].kind).toBe('completion');
+ }
+ expect(decode_semantic({postClaims:[{ref:p.ref,...claim(done) ,quote:'not in the source'}]},i,'main').claims).toHaveLength(0);
+ const product=decode_semantic({postClaims:[{ref:p.ref,...claim(done),subject:'product-change'}]},i,'main');expect(product.claims[0].subject).toBe('product-change');
+});

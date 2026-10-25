@@ -122,3 +122,7 @@ launchd 会自动恢复被 kill 的服务；需要停机调试用 service uninst
 重复预测查看本地 diagnostics 的 reuse：cached 表示复用原采集时刻，ttlMs 为两分钟，ageMs 为快照年龄，generationTiming 保留原生成耗时。命中时 timing 的采集与分析耗时为 0，但排队、发送或后续翻译仍可能耗时。已取得的新证据、经验、相关配置变化会使缓存提前失效；离线、指定快照和定点报告绕过交互缓存。
 
 投递账本的 latency 区分 platformMs（平台产生到程序收到）、queueMs（已接受到开始执行）、routeMs、executeMs、sendMs；预测还细分 collectionMs、analysisMs。totalMs 是开始执行到发送完成，不能误当成包含前面两项的端到端耗时。不同查询及缓存命中会有差异，不应保证所有请求同一时间完成。源码修改后按运维步骤同时重装核心和 Lark，不能只重启旧二进制。
+
+## 原文已采到但没有识别兑现
+
+检查语义任务的analysisState、逐项错误码、profile和调用预算；semantic-window-reference是窗口越界，semantic-source-reference是来源ID不匹配。它们只拒绝对应项。正确完成断言应在核对后写入ledger并产生pendingConfirmations；队列搬运可跨重启恢复。不要以关键词补丁或直接改概率代替修复。 详细设计见[语义识别](design/reset-semantics.md)。

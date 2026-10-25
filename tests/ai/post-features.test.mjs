@@ -31,7 +31,7 @@ test('partial semantic failure cools just that post; source grade upgrades reval
 
 test('semantic promises reach the forecast policy without matching the fallback reset vocabulary',async()=>{
  const r=await trial(`let calls=0;globalThis.fetch=async(u,o)=>{calls++;const input=JSON.parse(JSON.parse(o.body).messages.at(-1).content);return Response.json({choices:[{finish_reason:'stop',message:{content:JSON.stringify({dimensions:input.windows.map(w=>({name:w.name,support:w.ids.includes('semantic')?1:0,opposition:0,commitment:w.ids.includes('semantic')?1:0,imminence:w.ids.includes('semantic')?1:0,citations:w.ids.includes('semantic')?[{postId:'semantic',quote:input.posts.find(p=>p.id==='semantic').text}]:[]})),rows:input.posts.map(p=>({postId:p.id,claims:p.id==='semantic'?[{kind:'promise',subject:'codex-usage',scope:'global',statement:'future',quote:p.text,timeText:'Within 2 hours',timing:{stance:'commitment',window:'within-hours',amount:2,zone:'unknown'},contextMissing:false}]:[]}))})}}]});};const {snapshot}=await import(${JSON.stringify(resolve('tests/helpers/fixture.mjs'))});const {available_judgment}=await import(${JSON.stringify(resolve('dist/src/app/engine.mjs'))});const {enhance}=await import(${JSON.stringify(resolve('dist/src/ai/enhance.mjs'))});const {render_report}=await import(${JSON.stringify(resolve('dist/src/presentation/report.mjs'))});const s=snapshot({now:'2026-09-25T01:00:00Z',posts:[{id:'semantic',at:'2026-09-25T00:30:00Z',author:'thsottiaux',provenance:'primary',text:'Within 2 hours, all accounts receive refreshed allowances.'}]});const native=available_judgment(s),before=native.signals.promise;const ai=await enhance(native);const fallback=await enhance(available_judgment(s),true);console.log(JSON.stringify({calls,before,promise:ai.signals.promise,forecast:ai.forecast,text:render_report(ai),fallbackPromise:fallback.signals.promise}));`);
- expect(r.before).toBeNull();expect(r.calls).toBe(1);
+ expect(r.before).toBeNull();expect(r.calls).toBe(2);
  expect(r.promise).toMatchObject({postId:'semantic',targetAt:'2026-09-25T02:30:00.000Z',extractor:'post-claims-3'});
  expect(r.forecast).toMatchObject({available:true,mode:'dimensional-delivery'});expect(r.text).toMatch(/24h：[0-9]+%/);expect(r.fallbackPromise).toBeNull();
 });
@@ -44,7 +44,7 @@ test('semantic completion claims and parent-reply promise threads advance the re
  expect(r.card.decision).toBe('wait');
 });
 
-test('AI semantic extraction supersedes presumed fulfillment on unlinked late completion and revokes presumption on colloquial delay',async()=>{
+test('AI semantic extraction confirms unlinked late completion and recognizes colloquial delay without presuming delivery',async()=>{
  const r=await trial(`
   let handler;globalThis.fetch=(u,o)=>handler(u,o);
   const {snapshot}=await import(${JSON.stringify(resolve('tests/helpers/fixture.mjs'))});
@@ -75,7 +75,7 @@ test('AI semantic extraction supersedes presumed fulfillment on unlinked late co
    const input=JSON.parse(JSON.parse(o.body).messages.at(-1).content);
    return Response.json({choices:[{finish_reason:'stop',message:{content:JSON.stringify({
     dimensions:input.windows.map(w=>({name:w.name,support:w.ids.includes(colloquialDelay.id)?0.8:0,opposition:0,commitment:w.ids.includes(colloquialDelay.id)?0.8:0,imminence:w.ids.includes(colloquialDelay.id)?0.8:0,citations:w.ids.includes(colloquialDelay.id)?[{postId:colloquialDelay.id,quote:colloquialDelay.text}]:[]})),
-    rows:[{postId:colloquialDelay.id,claims:[{kind:'hint',subject:'codex-usage',scope:'global',statement:'future',quote:colloquialDelay.text,timeText:'few extra hours',timing:{stance:'intention',window:'soon',amount:null,zone:'unknown'},contextMissing:false}]}]
+    rows:[{postId:colloquialDelay.id,claims:[{kind:'hint',subject:'codex-usage',scope:'global',statement:'future',status:'delayed',quote:colloquialDelay.text,timeText:'few extra hours',timing:{stance:'intention',window:'soon',amount:null,zone:'unknown'},contextMissing:false}]}]
    })}}]});
   };
   const s2=snapshot({now:'2026-10-23T01:00:00Z',posts:[...snapshot().posts,plan,day15,day17,reply,colloquialDelay]});
@@ -94,12 +94,12 @@ test('AI semantic extraction supersedes presumed fulfillment on unlinked late co
    after2Promise:ai2.signals.promise
   }));
  `);
- expect(r.beforePresumed).toBe(true);
+ expect(r.beforePresumed).toBeFalsy();
  expect(r.after1LastGlobal).toMatchObject({id:'2113600000000000001',verified:true,global:true});
  expect(r.after1LastGlobal.presumed).toBeFalsy();
  expect(r.after1PresumedCount).toBe(0);
  expect(r.after1Intervals).toBe(r.native1Intervals);
- expect(r.beforePresumed2).toBe(true);
+ expect(r.beforePresumed2).toBeFalsy();
  expect(r.after2LastGlobal.id).toBe('2112432076767289678');
  expect(r.after2Promise).toMatchObject({fulfilled:false,delayed:true});
 });

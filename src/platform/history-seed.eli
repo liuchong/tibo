@@ -29,8 +29,9 @@
         (let ((copy (fields row (if (= kind "posts")
           (js-array "id" "at" "author" "provenance" "cachedAt" "truncated" "parentId" "parentRelationProvenance"
             "quotedPostId" "quotedRelationProvenance" "referenceMetadataVerified" "sameResetAs")
-          (js-array "id" "at" "global" "banked" "observed" "provenance" "kind" "state" "completionBasis" "completionPostIds" "timeBasis" "replacesEventIds" "eventId")))))
+          (js-array "id" "at" "global" "banked" "observed" "provenance" "kind" "state" "completionBasis" "completionPostIds" "timeBasis" "replacesEventIds" "eventId" "semanticVotes" "completionQuote" "evidencePostIds")))))
           (put copy :url url)
+          (when (get copy :completionQuote) (put copy :completionQuote (public-text (get copy :completionQuote))))
           (when (= kind "posts")
             (unless (= (get row :author) "thsottiaux") (fail "历史帖子作者无效"))
             (put copy :text (public-text (get row :text)))) copy))))
@@ -111,7 +112,7 @@
             ;; Old imported type labels are not evidence of completion. Keep
             ;; them in public posts/timeline unless the runtime confirmed them.
             (put value :events (js-call (get value :events) :filter (lambda (e)
-              (and (not (js-call (get value :posts) :some (lambda (p)
+              (and (not (get e :tentative)) (not (get e :presumed)) (not (js-call (get value :posts) :some (lambda (p)
                   (and (= (get p :id) (get e :id)) (get p :sameResetAs)))))
                 (or (= (get e :state) "completed") (js-call (get value :timeline) :some (lambda (row)
                   (and (= (get row :id) (get e :id)) (= (get row :state) "completed")))))))))

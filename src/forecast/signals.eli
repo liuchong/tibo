@@ -1,6 +1,7 @@
 (module tibo.forecast.signals
   (import "../evidence/reset-text.eli" completed? completed-post? conditional-reset? routine-reset?)
   (import "../evidence/post-events.eli" events-from-posts)
+  (import "../evidence/reconcile.eli" semantic-event?)
   (import "../evidence/pacific-time.eli" pacific-target)
   (import "../evidence/day-plan.eli" programme-choice)
   (import "../evidence/post-context.eli" active-programme linked-reset-context completion-context)
@@ -39,7 +40,9 @@
       ;; calculation, including offline snapshots and previously saved ledgers.
       (js-call (js-call (get snapshot :events) :concat (events-from-posts posts)) :forEach (lambda (event)
         (unless (get event :presumed)
-          (js-call records :set (get event :id) (Object/assign (js-object) (js-call records :get (get event :id)) event)))))
+          (js-call records :set (get event :id) (let ((old (js-call records :get (get event :id))))
+            (if (= (get (or old (js-object)) :completionBasis) "semantic-evidence-agreement")
+              (Object/assign (js-object) event old) (Object/assign (js-object) old event)))))))
       (js-call (sorted (Array/from (js-call records :values)) "at") :forEach
         (lambda (event)
           (let* ((post (js-call posts :find (lambda (p) (= (get p :id) (get event :id)))))
@@ -49,10 +52,10 @@
               (js-call seen :add key)
               (let ((copy (Object/assign (js-object) event)))
                 (when (or (get event :automaticWeekly) (= (get event :kind) "automatic-weekly")
-                  (routine-reset? (str text " " (get event :summary "") " " (get event :scope ""))))
+                  (and (not (semantic-event? event post)) (routine-reset? (str text " " (get event :summary "") " " (get event :scope "")))))
                   (put copy :global false))
                 ;; Source text beats a tracker type. Future promises do not reset the clock.
-                (when (> (get text :length) 0)
+                (when (and (> (get text :length) 0) (not (semantic-event? event post)))
                   (when (routine-reset? text) (put copy :global false))
                   (when (and (matches "banked|reset card" text) (not (matches "global.*reset|reset.*global" text)))
                     (put copy :global false) (put copy :banked t))
@@ -66,7 +69,7 @@
                       (get candidate :global) (js-call (get candidate :replacesEventIds (js-array)) :includes (get event :id)))))))
                   (put copy :global false) (put copy :banked false))
                 (put copy :verified (not (not (and post (not (get post :truncated))
-                  (or (completed-post? post (completion-context post posts))
+                  (or (semantic-event? event post) (completed-post? post (completion-context post posts))
                     ;; An installation record can carry a reviewed public
                     ;; completion without inventing a typed quote relationship.
                     (and (= (get event :state) "completed")
@@ -75,6 +78,7 @@
                       (= (get post :author) "thsottiaux")
                       (= (Math/floor (/ (ms (get post :at)) 1000)) (Math/floor (/ (ms (get event :at)) 1000)))
                       (= (get post :url) (get event :url))))))))
+                (when (and (get event :tentative) (not (semantic-event? event post))) (put copy :global false) (put copy :verified false))
                 (when post (put copy :provenance (get post :provenance)))
                 (put copy :verifiedBanked (not (not (and post (matches "banked|reset card" text)))))
                 (put copy :text text)
@@ -87,32 +91,7 @@
            (last-global (last-item (sorted globals "at"))) (last-banked (last-item (sorted bankeds "at")))
            (programme (active-programme posts now last-global))
            (promise nil) (hints (js-array)) (catalysts (js-array)) (compensation nil)
-           (settle-presumed (lambda (ref-at advancing-cycle)
-             (when (and promise (get promise :primary) (= (get promise :kind) "global")
-               (not (get promise :fulfilled)) (not (get promise :withdrawn)) (not (get promise :delayed))
-               (> (ms (get promise :targetAt)) (ms (get promise :at)))
-               (not (events-complete? snapshot (ms (get promise :at)) (+ (ms (get promise :targetAt)) (* 6 hour-ms))))
-               (or (and (not (= (get promise :timePrecision) "programme-day"))
-                     (>= (ms ref-at) (+ (ms (get promise :targetAt)) (* 6 hour-ms))))
-                 (and (>= (ms ref-at) (ms (get promise :targetAt))) advancing-cycle)
-                 (and (>= (ms ref-at) (ms (get promise :targetAt))) (get promise :programmeDay) programme
-                   (js-call (get programme :observedDays (js-array)) :some (lambda (d) (> d (get promise :programmeDay)))))))
-               (let ((presumed-event (js-object :id (str "presumed-" (get promise :postId))
-                 :promisePostId (get promise :postId) :parentId (get promise :parentId)
-                 :at (get promise :targetAt) :global t :banked false :observed false :verified t :presumed t
-                 :state "presumed-completed" :completionBasis "presumed-deadline" :provenance "primary"
-                 :url (str "https://x.com/thsottiaux/status/" (get promise :postId)) :text (get promise :text))))
-                 (put promise :fulfilled t) (put promise :presumed t)
-                 (put promise :fulfilledAt (get promise :targetAt))
-                 (put promise :fulfillmentBasis "presumed-deadline")
-                 (put promise :reason "已过承诺期限且无推迟或撤回，按计划推定交割")
-                 (js-call events :push presumed-event)
-                 (setq last-global presumed-event)
-                 (setq hints (js-call hints :filter (lambda (h) (> (ms (get h :at)) (ms (get presumed-event :at))))))
-                 (when (and compensation (<= (ms (get compensation :at (get promise :at))) (ms (get presumed-event :at))))
-                   (setq compensation nil))
-                 (js-call catalysts :forEach (lambda (c)
-                   (when (<= (ms (get c :at)) (ms (get presumed-event :at))) (put c :consumed t)))))))))
+           (settle-presumed (lambda (ref-at advancing-cycle) nil)))
       (js-call (sorted posts "at") :forEach
         (lambda (post)
           (when (and (<= (ms (get post :at)) (ms now))

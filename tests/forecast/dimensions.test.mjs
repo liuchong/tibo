@@ -125,7 +125,7 @@ test('public document versions persist through repeated collection without losin
  expect(b).toHaveLength(2);expect(b[0]).toMatchObject({firstSeenAt:'2026-10-17T01:00:00Z',lastSeenAt:'2026-10-17T03:00:00Z',at:doc.at});
  expect(merge_documents(b,[],'2026-10-18T00:00:00Z')).toEqual(b);
 });
-test('one provider call returns all dimensions even above old 24k input; failed/disabled AI retains the exact same temporal model',async()=>{
+test('one main request plus a shared semantic verification returns all dimensions even above old 24k input; failed/disabled AI retains the exact same temporal model',async()=>{
  const dir=await mkdtemp(join(tmpdir(),'tibo-dimensions-'));
  try{
  const s=input([landing]);for(let i=0;i<60;i++)s.posts.push(make('context-'+i,'2026-10-16T10:00:00Z','Public context '.repeat(45)));
@@ -135,12 +135,12 @@ test('one provider call returns all dimensions even above old 24k input; failed/
   +'console.log(JSON.stringify({calls,state:a.ai.features.signals.state,cached:cached.ai.features.signals.state,a:a.forecast.temporal,no:no.forecast.temporal,score:a.forecast.dimensions,posts:a.ai.postIds.length,noScore:no.forecast.dimensions,p:a.forecast.p24,np:no.forecast.p24}));';
  const run=spawnSync(process.execPath,['--eval',code],{encoding:'utf8',timeout:10000,env:{...process.env,TIBO_STATE_DIR:dir,DEEPSEEK_API_KEY:'fixture',TIBO_AI_FEATURES:'signals'}});
  expect(run.stderr).toBe('');expect(run.status).toBe(0);const r=JSON.parse(run.stdout);
- expect(r.calls).toBe(1);expect(r.state).toBe('ok');expect(r.cached).toBe('cached');expect(r.posts).toBe(s.posts.length);
+ expect(r.calls).toBe(2);expect(r.state).toBe('ok');expect(r.cached).toBe('cached');expect(r.posts).toBe(s.posts.length);
  expect(r.a).toEqual(r.no);expect(r.score.dimensions).toHaveLength(7);expect(r.noScore.dimensions).toHaveLength(7);
  expect(r.p).toBeGreaterThan(90);expect(r.np).toBeGreaterThan(90);
  }finally{await rm(dir,{recursive:true,force:true});}
 });
-test('provider failure keeps a strong local commitment and every required window without retrying',async()=>{
+test('provider failure has bounded recovery and retains the temporal model',async()=>{
  const dir=await mkdtemp(join(tmpdir(),'tibo-dimensions-failed-'));
  try{
   const code='let calls=0;globalThis.fetch=async()=>{calls++;return new Response("private upstream error",{status:503})};'
@@ -151,7 +151,7 @@ test('provider failure keeps a strong local commitment and every required window
   const run=spawnSync(process.execPath,['--eval',code],{encoding:'utf8',timeout:6000,
    env:{...process.env,TIBO_STATE_DIR:dir,DEEPSEEK_API_KEY:'fixture',TIBO_AI_FEATURES:'signals'}});
   expect(run.stderr).toBe('');expect(run.status).toBe(0);const v=JSON.parse(run.stdout);
-  expect(v.calls).toBe(1);expect(v.state).toBe('fallback');expect(v.r.temporal).toEqual(v.n.temporal);
+  expect(v.calls).toBe(3);expect(v.state).toBe('fallback');expect(v.r.temporal).toEqual(v.n.temporal);
   expect(v.r.p24).toBe(v.n.p24);expect(v.r.p48).toBe(v.n.p48);expect(v.r.dimensions.dimensions).toHaveLength(7);
   expect(run.stdout).not.toContain('private upstream error');
  }finally{await rm(dir,{recursive:true,force:true});}

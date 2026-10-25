@@ -13,7 +13,7 @@
         (and (= (get p :author) "thsottiaux") (matches "^[0-9]{16,20}$" (get p :id ""))
           (recent (get p :at) now 48) (> (ms (get p :at)) last-at)
           (not (get p :truncated))
-          (or (matches "reset" (get p :text))
+          (or (= (get p :semanticRole) "promise") (matches "reset" (get p :text))
             (and (get p :parentId) (js-call posts :some (lambda (parent)
               (and (= (get parent :id) (get p :parentId)) (matches "reset" (get parent :text)))))))
           (not (completed? (get p :text))) (not (routine-reset? (get p :text)))))) :slice -2))
@@ -23,7 +23,7 @@
           (not (get p :truncated))))) "at")))
       ;; Immutable original text does not establish the subject of an omitted
       ;; update. Inspect the latest post's typed references once when missing.
-      (targets (if (and latest (completion-update? (get latest :text)) (not (get latest :referenceMetadataVerified))
+      (targets (if (and latest (or (> (get roots :length) 0) (completion-update? (get latest :text))) (not (get latest :referenceMetadataVerified))
         (not (js-call roots :some (lambda (p) (= (get p :id) (get latest :id))))))
         (js-call roots :concat (js-array latest)) roots))
       (pages (await (Promise/all (js-call targets :map (async (p)

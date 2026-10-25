@@ -6,14 +6,15 @@
   (import "../platform/util.eli" iso ms day-ms)
   (import "../evidence/sources.eli" collect-sources)
   (import "./engine.eli" observe run-report)
-  (import "../subscriptions/alerts.eli" confirmed-global? confirm-alert forecast-alert)
+  (import "../subscriptions/alerts.eli" confirmed-global? confirm-alert forecast-alert drain-confirmations)
   (defun post-signature (snapshot)
     (let ((rows (js-call (get snapshot :posts) :filter (lambda (p) (= (get p :provenance) "primary")))))
       (js-call (js-call (createHash "sha256") :update (JSON/stringify
-        (js-object :policy "reset-completion-3" :posts
+        (js-object :policy "reset-semantic-2" :posts
           (js-call rows :map (lambda (p) (js-array (get p :id) (get p :text) (get p :truncated false)
             (get p :parentId) (get p :parentRelationProvenance) (get p :quotedPostId) (get p :quotedRelationProvenance))))))) :digest "hex")))
   (defasync watch-tick (maintenance-seconds &optional collect generate)
+    (await (drain-confirmations))
     (await (state-transaction "realtime-monitor" (async ()
       (let* ((state (or (await (read-state "realtime-monitor")) (js-object :schemaVersion 1)))
         (snapshot (if collect (await (funcall collect)) (await (collect-sources))))
@@ -47,6 +48,13 @@
           (setq result (if generate (await (funcall generate snapshot))
             (await (run-report (js-object :channel "daemon")))))
           (setq generated t)
+          (await (drain-confirmations))
+          (when result
+            (let ((updated (observe (get result :snapshot))))
+              (js-call (get updated :events) :forEach (lambda (e)
+                (when (confirmed-global? e)
+                  (unless (js-call known :includes (get e :id)) (js-call known :push (get e :id)))
+                  (put state :lastConfirmedAt (get e :at)))))))
           (unless first
             (let ((alert (await (forecast-alert result seen (get state :highCycle)))))
               (when (get alert :promiseId) (js-call seen :push (get alert :promiseId)))

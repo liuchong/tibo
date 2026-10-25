@@ -58,10 +58,10 @@ test('actual engine shares collection across callers and persists each channel w
  `let network=0;globalThis.fetch=async()=>{network++;return new Response('',{status:503})};`);
  expect(r.before).toBeGreaterThan(0);expect(r.network).toBe(r.before);expect(r.first.state).toBe('fresh');expect(r.states.every(x=>x==='cached')).toBe(true);expect(new Set(r.timestamps).size).toBe(1);expect(r.experience).toBe(1);expect(r.saved.now).toBe(r.timestamps[0]);
 });
-test('completion metadata added to an existing original invalidates shared source and forecast caches and consumes the previous promise',async()=>{
+test('completion metadata invalidates shared caches but new online facts await semantic confirmation',async()=>{
  const r=await trial(`const base=snapshot({now:new Date(now).toISOString()});const promise={id:'linked-promise',at:'2026-10-09T10:00:00Z',text:'Global reset landing within the next 2 hours.',author:'thsottiaux',provenance:'primary'},done={id:'linked-done',at:'2026-10-09T11:00:00Z',text:'Done and dusted',author:'thsottiaux',provenance:'primary'};await write_state('ledger',{...base,posts:[...base.posts,promise,done]});const {run_report}=await import(${engine});const first=await run_report({noAi:true}),hit=await run_report({noAi:true});let ledger=await read_state('ledger');ledger.posts=ledger.posts.map(p=>p.id===done.id?{...p,quotedPostId:promise.id,quotedRelationProvenance:'official-page-data'}:p);await write_state('ledger',ledger);const after=await run_report({noAi:true}),again=await run_report({noAi:true});console.log(JSON.stringify({first:{p24:first.forecast.p24,fulfilled:first.signals.promise.fulfilled},hit:hit.reuse.state,after:{p24:after.forecast.p24,last:after.signals.lastGlobal.id,fulfilled:after.signals.promise.fulfilled,state:after.reuse.state,report:after.report},again:again.reuse.state}));`,
  `globalThis.fetch=async()=>new Response('',{status:503});`);
- expect(r.hit).toBe('cached');expect(r.first.fulfilled).toBe(false);expect(r.after).toMatchObject({last:'linked-done',fulfilled:true,state:'fresh'});expect(r.after.p24).toBeLessThan(r.first.p24);expect(r.again).toBe('cached');expect(r.after.report).not.toContain('仍待完成公告');
+ expect(r.hit).toBe('cached');expect(r.first.fulfilled).toBe(false);expect(r.after).toMatchObject({last:'event-24',fulfilled:false,state:'fresh'});expect(r.after.p24).toBeNumber();expect(r.again).toBe('cached');expect(r.after.report).toContain('语义核对暂未完成');
 });
 
 test('all configured time zones invalidate both AI and native caches, including changes during generation',async()=>{
