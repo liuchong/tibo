@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "now": "2026-10-22T07:42:01.021Z",
+  "now": "2026-10-25T13:59:00.551Z",
   "documents": [],
   "events": [
     {
@@ -546,6 +546,23 @@
       "completionBasis": null,
       "completionPostIds": null,
       "url": "https://x.com/thsottiaux/status/2112432076767289678"
+    },
+    {
+      "id": "2114237083652882932",
+      "at": "2026-10-25T06:06:16.025Z",
+      "global": true,
+      "banked": false,
+      "observed": false,
+      "provenance": "primary",
+      "state": "completed",
+      "completionBasis": "semantic-evidence-agreement",
+      "semanticVotes": 2,
+      "completionQuote": "It is all propagated.",
+      "evidencePostIds": [
+        "2114200152701575656",
+        "2114200291319124163"
+      ],
+      "url": "https://x.com/thsottiaux/status/2114237083652882932"
     }
   ],
   "posts": [
@@ -2476,6 +2493,106 @@
       "referenceMetadataVerified": true,
       "url": "https://x.com/thsottiaux/status/2113162413008884099",
       "text": "Lands tomorrow before 10am PST."
+    },
+    {
+      "id": "2113492187770175603",
+      "at": "2026-10-23T04:46:19.007Z",
+      "author": "thsottiaux",
+      "provenance": "primary",
+      "cachedAt": "2026-10-23T04:50:27.546Z",
+      "truncated": false,
+      "url": "https://x.com/thsottiaux/status/2113492187770175603",
+      "text": "Day 18/ Decisions API is GA, OpenResponses joined the Linux Foundation, we shipped some performance improvements and Uber is going all-in on codex & work. But yes… that’s a reset!"
+    },
+    {
+      "id": "2113492502355562875",
+      "at": "2026-10-23T04:47:34.010Z",
+      "author": "thsottiaux",
+      "provenance": "primary",
+      "cachedAt": "2026-10-23T04:50:27.546Z",
+      "truncated": false,
+      "parentId": "2113492187770175603",
+      "parentRelationProvenance": "official-page-data",
+      "referenceMetadataVerified": true,
+      "url": "https://x.com/thsottiaux/status/2113492502355562875",
+      "text": "Landing tomorrow before 10am PST together with a small ship."
+    },
+    {
+      "id": "2113770573994299544",
+      "at": "2026-10-23T23:12:31.455Z",
+      "author": "thsottiaux",
+      "provenance": "primary",
+      "cachedAt": "2026-10-23T23:15:44.766Z",
+      "truncated": false,
+      "url": "https://x.com/thsottiaux/status/2113770573994299544",
+      "text": "Day 19/ Small updates. Calls connect much faster for dots, changing reasoning in codex & work mid conversation does not invalidate cache anymore and a we've also updated the codex cli."
+    },
+    {
+      "id": "2113838156193894447",
+      "at": "2026-10-24T03:41:04.307Z",
+      "author": "thsottiaux",
+      "provenance": "primary",
+      "cachedAt": "2026-10-24T03:42:04.617Z",
+      "truncated": false,
+      "referenceMetadataVerified": true,
+      "url": "https://x.com/thsottiaux/status/2113838156193894447",
+      "text": "The difference between having a tool and being a tool is subtle these days and it’s easy to accidentally build yourself into being a tool. Don’t be a tool."
+    },
+    {
+      "id": "2114030784625647855",
+      "at": "2026-10-24T16:26:30.504Z",
+      "author": "thsottiaux",
+      "provenance": "primary",
+      "cachedAt": "2026-10-24T16:29:59.324Z",
+      "truncated": false,
+      "referenceMetadataVerified": true,
+      "url": "https://x.com/thsottiaux/status/2114030784625647855",
+      "text": "Saturday is for fixing bugs while sipping coffee. What are some great places to hangout in SF?"
+    },
+    {
+      "id": "2114074885622501706",
+      "at": "2026-10-24T19:21:45.001Z",
+      "author": "thsottiaux",
+      "provenance": "primary",
+      "cachedAt": "2026-10-24T19:25:20.709Z",
+      "truncated": false,
+      "referenceMetadataVerified": true,
+      "url": "https://x.com/thsottiaux/status/2114074885622501706",
+      "text": "DM if you want to help scale dots to 1B users and have done similar things in the past"
+    },
+    {
+      "id": "2114200152701575656",
+      "at": "2026-10-25T03:39:31.000Z",
+      "author": "thsottiaux",
+      "provenance": "primary",
+      "cachedAt": "2026-10-25T03:40:48.669Z",
+      "truncated": false,
+      "referenceMetadataVerified": true,
+      "url": "https://x.com/thsottiaux/status/2114200152701575656",
+      "text": "Day 20/ Rest and reset"
+    },
+    {
+      "id": "2114200291319124163",
+      "at": "2026-10-25T03:40:04.049Z",
+      "author": "thsottiaux",
+      "provenance": "primary",
+      "cachedAt": "2026-10-25T03:40:48.669Z",
+      "truncated": false,
+      "parentId": "2114200152701575656",
+      "parentRelationProvenance": "official-page-data",
+      "referenceMetadataVerified": true,
+      "url": "https://x.com/thsottiaux/status/2114200291319124163",
+      "text": "By midnight PST"
+    },
+    {
+      "id": "2114237083652882932",
+      "at": "2026-10-25T06:06:16.025Z",
+      "author": "thsottiaux",
+      "provenance": "primary",
+      "cachedAt": "2026-10-25T06:09:53.125Z",
+      "truncated": false,
+      "url": "https://x.com/thsottiaux/status/2114237083652882932",
+      "text": "It is all propagated. Enjoy some mad codexing tomorrow. Fun week ahead too. https://t.co/xKaK95EAly pic.twitter.com/qOrzwSeIZZ"
     }
   ],
   "timeline": [
@@ -3530,6 +3647,47 @@
       "state": "announced",
       "eventId": "2113162277688070445",
       "url": "https://x.com/thsottiaux/status/2113162277688070445"
+    },
+    {
+      "id": "2113492187770175603",
+      "at": "2026-10-23T04:46:19.007Z",
+      "global": false,
+      "banked": false,
+      "provenance": "primary",
+      "kind": "global",
+      "state": "announced",
+      "eventId": "2113492187770175603",
+      "url": "https://x.com/thsottiaux/status/2113492187770175603"
+    },
+    {
+      "id": "2114200152701575656",
+      "at": "2026-10-25T03:39:31.000Z",
+      "global": false,
+      "banked": false,
+      "provenance": "primary",
+      "kind": "global",
+      "state": "announced",
+      "eventId": "2114200152701575656",
+      "url": "https://x.com/thsottiaux/status/2114200152701575656"
+    },
+    {
+      "id": "2114237083652882932",
+      "at": "2026-10-25T06:06:16.025Z",
+      "global": true,
+      "banked": false,
+      "observed": false,
+      "provenance": "primary",
+      "kind": "global",
+      "state": "completed",
+      "completionBasis": "semantic-evidence-agreement",
+      "eventId": "2114237083652882932",
+      "semanticVotes": 2,
+      "completionQuote": "It is all propagated.",
+      "evidencePostIds": [
+        "2114200152701575656",
+        "2114200291319124163"
+      ],
+      "url": "https://x.com/thsottiaux/status/2114237083652882932"
     }
   ]
 }
