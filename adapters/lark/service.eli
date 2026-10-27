@@ -14,6 +14,7 @@
   (import "../../src/prayer/material.eli" prayer-material)
   (import "../../src/prayer/pray.eli" settle-festivals)
   (import "./messages.eli" markdown-post send-report)
+  (import "./emojis.eli" reply-emojis)
   (import "./authority.eli" command-context)
   (import "./celebration-delivery.eli" finish-celebration)
   (import "./thread.eli" load-thread reference-root reply-target-of message-id? thread-id? message-key)
@@ -169,6 +170,7 @@
       (await (write-state ledger-key (js-object :state "pending" :at (iso (Date/now)) :group group :key key :latency latency :replyTarget target)))
       (try
         (let* ((options (js-object :channel group :persist false :titleTime title-time :context context
+                 :replyEmojis reply-emojis
                  :conversationMode (not (not (get job :reference)))
                  :prayerMaterial (get job :prayerMaterial)
                  :oracleForecast (get job :oracleForecast) :messageLanguage (get job :messageLanguage)
@@ -201,7 +203,9 @@
             :replyTarget target
             :chatReceipt (get response :chatReceipt)
             :festivalRequest festival-request :festivalIds (get response :festivalIds) :festivalMessages (get response :festivalMessages))))
-          (let* ((send-start (Date/now)) (metadata (js-object)) (id (await (send-report client group ledger-key text metadata target)))
+          (let* ((send-start (Date/now)) (metadata (js-object))
+                 (emoji (when (= text (get response :emojiText)) (get response :emoji)))
+                 (id (await (send-report client group ledger-key text metadata target emoji)))
                  (dm (js-call group :startsWith "ou_")))
             (put latency :sendMs (- (Date/now) send-start))
             (put latency :totalMs (- (Date/now) started))

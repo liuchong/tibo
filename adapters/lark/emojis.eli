@@ -1,0 +1,18 @@
+;; Official post emotion identifiers. This catalog is presentation data, not a
+;; rule mapping the user's mood or words to a mandatory reply.
+(module tibo.lark.emojis
+  (defconst reply-emojis (js-array
+    (js-object :id "SMILE" :label "微笑") (js-object :id "BLUSH" :label "开心")
+    (js-object :id "LAUGH" :label "大笑") (js-object :id "LOL" :label "笑哭")
+    (js-object :id "SMIRK" :label "得意的笑") (js-object :id "WINK" :label "眨眼")
+    (js-object :id "FACEPALM" :label "捂脸") (js-object :id "NOSEPICK" :label "抠鼻")
+    (js-object :id "FullMoonFace" :label "满月脸") (js-object :id "THINKING" :label "思考")
+    (js-object :id "GLANCE" :label "斜眼看") (js-object :id "DULL" :label "呆住")
+    (js-object :id "WOW" :label "惊讶") (js-object :id "SHOCKED" :label "震惊")
+    (js-object :id "SOB" :label "大哭") (js-object :id "HUG" :label "拥抱")
+    (js-object :id "THANKS" :label "双手合十") (js-object :id "THUMBSUP" :label "赞")
+    (js-object :id "APPLAUSE" :label "鼓掌") (js-object :id "OK" :label "好的")
+    (js-object :id "MUSCLE" :label "加油") (js-object :id "SaluteFace" :label "敬礼")
+    (js-object :id "Shrug" :label "摊手") (js-object :id "Partying" :label "庆祝")))
+  (defun supported-emoji? (id) (js-call reply-emojis :some (lambda (row) (= (get row :id) id))))
+  (export reply-emojis supported-emoji?))

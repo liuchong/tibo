@@ -55,3 +55,57 @@ test('generated prose keeps optional Unicode expressions through native HTTP sen
     await rm(dir, {recursive: true, force: true});
   }
 }, 10000);
+
+test('adapter catalog reaches both AI reply paths and native emotions survive delivery while rewritten pipelines discard old decoration', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'tibo-native-expression-'));
+  const posts = [], prompts = [];
+  const answers = [
+    {text: '我偏OpenAI，Claude这次又把回调绕远了[满月脸]。', emoji: 'NOSEPICK', citation: null},
+    {text: '这个笑话确实挺冷[抠鼻]。', emoji: 'FullMoonFace'},
+    {text: '这是纯文字回复[满月脸]。', emoji: null},
+    {text: '正文仍然可用。', emoji: 'NOT_IN_CATALOG'},
+    {text: '这句话要翻译。', emoji: 'WINK'},
+    {text: 'This sentence needs translation.'}
+  ];
+  const server = Bun.serve({hostname: '127.0.0.1', port: 0, async fetch(req) {
+    const path = new URL(req.url).pathname;
+    if (path.includes('tenant_access_token')) return Response.json({code: 0, tenant_access_token: 'fixture-token', expire: 7200});
+    if (path === '/chat/completions') {
+      prompts.push(await req.json());
+      return Response.json({choices: [{finish_reason: 'stop', message: {content: JSON.stringify(answers[prompts.length - 1])}}]});
+    }
+    posts.push(await req.json());
+    return Response.json({code: 0, data: {message_id: 'om_native' + posts.length, chat_id: 'oc_room'}});
+  }});
+  try {
+    const code = `
+      const nativeFetch=globalThis.fetch;
+      globalThis.fetch=(url,options)=>{const u=new URL(url);if(!['api.deepseek.com','open.feishu.cn'].includes(u.hostname))throw Error('unexpected host');return nativeFetch(${JSON.stringify(server.url.origin)}+u.pathname+u.search,options)};
+      const {deliver}=await import(${JSON.stringify(resolve('dist/adapters/lark/service.mjs'))});
+      const {create_client}=await import(${JSON.stringify(resolve('dist/adapters/lark/api.mjs'))});
+      const {write_state}=await import(${JSON.stringify(resolve('dist/src/platform/state.mjs'))});
+      await write_state('oracle-news',{until:Date.now()+60000,at:new Date().toISOString(),searchEnabled:false,documents:[]});
+      const client=create_client('fixture-app','fixture-secret','feishu');
+      const questions=['Claude又绕远了[满月脸]','讲个小笑话[抠鼻]','只用文字解释一下','继续聊聊回调','翻译这句话'];
+      for(let i=0;i<questions.length;i++)await deliver(client,'oc_room','om_input'+i,'ask '+JSON.stringify(questions[i]),null,null,null,
+        {internalQuery:{command:'ask',args:{question:questions[i]},...(i===4?{pipeline:[{name:'translate',language:'en'}]}:{})}});
+    `;
+    const child = Bun.spawn([process.execPath, '--eval', code], {env: {...process.env,
+      TIBO_CONFIG_FILE: join(dir, 'absent.env'), TIBO_STATE_DIR: dir,
+      DEEPSEEK_API_KEY: 'fixture-key', TIBO_AI_FEATURES: 'oracle,answer,translate'}, stdout: 'pipe', stderr: 'pipe'});
+    const [exit, stderr] = await Promise.all([child.exited, new Response(child.stderr).text()]);
+    expect(exit, stderr).toBe(0);
+    expect(posts).toHaveLength(5); expect(prompts).toHaveLength(6);
+    const contents = posts.map(p => JSON.parse(p.content).zh_cn.content);
+    expect(contents[0][1]).toEqual([{tag: 'emotion', emoji_type: 'NOSEPICK'}]);
+    expect(contents[1][1]).toEqual([{tag: 'emotion', emoji_type: 'FullMoonFace'}]);
+    expect(contents.slice(2).every(rows => rows.length === 1 && rows[0][0].tag === 'md')).toBe(true);
+    expect(contents[4][0][0].text).toBe('This sentence needs translation.');
+    expect(JSON.stringify(contents)).not.toMatch(/\[抠鼻\]|\[满月脸\]|NOT_IN_CATALOG/);
+    expect(prompts.slice(0, 5).every(p => p.response_format.type === 'json_object')).toBe(true);
+    expect(prompts.slice(0, 5).every(p => JSON.parse(p.messages.at(-1).content).replyEmojis.some(x => x.id === 'FullMoonFace'))).toBe(true);
+  } finally {
+    server.stop(true);
+    await rm(dir, {recursive: true, force: true});
+  }
+}, 10000);

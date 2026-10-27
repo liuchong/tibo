@@ -2,15 +2,20 @@
   (import "../../src/platform/host.eli" Error Number)
   (import "../../src/platform/privacy.eli" public-text)
   (import "../../src/platform/util.eli" fail)
-  (defun markdown-post (markdown)
-    (JSON/stringify (js-object :zh_cn (js-object :content (js-array (js-array (js-object :tag "md" :text markdown)))))))
-  (defasync send-report (client group key text &optional metadata reference)
+  (import "./emojis.eli" supported-emoji?)
+  (defun markdown-post (markdown &optional emoji)
+    (let ((rows (js-array (js-array (js-object :tag "md" :text markdown)))))
+      ;; md owns its paragraph; native emotion goes in the same message's next
+      ;; paragraph, never embedded as a textual placeholder inside Markdown.
+      (when (supported-emoji? emoji) (js-call rows :push (js-array (js-object :tag "emotion" :emoji_type emoji))))
+      (JSON/stringify (js-object :zh_cn (js-object :content rows)))))
+  (defasync send-report (client group key text &optional metadata reference emoji)
     (let ((response (await (if reference
       (js-call client :reply (get reference :messageId)
-        (js-object :msg_type "post" :content (markdown-post (public-text text)) :uuid (js-call key :slice -40)
+        (js-object :msg_type "post" :content (markdown-post (public-text text) emoji) :uuid (js-call key :slice -40)
           :reply_in_thread (not (not (get reference :threadId)))))
       (js-call client :send
-      (js-object :receive_id group :msg_type "post" :content (markdown-post (public-text text))
+      (js-object :receive_id group :msg_type "post" :content (markdown-post (public-text text) emoji)
                         :uuid (js-call key :slice -40))
       (if (js-call group :startsWith "ou_") "open_id" "chat_id"))))))
       (unless (= (get response :code) 0)
