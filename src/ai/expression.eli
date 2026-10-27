@@ -1,6 +1,6 @@
 ;; Shared prose guidance; protocol-specific rendering belongs to each adapter.
 (module tibo.ai.expression
-  (import "../platform/host.eli" RegExp)
+  (import "../platform/host.eli" RegExp Intl)
   (defun emoji-choices (input)
     (if (not (Array/isArray input)) (js-array)
       (js-call (js-call input :filter (lambda (row)
@@ -14,21 +14,41 @@
     (and (= (value-type emoji) "string") (<= (get emoji :length) 16)
       (js-call (new RegExp "^[\\p{Extended_Pictographic}\\p{Emoji_Presentation}\\p{Emoji_Modifier}\\uFE0F\\u200D]+$" "u") :test emoji)
       (js-call (new RegExp "[\\p{Extended_Pictographic}\\p{Emoji_Presentation}]" "u") :test emoji)))
+  (defun prompt-emoji-choices (choices)
+    (js-call (emoji-choices choices) :map (lambda (row) (js-object :id (get row :id) :label (get row :label)))))
+  (defun emoji-labels (row)
+    (js-call (js-array (get row :label)) :concat (if (Array/isArray (get row :aliases)) (get row :aliases) (js-array))))
   (defun selected-emoji (emoji choices)
-    (when (or (native-emoji? emoji choices) (unicode-emoji? emoji)) emoji))
+    (let ((catalog (emoji-choices choices)))
+      (if (= (get catalog :length) 0) (when (unicode-emoji? emoji) emoji)
+        (let* ((plain (if (= (value-type emoji) "string")
+                  (js-call emoji :replace (new RegExp "\\p{Emoji_Modifier}|\\uFE0F" "gu") "") ""))
+          (row (js-call catalog :find (lambda (row)
+            (or (= (get row :id) emoji) (js-call (get row :glyphs (js-array)) :includes plain))))))
+          (when row (get row :id))))))
   (defun expression-text (text emoji)
     (if (and (unicode-emoji? emoji) (not (js-call text :includes emoji))) (str text " " emoji) text))
+  (defun plain-expression-prose (text catalog)
+    (setq text (js-call text :replace (new RegExp "\\[[^\\[\\]\\n]{1,40}\\]" "g")
+      (lambda (token) (if (js-call catalog :some (lambda (row)
+        (js-call (emoji-labels row) :some (lambda (label) (= token (str "[" label "]")))))) "" token))))
+    (js-call (js-call (js-call (Array/from (js-call (new (get Intl :Segmenter) "und" (js-object :granularity "grapheme")) :segment text))
+      :map (lambda (part) (get part :segment))) :filter (lambda (part)
+        (not (or (js-call (new RegExp "\\p{Emoji_Presentation}|\\uFE0F|\\u20E3" "u") :test part)
+          (js-call catalog :some (lambda (row) (js-call (get row :glyphs (js-array)) :includes part))))))) :join ""))
   (defun expression-prose (text choices)
-    ;; When a platform supplies an emotion channel, catalog placeholders in
-    ;; generated prose are redundant encodings, not a second expression choice.
-    ;; Preserve quoted material, Markdown links and code as literal content.
-    (let ((catalog (emoji-choices choices)))
+    ;; The native emotion field owns generated decoration. Literal material is
+    ;; protected before normalizing prose; no joke wording or mood is replaced.
+    (let ((catalog (emoji-choices choices)) (parts (js-array)) (offset 0))
       (if (= (get catalog :length) 0) text
-        (js-call text :replace
-          (new RegExp "```[\\s\\S]*?(?:```|(?![\\s\\S]))|~~~[\\s\\S]*?(?:~~~|(?![\\s\\S]))|(`+)[^`]*?\\1|^[ \\t]*>[^\\n]*|[“「『][\\s\\S]*?[”」』]|\"[^\"\\n]*\"|!?\\[[^\\]\\n]*\\]\\([^\\n)]*\\)|!?\\[[^\\]\\n]*\\]\\[[^\\]\\n]*\\]|\\[[^\\[\\]\\n]{1,40}\\]" "gm")
-          (lambda (token)
-            (if (and (= (js-call token :charAt 0) "[")
-              (js-call catalog :some (lambda (row) (= token (str "[" (get row :label) "]"))))) "" token))))))
+        (progn
+          (js-call (Array/from (js-call text :matchAll
+            (new RegExp "```[\\s\\S]*?(?:```|(?![\\s\\S]))|~~~[\\s\\S]*?(?:~~~|(?![\\s\\S]))|(`+)[^`]*?\\1|^[ \\t]*>[^\\n]*|[“「『][\\s\\S]*?[”」』]|\"[^\"\\n]*\"|!?\\[[^\\]\\n]*\\]\\([^\\n)]*\\)|!?\\[[^\\]\\n]*\\]\\[[^\\]\\n]*\\]" "gm")))
+            :forEach (lambda (match)
+              (js-call parts :push (plain-expression-prose (js-call text :slice offset (get match :index)) catalog) (get match 0))
+              (setq offset (+ (get match :index) (get (get match 0) :length)))))
+          (js-call parts :push (plain-expression-prose (js-call text :slice offset) catalog))
+          (js-call (js-call parts :join "") :trim)))))
   (defconst expression-guidance
-    "先把当前这句话回应好，用自己的表达自然接话。表情只是可选的语气点缀，纯文字回复同样完整；确实能传达本句语气时，自行选择少量表情。用户与历史消息里的表情只帮助理解对方语气，你自己的措辞和表情选择由本次回应的意思决定。响应结构单列表情字段时，把选中的表情放入该字段。replyEmojis若有目录，emoji可填本次选中的目录id，null表示纯文字；没有目录时使用可直接显示的Unicode字符。方括号包住的表情名称是输入的平台占位编码。普通聊天直接使用字符；明确要求引用原文、代码或讨论名称本身时忠实保留资料。")
-  (export expression-guidance emoji-choices native-emoji? unicode-emoji? selected-emoji expression-text expression-prose))
+    "先写好单独阅读也完整自然的正文，再依据正文的内容与语气，判断表情能否为整段补充一个清晰的交流作用。表情只是可选的语气点缀；纯文字已经自然完整时，emoji=null；表情能让这句话更贴切时，选最合适的一枚。用户的表情是理解对方语气的线索，选择以你自己这句回应为准。双方可以自然使用同一个表情，也可以不同；自然连贯比刻意相同或刻意变化更重要。replyEmojis有目录时，表情放在emoji字段选择目录id，text保持完整正文；没有目录时可用Unicode。明确引用、代码和表情名称说明保留原样。")
+  (export expression-guidance emoji-choices prompt-emoji-choices native-emoji? unicode-emoji? selected-emoji expression-text expression-prose))

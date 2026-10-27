@@ -1,7 +1,7 @@
 import {test, expect} from 'bun:test';
 import {reply_emojis, supported_emoji_QMARK_} from '../../dist/adapters/lark/emojis.mjs';
 import {markdown_post, send_report} from '../../dist/adapters/lark/messages.mjs';
-import {selected_emoji, native_emoji_QMARK_, expression_text, expression_prose} from '../../dist/src/ai/expression.mjs';
+import {selected_emoji, native_emoji_QMARK_, expression_text, expression_prose, prompt_emoji_choices} from '../../dist/src/ai/expression.mjs';
 import {validate_oracle} from '../../dist/src/prayer/oracle.mjs';
 
 test('native expression IDs require the supplied catalog; Unicode remains portable and original prose stays intact', () => {
@@ -40,6 +40,27 @@ test('native placeholder encoding is removed from generated prose while literal 
     '> 引用 [满月脸]', '“原文[满月脸]”', '「[抠鼻]」', '"[满月脸]"',
     '[满月脸](https://example.com)', '[满月脸][source]', '[普通说明]'];
   for (const literal of literals) expect(expression_prose(literal, reply_emojis)).toBe(literal);
+});
+
+test('native normalization preserves every supported model choice without user-tone restrictions', () => {
+  for (const id of reply_emojis.map(row => row.id)) {
+    expect(selected_emoji(id, reply_emojis)).toBe(id);
+  }
+  expect(selected_emoji('😏', reply_emojis)).toBe('SMIRK');
+  expect(selected_emoji('🙏🏽', reply_emojis)).toBe('THANKS');
+  expect(selected_emoji('🤖', reply_emojis)).toBeNull();
+  expect(selected_emoji('😏', [])).toBe('😏');
+  expect(prompt_emoji_choices(reply_emojis).every(row => Object.keys(row).join(',') === 'id,label')).toBe(true);
+});
+
+test('native prose has no extra Unicode decoration or orphaned grapheme pieces, and literal material remains exact', () => {
+  const prose = '你好😏 [坏笑] 今天继续👩🏽‍💻！🙏🏽🇨🇳1️⃣';
+  expect(expression_prose(prose, reply_emojis)).toBe('你好  今天继续！');
+  expect(expression_prose('👋 😄  你好', reply_emojis)).toBe('你好');
+  expect(expression_prose(prose, [])).toBe(prose);
+  for (const literal of ['`😏 [坏笑]`', '```text\n😏👩🏽‍💻[坏笑]\n```', '> 😏[坏笑]', '“😏[坏笑]”', '[😏](https://example.com)']) {
+    expect(expression_prose(literal, reply_emojis)).toBe(literal);
+  }
 });
 
 test('native topic decoration uses the existing reply and idempotency envelope without a separate send', async () => {
