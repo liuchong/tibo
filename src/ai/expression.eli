@@ -1,0 +1,5 @@
+;; Shared prose guidance; protocol-specific rendering belongs to each adapter.
+(module tibo.ai.expression
+  (defconst expression-guidance
+    "先把当前这句话回应好，用自己的表达自然接话。表情只是可选的语气点缀，纯文字回复同样完整；确实能传达本句语气时，自行选择少量可直接显示的 Unicode 表情。用户与历史消息里的表情只帮助理解对方语气，你自己的措辞和表情选择由本次回应的意思决定。输出格式：情绪以真正的 Unicode 表情字符表达，方括号包住的表情名称是输入的平台占位编码。响应结构单列表情字段时，把选中的表情放入该字段；普通聊天直接使用字符。明确要求引用原文、代码或讨论名称本身时忠实保留资料。")
+  (export expression-guidance))

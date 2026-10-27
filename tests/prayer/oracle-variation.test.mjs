@@ -5,7 +5,7 @@ import {question_topic,document_key,select_documents,repeated_QMARK_} from '../.
 const root=resolve('dist/src');
 async function trial(body,modelValue={text:'我站GPT，Claude先别急着谢幕，代码跑通再说。',citation:{id:'news',quote:'A model guide for the GPT family'},angle:'把聚光灯转回代码'}){const dir=await mkdtemp(join(tmpdir(),'tibo-oracle-context-'));try{
  const code=`let prompts=[],instructions=[],calls=0;const modelValue=${JSON.stringify(modelValue)};globalThis.fetch=async(url,options)=>{calls++;const messages=JSON.parse(options.body).messages;instructions.push(messages[0].content);const evidence=JSON.parse(messages[1].content);prompts.push(evidence);const value={...modelValue};if(!evidence.documents.some(d=>d.id===value.citation?.id))value.citation=null;return new Response(JSON.stringify({choices:[{finish_reason:'stop',message:{content:JSON.stringify(value)}}]}));};const {oracle_reply}=await import(${JSON.stringify(root+'/prayer/oracle.mjs')});const {write_state,read_state}=await import(${JSON.stringify(root+'/platform/state.mjs')});const {ai_status,config}=await import(${JSON.stringify(root+'/ai/runtime.mjs')});const {recent_replies}=await import(${JSON.stringify(root+'/prayer/oracle-memory.mjs')});const context={transport:'lark',account:'private-account',scope:'private-room',actor:'private-actor'};await write_state('oracle-news',{until:Date.now()+60000,at:new Date().toISOString(),searchEnabled:true,documents:[{id:'news',text:'A model guide for the GPT family',at:new Date().toISOString(),url:'https://openai.com/index/model-guide'}]});${body}`;
- const r=spawnSync(process.execPath,['--eval',code],{env:{...process.env,TIBO_CONFIG_FILE:'/dev/null',TIBO_STATE_DIR:dir,DEEPSEEK_API_KEY:'private-fixture-secret',TIBO_AI_FEATURES:'oracle,search'},encoding:'utf8',timeout:8000});expect(r.status,r.stderr).toBe(0);return JSON.parse(r.stdout);
+ const r=spawnSync(process.execPath,['--eval',code],{env:{...process.env,TIBO_CONFIG_FILE:join(dir,'absent.env'),TIBO_STATE_DIR:dir,DEEPSEEK_API_KEY:'private-fixture-secret',TIBO_AI_FEATURES:'oracle,search'},encoding:'utf8',timeout:8000});expect(r.status,r.stderr).toBe(0);return JSON.parse(r.stdout);
 }finally{await rm(dir,{recursive:true,force:true});}}
 test('GPT shorthand normalizes without failing the role; invented model numbers and citations still fail',()=>{
  const out=validate_oracle({text:'我站GPT，Claude先别急着谢幕。',citation:null},'brand',[]);
@@ -38,6 +38,19 @@ test('angle metadata is optional and private metadata cannot become a later prom
  expect(validate_oracle({...plain,angle:'方向盘与免责声明的反差'},'brand',[]).angle).toContain('方向盘');
  expect(validate_oracle({...plain,angle:'ou_private-owner API key'},'brand',[]).angle).toBeNull();
  expect(validate_oracle({...plain,angle:'长'.repeat(61)},'brand',[]).angle).toBeNull();
+});
+test('optional emoji accepts displayable characters and ignores decoration errors without changing prose',()=>{
+ const plain={text:'我偏ChatGPT，Claude这次又把话题绕远了。',citation:null};
+ for(const emoji of [null,undefined,'','[满月脸]','[抠鼻]','SMILE','\u200d',{},'😏'.repeat(9)]){
+  const out=validate_oracle({...plain,emoji},'brand',[]);
+  expect(out.text).toBe(plain.text);expect(out.emoji).toBeNull();
+ }
+ for(const emoji of ['😏','🌝','😅','🙏🏽','👩‍💻','🇨🇳'])expect(validate_oracle({...plain,emoji},'brand',[]).emoji).toBe(emoji);
+});
+test('decoration is optional and never adds a duplicate already present in model prose',async()=>{
+ const text='我站ChatGPT，Claude这次把回调绕成麻花了 😏';
+ const r=await trial(`const a=await oracle_reply('Claude回调怎么处理？[满月脸]','zh',false,context);console.log(JSON.stringify({a,calls}));`,{text,emoji:'😏',citation:null});
+ expect(r.a.text).toBe(text);expect(r.calls).toBe(1);
 });
 test('plain topical jokes do not require a news citation, and the prompt provides no scripted joke examples',async()=>{
  const r=await trial(`const a=await oracle_reply('Claude编程怎么样？','zh',false,context);console.log(JSON.stringify({a,prompts,instructions,calls,status:await ai_status()}));`,{text:'我投ChatGPT，Claude的公文包先放下，咱们聊你这段代码。',citation:null});
