@@ -10,7 +10,7 @@ test('event fragments are ordered, duplicate-safe, bounded and expire',()=>{
  expect(merge_fragment(cache,frame(1,'world'),0)).toBeNull();expect(merge_fragment(cache,frame(1,'world'),1)).toBeNull();expect(new TextDecoder().decode(merge_fragment(cache,frame(0,'hello '),2))).toBe('hello world');expect(cache.size).toBe(0);
  expect(()=>merge_fragment(cache,frame(2,'bad'),3)).toThrow();merge_fragment(cache,frame(1,'world'),4);expect(merge_fragment(cache,frame(0,'new'),6000)).toBeNull();
 });
-test('direct Lark API caches tenant tokens and never retries message writes',()=>{
+test('direct Lark API caches tenant tokens and does not retry message writes without UUID',()=>{
  const code=`let calls=[];globalThis.fetch=async(url,opts)=>{calls.push({url,body:JSON.parse(opts.body),auth:opts.headers.authorization});if(url.includes('tenant_access_token'))return new Response(JSON.stringify({code:0,tenant_access_token:'fixture-token',expire:7200}));if(calls.filter(x=>x.url.includes('/messages')).length===2)throw new Error('uncertain');return new Response(JSON.stringify({code:0,data:{message_id:'fixture'}}));};
  const {create_client}=await import(${JSON.stringify(resolve('dist/adapters/lark/api.mjs'))});const client=create_client('fixture-app','fixture-secret','feishu');await client.send({receive_id:'oc_fixture'});let failed=false;try{await client.send({receive_id:'oc_fixture'});}catch{failed=true;}console.log(JSON.stringify({calls,failed}));`;
  const r=spawnSync(process.execPath,['--eval',code],{encoding:'utf8',timeout:5000});expect(r.status).toBe(0);const data=JSON.parse(r.stdout);expect(data.failed).toBe(true);expect(data.calls).toHaveLength(3);expect(data.calls[1].auth).toBe('Bearer fixture-token');expect(data.calls[1].url).toContain('receive_id_type=chat_id');

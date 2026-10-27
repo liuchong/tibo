@@ -1,7 +1,53 @@
 (module tibo.lark.api
-  (import "../../src/platform/host.eli" Date RegExp Error Number URLSearchParams)
+  (import "../../src/platform/host.eli" Date RegExp Error Number URLSearchParams fetch AbortSignal)
+  (import "node:timers/promises" setTimeout)
   (import "../../src/evidence/transport.eli" request-json)
   (import "../../src/platform/util.eli" fail)
+  (defasync message-attempt (url payload token operation timeout)
+    (let ((diagnostic (js-object :operation operation :kind "network")))
+      (try
+        (let* ((response (await (fetch url (js-object :method "POST" :redirect "error"
+          :signal (AbortSignal/timeout timeout) :headers (js-object :content-type "application/json" :authorization (str "Bearer " token))
+          :body payload)))) (result nil))
+          (put diagnostic :httpStatus (get response :status))
+          (let ((id (or (js-call (get response :headers) :get "x-tt-logid") (js-call (get response :headers) :get "x-request-id"))))
+            (when (and id (js-call (new RegExp "^[A-Za-z0-9_-]{1,128}$") :test id)) (put diagnostic :requestId id)))
+          (put diagnostic :kind "response-json")
+          (let ((text (await (js-call response :text))))
+            (when (> (get text :length) 2000000) (fail "Message response exceeds limit"))
+            (try (setq result (JSON/parse text)) (catch error nil)))
+          (unless (and (get response :ok) result (= (get result :code) 0))
+          (when (Number/isInteger (get (or result (js-object)) :code)) (put diagnostic :code (get result :code)))
+          (put diagnostic :kind (if (and (>= (get response :status) 400) (< (get response :status) 500)) "http-rejected"
+            (if (and (get response :ok) result (Number/isInteger (get result :code))) "api-rejected" "response-unconfirmed")))
+          (let ((error (new Error "Message request was not confirmed")))
+            (put error :deliveryDiagnostic diagnostic)
+            (when (or (= (get diagnostic :kind) "http-rejected") (= (get diagnostic :kind) "api-rejected")) (put error :definitiveRejection t))
+            (when (and (get error :definitiveRejection) (Number/isInteger (get diagnostic :code))) (put error :larkCode (get diagnostic :code)))
+            (throw error))) result)
+        (catch error
+          (unless (get error :deliveryDiagnostic)
+            (when (js-call (js-array "TimeoutError" "AbortError") :includes (get error :name)) (put diagnostic :kind "timeout"))
+            (let ((code (get (get error :cause (js-object)) :code (get error :code))))
+              (when (and (= (value-type code) "string") (js-call (new RegExp "^[A-Z_]{1,40}$") :test code)) (put diagnostic :networkCode code)))
+            (put error :deliveryDiagnostic diagnostic))
+          (throw error)))))
+  (defasync message-request (url body token operation)
+    ;; The official one-hour UUID contract makes these identical short-window
+    ;; attempts one logical send. Never regenerate content or retry without it.
+    (let ((payload (JSON/stringify body)) (deadline (+ (Date/now) 27000)) (attempt 0) (result nil) (complete false)
+      (deduplicated (and (= (value-type (get body :uuid)) "string") (> (get (get body :uuid) :length) 0) (<= (get (get body :uuid) :length) 50))))
+      (while (not complete)
+        (setq attempt (+ attempt 1))
+        (try
+          (setq result (await (message-attempt url payload token operation (Math/max 1 (Math/min 8000 (- deadline (Date/now)))))) complete t)
+          (catch error
+            (let* ((diagnostic (get error :deliveryDiagnostic (js-object))) (status (get diagnostic :httpStatus 0))
+              (retryable (or (js-call (js-array "network" "timeout") :includes (get diagnostic :kind))
+                (= status 408) (= status 429) (>= status 500))))
+              (put diagnostic :attempts attempt) (put error :deliveryDiagnostic diagnostic)
+              (if (and deduplicated retryable (< attempt 3) (> (- deadline (Date/now)) 2000))
+                (await (setTimeout (if (= attempt 1) 500 1500))) (throw error)))))) result))
   (defun create-client (app-id secret domain)
     (unless (or (= domain "feishu") (= domain "lark") (not domain)) (fail "Lark domain 必须是 feishu 或 lark"))
     (let ((base (if (= domain "lark") "https://open.larksuite.com" "https://open.feishu.cn"))
@@ -28,15 +74,11 @@
           :send (async (body &optional recipient-type)
             (setq recipient-type (or recipient-type "chat_id"))
             (unless (or (= recipient-type "chat_id") (= recipient-type "open_id")) (fail "消息接收者类型无效"))
-            ;; Message creation is never automatically retried after unknown I/O.
-            (await (request-json (str base "/open-apis/im/v1/messages?receive_id_type=" recipient-type)
-              (js-object :method "POST" :redirect "error" :headers (js-object :content-type "application/json" :authorization (str "Bearer " (await (funcall access))))
-                :body (JSON/stringify body)))))
+            ;; Fixed UUID attempts are bounded inside message-request.
+            (await (message-request (str base "/open-apis/im/v1/messages?receive_id_type=" recipient-type) body (await (funcall access)) "send")))
           :reply (async (id body)
             (unless (js-call (new RegExp "^om_[A-Za-z0-9_-]{1,180}$") :test id) (fail "Invalid message ID"))
-            (await (request-json (str base "/open-apis/im/v1/messages/" id "/reply")
-              (js-object :method "POST" :redirect "error" :headers (js-object :content-type "application/json"
-                :authorization (str "Bearer " (await (funcall access)))) :body (JSON/stringify body)))))
+            (await (message-request (str base "/open-apis/im/v1/messages/" id "/reply") body (await (funcall access)) "reply")))
           :historyPage (async (kind id token start end &optional signal)
             (unless (and (js-call (js-array "chat" "thread") :includes kind)
               (js-call (new RegExp (if (= kind "chat") "^oc_[A-Za-z0-9]+$" "^omt_[A-Za-z0-9_-]{1,180}$")) :test id)

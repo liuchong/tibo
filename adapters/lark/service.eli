@@ -195,16 +195,17 @@
                       (try (await (execute-query query options))
                         (finally (put latency :executeMs (- (Date/now) execute-start))))))
                   (catch error (js-object :ok false :text "查询暂时出了问题，请稍后再试。")))))
-               (text (get response :text)) (result (get response :result)))
+               (text (get response :text)) (result (get response :result))
+               (emoji (when (= text (get response :emojiText)) (get response :emoji))))
           (setq festival-request (get response :festivalRequest))
           (when result (put latency :core (get result :timing)))
           (put latency :sendStartedAt (iso (Date/now)))
           (await (write-state ledger-key (js-object :state "sending" :at (iso (Date/now)) :group group :key key :latency latency
             :replyTarget target
+            :outgoing (js-object :text text :emoji emoji)
             :chatReceipt (get response :chatReceipt)
             :festivalRequest festival-request :festivalIds (get response :festivalIds) :festivalMessages (get response :festivalMessages))))
           (let* ((send-start (Date/now)) (metadata (js-object))
-                 (emoji (when (= text (get response :emojiText)) (get response :emoji)))
                  (id (await (send-report client group ledger-key text metadata target emoji)))
                  (dm (js-call group :startsWith "ou_")))
             (put latency :sendMs (- (Date/now) send-start))
@@ -229,9 +230,11 @@
         (catch error
           (let ((ledger (await (read-state ledger-key))))
             (unless (= (get ledger :state) "sent")
-              (await (write-state ledger-key (js-object :state (if (Number/isInteger (get error :larkCode)) "rejected"
+              (await (write-state ledger-key (Object/assign (js-object) ledger (js-object :state (if (or (get error :definitiveRejection) (Number/isInteger (get error :larkCode))) "rejected"
                        (if (= (get ledger :state) "sending") "uncertain" "failed-before-send"))
-                     :larkCode (get error :larkCode) :at (iso (Date/now)) :group group :key key :latency latency))))
+                     :larkCode (get error :larkCode) :deliveryDiagnostic (get error :deliveryDiagnostic)
+                     :at (iso (Date/now)) :group group :key key :latency latency))))
+              (when (get error :deliveryDiagnostic) (console/error "tibo-lark: 消息投递诊断" (JSON/stringify (get error :deliveryDiagnostic)))))
             (when (and festival-request (not (= (get ledger :state) "sent")))
               (await (settle-festivals context festival-request (get (await (read-state ledger-key)) :state)))))
           (throw (new Error "投递未完成；检查本地账本，未知结果不自动重试"))))))

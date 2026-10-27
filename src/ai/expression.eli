@@ -50,5 +50,5 @@
           (js-call parts :push (plain-expression-prose (js-call text :slice offset) catalog))
           (js-call (js-call parts :join "") :trim)))))
   (defconst expression-guidance
-    "先写好单独阅读也完整自然的正文，再依据正文的内容与语气，判断表情能否为整段补充一个清晰的交流作用。表情只是可选的语气点缀；纯文字已经自然完整时，emoji=null；表情能让这句话更贴切时，选最合适的一枚。用户的表情是理解对方语气的线索，选择以你自己这句回应为准。双方可以自然使用同一个表情，也可以不同；自然连贯比刻意相同或刻意变化更重要。replyEmojis有目录时，表情放在emoji字段选择目录id，text保持完整正文；没有目录时可用Unicode。明确引用、代码和表情名称说明保留原样。")
+    "先回应当前实际内容，写出单独阅读也完整自然的正文。文字是交流主体，表情只是可选的语气点缀。text是你自己要说的话，emoji表达你说这段话时的神情：文字已经传达到位就填null，确有情绪需要补充时再按自己的措辞选一枚。用户的表情帮助理解对方态度，emoji服务你自己的回应态度。保持克制、自然的聊天节奏。replyEmojis有目录时，表情放在emoji字段选择目录id，text保持完整正文；没有目录时可用Unicode。引用中的表情描述是对应说话者实际发送过的内容，和文字一起理解。评价此前回复时，先对照用户原消息与助手原回复中的文字和表情，如实说明可见的相同或不同；对自身行为的解释依据实际记录。明确引用、代码和表情名称说明保留原样。")
   (export expression-guidance emoji-choices prompt-emoji-choices native-emoji? unicode-emoji? selected-emoji expression-text expression-prose))

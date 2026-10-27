@@ -22,7 +22,10 @@
         (let ((error (new Error "Lark 消息 API 拒绝请求")))
           (when (Number/isInteger (get response :code)) (put error :larkCode (get response :code)))
           (throw error)))
-      (unless (get (get response :data (js-object)) :message_id) (fail "Lark 返回缺少 message_id"))
+      (unless (get (get response :data (js-object)) :message_id)
+        (let ((error (new Error "Lark 返回缺少 message_id")))
+          (put error :deliveryDiagnostic (js-object :operation (if reference "reply" "send") :kind "response-schema"))
+          (throw error)))
       (when metadata
         (put metadata :chatId (get (get response :data) :chat_id))
         (put metadata :threadId (get (get response :data) :thread_id)))

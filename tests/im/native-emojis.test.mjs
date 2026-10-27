@@ -3,6 +3,14 @@ import {reply_emojis, supported_emoji_QMARK_} from '../../dist/adapters/lark/emo
 import {markdown_post, send_report} from '../../dist/adapters/lark/messages.mjs';
 import {selected_emoji, native_emoji_QMARK_, expression_text, expression_prose, prompt_emoji_choices} from '../../dist/src/ai/expression.mjs';
 import {validate_oracle} from '../../dist/src/prayer/oracle.mjs';
+import {body_text} from '../../dist/adapters/lark/thread.mjs';
+
+test('quoted post expressions retain their actual native meanings alongside prose', () => {
+  const message = nodes => ({msg_type: 'post', body: {content: JSON.stringify({en_us: {title: '原回复', content: [nodes]}})}});
+  expect(body_text(message([{tag: 'md', text: '正文'}, {tag: 'emotion', emoji_type: 'THINKING'},
+    {tag: 'emotion', emoji_type: 'FutureExpression'}]))).toBe('原回复\n正文\n[表情：思考]\n[表情：FutureExpression]');
+  expect(body_text(message([{tag: 'emotion', emoji_type: '<invalid>'}, {tag: 'text', text: '保留正文'}]))).toBe('原回复\n\n保留正文');
+});
 
 test('native expression IDs require the supplied catalog; Unicode remains portable and original prose stays intact', () => {
   expect(new Set(reply_emojis.map(x => x.id)).size).toBe(reply_emojis.length);

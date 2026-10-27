@@ -109,7 +109,9 @@ test('adapter catalog reaches both AI reply paths and native emotions survive de
     expect(contents[6][1]).toEqual([{tag: 'emotion', emoji_type: 'SMIRK'}]);
     expect(contents[7][0][0].text).toBe('This sentence needs translation.');
     expect(JSON.stringify(contents)).not.toMatch(/\[抠鼻\]|\[满月脸\]|\[坏笑\]|NOT_IN_CATALOG|😏|😉/);
-    expect(prompts.slice(0, 8).every(p => p.response_format.type === 'json_object')).toBe(true);
+    expect(prompts[0].response_format.type).toBe('json_object');
+    expect(prompts.slice(1, 8).every(p => p.response_format === undefined)).toBe(true);
+    expect(prompts.slice(1, 8).every(p => p.messages[0].content.includes('emoji'))).toBe(true);
     expect(prompts.slice(0, 8).every(p => JSON.parse(p.messages.at(-1).content).replyEmojis.some(x => x.id === 'FullMoonFace'))).toBe(true);
     expect(prompts.slice(0, 8).every(p => JSON.parse(p.messages.at(-1).content).replyEmojis.every(x => Object.keys(x).length === 2))).toBe(true);
   } finally {
