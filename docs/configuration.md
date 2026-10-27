@@ -31,19 +31,26 @@
 
 | 变量 | 默认与范围 | 用途 |
 | --- | --- | --- |
-| `DEEPSEEK_API_KEY` | 空 | 官方 HTTP API 凭据 |
+| `TIBO_AI_PROVIDER` | deepseek；deepseek/kimi | 选择官方 HTTP 服务 |
+| `TIBO_AI_MODEL` | 随服务选择 deepseek-flash 或 kimi-for-coding | 模型名称；仅本地配置 |
+| `TIBO_AI_API_KEY` | 空 | 当前服务的凭据；显式空值关闭调用 |
+| `DEEPSEEK_API_KEY` | 空 | 旧配置兼容，仅 deepseek 服务且未设置通用密钥时使用 |
 | `TIBO_AI_FEATURES` | 未设置时无功能；安装时只在该键不存在时补全十三项 | 逗号分隔的独立功能开关 |
 | `TIBO_CHAT_SEARCH` | 1；0 关闭 | 基础聊天的公开搜索；不关闭固定官方状态、计算和时间方法 |
 | `TIBO_WEB_RENDER` | 1；0 关闭 | 网页原文不足时是否启用 Bun WebView 后备；静态正文与搜索仍可用 |
 | `TIBO_CHAT_CONTEXT_TOKENS` | 980000；有效整数 8192..980000 | 总上下文摘要触发目标；默认按 1M 窗口预留余量，超窗材料归档，无引用不积累会话 |
 | `TIBO_AI_WEIGHT` | 已停用，实际权重为 0 | 旧配置兼容；不发起概率建议、不影响数值 |
 
-当前模型为 `deepseek-flash`，端点为 `https://api.deepseek.com/chat/completions`。这是应用当前实现配置，不能在普通 IM 查询中索取或泄露。程序不依赖模型 SDK。
+deepseek 使用 `https://api.deepseek.com/chat/completions`，kimi 使用 `https://api.kimi.com/coding/v1/chat/completions`，均由 Bun 原生 HTTP 调用兼容的 Chat Completions 协议，不依赖模型 SDK。模型和凭据属于私有运维配置，不提供 IM 修改接口，也不发送到聊天或提示词。未知服务或非法模型配置直接降级，不请求网络；切换服务不会把旧服务凭据误发给新服务。
+
+服务、模型或密钥变化后，AI 网关缓存与失败冷却按新的身份隔离，聊天历史、公开原文与重置历史继续保留。Kimi 请求使用模型接受的 temperature=0.6，DeepSeek 维持原各任务参数。模型窗口应支持当前上下文目标；`kimi-for-coding` 支持 1M 窗口，沿用 980000 的默认输入预算。协议、输出校验、有限语义重试与非 AI 降级规则保持不变。
 
 启用全部功能的本地配置示意：
 
 ```dotenv
-DEEPSEEK_API_KEY=在此填入自己的密钥
+TIBO_AI_PROVIDER=kimi
+TIBO_AI_MODEL=kimi-for-coding
+TIBO_AI_API_KEY=在此填入自己的密钥
 TIBO_AI_FEATURES=signals,search,research,brief,router,translate,answer,repair,oracle,wish,trigger,festival,read
 ```
 
@@ -53,7 +60,7 @@ TIBO_AI_FEATURES=signals,search,research,brief,router,translate,answer,repair,or
 TIBO_AI_FEATURES=
 ```
 
-文件中不要填 shell 表达式。旧 `forecast`、`review` 功能名及 `TIBO_AI_WEIGHT` 被忽略，无需修改已有凭据。关闭所有 AI 调用用空功能列表；结构化缓存、预算与失败冷却见 [AI 任务](ai-research.md) 和 [结构化特征](structured-features.md)。
+文件中不要填 shell 表达式。旧 DeepSeek 配置无需迁移；切换 Kimi 时填写上面三项，不能只替换旧凭据。配置后分别重装更新过的两个二进制；以后仅改配置时分别重启两个服务。旧 `forecast`、`review` 功能名及 `TIBO_AI_WEIGHT` 被忽略。关闭所有 AI 调用用空功能列表；结构化缓存、预算与失败冷却见 [AI 任务](ai-research.md) 和 [结构化特征](structured-features.md)。
 
 `brief`开关控制最终用卡理由的可选AI生成，关闭时使用五档本地文案；概率仍由算法决定。
 

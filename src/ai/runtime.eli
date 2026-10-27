@@ -1,5 +1,5 @@
 (module tibo.ai.runtime
-  (import "../platform/host.eli" Date Number fetch AbortSignal)
+  (import "../platform/host.eli" Date Number RegExp fetch AbortSignal)
   (import "node:process" :default process)
   (import "node:crypto" createHash randomUUID)
   (import "../platform/state.eli" read-state write-state)
@@ -16,13 +16,18 @@
       ((= feature "signals") "post-claims-3") ((= feature "read") "read-plan-3") ((= feature "answer") "chat-15") ((= feature "translate") "text-3") (t output-policy)))
   (defun digest (text) (js-call (js-call (createHash "sha256") :update text) :digest "hex"))
   (defun config ()
-    (let* ((env (get process :env)) (key (get env :DEEPSEEK_API_KEY ""))
+    (let* ((env (get process :env)) (provider (get env :TIBO_AI_PROVIDER "deepseek"))
+           (valid-provider (js-call (js-array "deepseek" "kimi") :includes provider))
+           (model (get env :TIBO_AI_MODEL (if (= provider "kimi") "kimi-for-coding" "deepseek-flash")))
+           (endpoint (if (= provider "kimi") "https://api.kimi.com/coding/v1/chat/completions" "https://api.deepseek.com/chat/completions"))
+           (key (get env :TIBO_AI_API_KEY (if (= provider "deepseek") (get env :DEEPSEEK_API_KEY "") "")))
            (features (js-call (get env :TIBO_AI_FEATURES "") :split ","))
            (weight 0))
-      (js-object :key key :model "deepseek-flash" :endpoint "https://api.deepseek.com/chat/completions"
+      (js-object :key key :provider provider :model model :endpoint endpoint
+        :valid (and valid-provider (js-call (new RegExp "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,119}$") :test model))
         :features (js-call feature-names :filter (lambda (name) (js-call features :some (lambda (s) (= (js-call s :trim) name)))))
         :weight 0
-        :identity (digest (str key "|deepseek-flash|ai-policy-1")))))
+        :identity (digest (str key "|" provider "|" model "|" endpoint "|ai-policy-2")))))
   (defun fresh-state (identity) (js-object :identity identity :epoch (randomUUID) :provider (js-object :failures 0 :until 0) :features (js-object) :cache (js-array)))
   (defun failure-policy (status retry-after failures now)
     (let ((scope "provider") (reason "服务异常") (duration 0))
@@ -101,10 +106,10 @@
       (usage nil) (valid false) (stage "transport") (detail nil))
       (try
         (let* ((response (await (fetch (get cfg :endpoint) (js-object :method "POST" :redirect "error"
-                :headers (js-object :Content-Type "application/json" :Authorization (str "Bearer " key))
+                :headers (js-object :Content-Type "application/json" :Authorization (str "Bearer " key) :User-Agent "tibo/0.1.0")
                 :signal (AbortSignal/timeout (or timeout 15000))
                 :body (JSON/stringify (Object/fromEntries (js-call (Object/entries (js-object :model (get cfg :model) :stream false
-                :thinking (js-object :type "disabled") :temperature (cond ((= (get payload :task) "card-advice") 0.6) ((js-call (js-array "wish" "festival") :includes feature) 1.2) ((= feature "oracle") 1) (t 0)) :response_format (if (= (get payload :task) "chat-answer") nil (js-object :type "json_object")) :max_tokens (cond ((= (get payload :task) "card-advice") 220) ((= (get payload :task) "dimension-assessment") 6000) ((get payload :contract) (if (= (get payload :task) "semantic-main") 8000 3500)) ((= (get payload :task) "conversation-summary") 2048) ((= (get payload :task) "read-plan") 600) (t (get token-limits feature 500)))
+                :thinking (js-object :type "disabled") :temperature (cond ((= (get cfg :provider) "kimi") 0.6) ((= (get payload :task) "card-advice") 0.6) ((js-call (js-array "wish" "festival") :includes feature) 1.2) ((= feature "oracle") 1) (t 0)) :response_format (if (= (get payload :task) "chat-answer") nil (js-object :type "json_object")) :max_tokens (cond ((= (get payload :task) "card-advice") 220) ((= (get payload :task) "dimension-assessment") 6000) ((get payload :contract) (if (= (get payload :task) "semantic-main") 8000 3500)) ((= (get payload :task) "conversation-summary") 2048) ((= (get payload :task) "read-plan") 600) (t (get token-limits feature 500)))
                   :messages (request-messages payload))) :filter (lambda (row) (not (nullish? (get row 1)))))))))))
                (body nil))
           (setq status (get response :status) retry (retry-delay (js-call (get response :headers) :get "retry-after") now))
@@ -186,7 +191,8 @@
   (defasync ai-call (feature payload validator &optional timeout)
     (let* ((cfg (config)) (key (get cfg :key)) (contract (or (get payload :contract) (if (= (get payload :task) "dimension-assessment") "dimensions-1" (feature-policy feature))))
       (circuit-key (if (get payload :contract) (str feature ":" contract) feature)))
-      (cond ((= (get key :length) 0) (js-object :state "disabled" :reason "未配置密钥"))
+      (cond ((not (get cfg :valid)) (js-object :state "fallback" :reason "AI 配置无效"))
+        ((= (get key :length) 0) (js-object :state "disabled" :reason "未配置密钥"))
         ((not (js-call (get cfg :features) :includes feature)) (js-object :state "disabled" :reason "功能未启用"))
         ((and (not (js-call (js-array "conversation" "dimension-assessment") :includes (get payload :inputMode)))
           (> (+ (get (JSON/stringify (get payload :evidence)) :length) (get (JSON/stringify (get payload :conversation (js-array))) :length)) 24000))
