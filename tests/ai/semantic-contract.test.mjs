@@ -38,3 +38,21 @@ test('later visible replies can clarify a promise; the observation cutoff exclud
  const futureClaim={postClaims:[{ref:context.ref,...claim(deadline,'promise',{contextPostIds:[]})}]};
  expect(decode_semantic(futureClaim,beforeReply,'main').errors[0].code).toBe('semantic-source-time');
 });
+
+test('object-first envelope canonicalizes product delivery and keeps quota completion object evidence mandatory',()=>{
+ const i=input(),p=i.posts.find(p=>p.id===done.id);p.text='https://example.com/play has landed';
+ p.linkContext={links:[{url:'https://example.com/play',finalUrl:'https://example.com/play',title:'Example Playground'}]};
+ const product=decode_semantic({observations:[{ref:p.ref,delivered:{type:'product_release',label:'Example Playground website',basis:'explicit'},status:'fulfilled',scope:'unknown',quote:p.text,contextRefs:[]}]},i,'repair');
+ expect(product.errors).toHaveLength(0);expect(product.claims[0]).toMatchObject({kind:'release',subject:'product-change',statement:'completed',objectText:'Example Playground website'});
+ const other=decode_semantic({links:[{ref:p.ref,object:'other',status:'irrelevant',scope:'unknown',quote:p.text,basisRefs:[]}]},i,'chain');
+ expect(other.errors).toHaveLength(0);expect(other.claims[0].subject).toBe('unknown');
+ const bad=decode_semantic({postClaims:[{...claim({...done,text:p.text}),objectText:undefined}]},i,'main');expect(bad.errors[0].code).toBe('semantic-completion-object');
+ const incident=decode_semantic({postClaims:[{...claim({...done,text:p.text},'incident'),subject:'product-change',scope:'partial'}]},i,'main');
+ expect(incident.claims[0]).toMatchObject({kind:'incident',scope:'partial'});
+});
+test('prior reset boundary is a reviewable classification and link fetch clocks do not enter semantic identity',()=>{
+ const s=makeSnapshot();s.posts.find(p=>p.id===done.id).linkContext={checkedAt:'2026-10-25T07:00:00Z',retryAt:123,links:[{title:'Example site',finalUrl:'https://example.com/'}]};
+ const i=build_semantic_input(dimension_input(available_judgment(s)));
+ expect(i.lastGlobal.basis).toBe('stored-classification-to-review');expect(i.lastGlobal.verified).toBeUndefined();
+ const link=i.posts.find(p=>p.id===done.id).linkContext;expect(link.links[0].title).toBe('Example site');expect(link.checkedAt).toBeUndefined();expect(link.retryAt).toBeUndefined();
+});

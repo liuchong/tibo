@@ -1,0 +1,33 @@
+(module tibo.evidence.post-links
+  (import "../platform/host.eli" Promise RegExp)
+  (import "../platform/util.eli" ms sorted)
+  (import "../platform/privacy.eli" public-text)
+  (import "./web-page.eli" read-page)
+  ;; Link targets are public evidence, not model-selected actions. Bound both
+  ;; candidates and latency; the existing reader validates every redirect.
+  (defasync enrich-post-links (posts now &optional read)
+    (let* ((eligible (js-call (js-call (sorted posts "at") :reverse) :filter (lambda (p)
+      (and (= (get p :provenance) "primary") (= (get p :author) "thsottiaux")
+        (<= (ms (get p :at)) (ms now)) (>= (ms (get p :at)) (- (ms now) 172800000))
+        (not (get p :truncated))
+        (or (not (get p :linkContext)) (<= (get (get p :linkContext) :retryAt 0) (ms now)))
+        (not (= (get (get p :linkContext (js-object)) :complete) t))
+        (js-call (new RegExp "https?://[^\\s<>]+") :test (get p :text))))))
+      (chosen (js-call eligible :slice 0 2))
+      (updates (await (Promise/all (js-call chosen :map (async (p)
+        (let* ((urls (js-call (or (js-call (get p :text) :match (new RegExp "https?://[^\\s<>]+" "g")) (js-array)) :slice 0 2))
+          (links (await (Promise/all (js-call urls :map (async (url)
+            (try
+              (let ((page (await (funcall (or read read-page) url (js-object :timeout 3500 :allowRender false)))))
+                (js-object :url url :finalUrl (get page :finalUrl url) :state (get page :state)
+                  :title (public-text (get page :title "") 160) :text (public-text (get page :text "") 600)))
+              (catch error (js-object :url url :state "unavailable")))))))))
+          (js-object :id (get p :id) :context (js-object :version 1 :checkedAt now
+            :retryAt (+ (ms now) 900000) :complete (js-call links :every (lambda (l)
+              (and (js-call (js-array "ok" "partial") :includes (get l :state))
+                (> (get (get l :title "") :length) 0)))) :links links)))))))))
+      (if (= (get updates :length) 0) posts
+        (js-call posts :map (lambda (p)
+          (let ((row (js-call updates :find (lambda (r) (= (get r :id) (get p :id))))))
+            (if row (Object/assign (js-object) p (js-object :linkContext (get row :context))) p)))))))
+  (export enrich-post-links))

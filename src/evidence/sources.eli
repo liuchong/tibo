@@ -10,6 +10,7 @@
   (import "./post-context.eli" post-context)
   (import "./post-body.eli" expand-post)
   (import "./post-thread.eli" collect-threads)
+  (import "./post-links.eli" enrich-post-links)
   (import "./research.eli" documents-from)
   (import "./x-page.eli" parse-primary snowflake-time)
   (import "./cache.eli" cached-sources)
@@ -39,7 +40,7 @@
           ;; metadata or overwrite a previously restored full body.
           (when (reusable-original? old p)
             (setq p (Object/assign (js-object) old (Object/fromEntries (js-call (Object/entries p) :filter (lambda (pair)
-              (js-call (js-array "parentId" "parentRelationProvenance" "quotedPostId" "quotedRelationProvenance" "referenceMetadataVerified")
+              (js-call (js-array "parentId" "parentRelationProvenance" "quotedPostId" "quotedRelationProvenance" "referenceMetadataVerified" "linkContext")
                 :includes (get pair 0))))))))
           (when (and (not (and old (get old :expandedFromPrimary)
                        (or (and (= (get p :provenance) "archive") (not (get p :expandedFromPrimary)))
@@ -122,6 +123,10 @@
               :error (if (> (+ (get verified :length) (get reused :length)) 0) nil "原文核实不可用")))
             (when (> (get verified :length) 0) (setq fresh-original t))
             (setq posts (merge-posts posts verified)))))
+      (unless offline
+        (let ((enriched (await (enrich-post-links posts now))))
+          (unless (= enriched posts) (setq fresh-original t))
+          (setq posts enriched)))
       (setq events (merge-events events (js-call (events-from-posts posts) :map (lambda (event)
         (let ((known (js-call (get ledger :events (js-array)) :find (lambda (old) (= (get old :id) (get event :id))))))
           (if (= (get (or known (js-object)) :completionBasis) "semantic-evidence-agreement") known

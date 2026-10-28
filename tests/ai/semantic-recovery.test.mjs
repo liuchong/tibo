@@ -35,3 +35,12 @@ test('provider changes release a pending evidence cache without discarding succe
   expect(calls).toBe(3);expect(recovered.analysisState).toBe('ready');
  }finally{if(previous===undefined)delete process.env.TIBO_AI_PROVIDER;else process.env.TIBO_AI_PROVIDER=previous;}
 }));
+
+test('two object views can overturn a reset boundary while a single product opinion remains pending',async()=>{
+ const {combine_opinions}=await import('../../dist/src/ai/semantic-recovery.mjs');
+ const at=done.at,product={...claim(done),at,kind:'release',subject:'product-change',scope:'unknown',statement:'completed',sourceKind:'post',contextPostIds:[],objectText:'Example website',objectBasis:'explicit'};
+ const view=claims=>({claims,dimensions:[],errors:[]});
+ expect(combine_opinions([view([product])],at).pending).toBe(true);
+ const r=combine_opinions([view([{...product,kind:'completion',subject:'codex-usage',scope:'global'}]),view([product]),view([product])],at);
+ expect(r.pending).toBe(false);expect(r.claims.find(c=>c.subject==='product-change')).toMatchObject({votes:2,semanticAgreed:true});
+});

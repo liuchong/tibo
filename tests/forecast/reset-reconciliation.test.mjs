@@ -27,3 +27,28 @@ test('semantic confirmation of a global event is not vetoed by an unrelated auto
  const c={...batch().claims[0],quote:s.posts.find(p=>p.id===done.id).text};const r=await reconcile_reset_facts(s,{...batch(),claims:[c]});
  expect(available_judgment({...r.snapshot,sources:[],unknowns:[]}).signals.lastGlobal.id).toBe(done.id);
 });
+
+test('agreed product object corrects only a prior semantic global, restores the clock and suppresses its confirmation',async()=>{
+ const directory=await mkdtemp(join(root,'correct-object-')),old=process.env.TIBO_STATE_DIR,realNow=Date.now;
+ process.env.TIBO_STATE_DIR=directory;Date.now=()=>Date.parse(makeSnapshot().now);
+ try{
+  const original=await reconcile_reset_facts(makeSnapshot(),batch());
+  const corrupted=original.snapshot;corrupted.posts.find(p=>p.id===done.id).text='https://example.com/play has landed';
+  corrupted.events.find(e=>e.id===done.id).completionQuote=corrupted.posts.find(p=>p.id===done.id).text;
+  const product={...batch().claims[0],kind:'release',subject:'product-change',scope:'unknown',objectText:'Example Playground website',objectBasis:'explicit',quote:corrupted.posts.find(p=>p.id===done.id).text};
+  const correction={revision:'reviewed-object',claims:[product]};
+  expect((await reconcile_reset_facts(corrupted,{...correction,claims:[{...product,votes:1,semanticAgreed:false}]})).changed).toBe(false);
+  const reviewed=structuredClone(corrupted);delete reviewed.events.find(e=>e.id===done.id).completionBasis;
+  expect((await reconcile_reset_facts(reviewed,correction)).changed).toBe(false);
+  await write_state('ledger',corrupted);const{enqueue_alert,pending_alerts}=await import('../../dist/src/subscriptions/alerts.mjs');
+  await enqueue_alert('confirmed',done.id,'false completion',done.at);
+  await enqueue_alert('promise','still-pending','original promise',title.at,'2026-10-26T00:00:00Z');
+  await write_state('realtime-monitor',{lastConfirmedAt:done.at});
+  const corrected=await reconcile_reset_facts(corrupted,correction,{persist:true});const event=corrected.snapshot.events.find(e=>e.id===done.id);
+  expect(event).toMatchObject({global:false,state:'retracted',semanticCorrection:{reason:'object-reclassified'},supersededCompletion:{global:true,state:'completed'}});
+  expect(corrected.snapshot.pendingConfirmations).toHaveLength(0);
+  const after=available_judgment({...corrected.snapshot,sources:[],unknowns:[]});expect(after.signals.lastGlobal.id).not.toBe(done.id);expect(after.signals.promise.fulfilled).toBe(false);
+  const alerts=await pending_alerts();expect(alerts.some(a=>a.kind==='confirmed')).toBe(false);expect(alerts.some(a=>a.kind==='promise')).toBe(true);
+  expect((await reconcile_reset_facts(corrected.snapshot,correction)).changed).toBe(false);
+ }finally{Date.now=realNow;if(old===undefined)delete process.env.TIBO_STATE_DIR;else process.env.TIBO_STATE_DIR=old;await rm(directory,{recursive:true,force:true});}
+});

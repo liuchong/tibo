@@ -75,7 +75,7 @@
                     :text (js-call body :slice 0 24000) :truncated (> (get body :length) 24000))
                   (await (extract-page body final))))
                 (put result :mode "http")
-                (when (and (= (get result :state) "partial") (not (matches "^text/(?:plain|markdown)" ctype))
+                (when (and (not (= (get options :allowRender) false)) (= (get result :state) "partial") (not (matches "^text/(?:plain|markdown)" ctype))
                   (or (get options :render) (not (= (get (get process :env) :TIBO_WEB_RENDER "1") "0")))
                   (> (- end (Date/now)) 300))
                   (try

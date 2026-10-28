@@ -14,7 +14,8 @@
       (js-call (js-call (createHash "sha256") :update (JSON/stringify
         (js-object :policy semantic-policy :providerIdentity (get (config) :identity) :posts
           (js-call rows :map (lambda (p) (js-array (get p :id) (get p :text) (get p :truncated false)
-            (get p :parentId) (get p :parentRelationProvenance) (get p :quotedPostId) (get p :quotedRelationProvenance))))))) :digest "hex")))
+            (get p :parentId) (get p :parentRelationProvenance) (get p :quotedPostId) (get p :quotedRelationProvenance)
+            (get (get p :linkContext (js-object)) :links))))))) :digest "hex")))
   (defasync watch-tick (maintenance-seconds &optional collect generate)
     (await (drain-confirmations))
     (await (state-transaction "realtime-monitor" (async ()

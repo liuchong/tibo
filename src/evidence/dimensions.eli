@@ -47,7 +47,7 @@
               (js-call (js-array "id" "at" "author" "text" "provenance" "truncated" "contextMissing"
                 "parentId" "parentText" "parentAuthor" "parentProvenance" "quoteText"
                 "resetContextVerified" "resetContextText" "resetContextPostIds" "resetContextAt" "resetContextScope"
-                "resetContextBasis" "programmePostId" "programmeText" "programmeChoice" "cyclePromiseContext") :includes (get pair 0)))))))))
+                "resetContextBasis" "programmePostId" "programmeText" "programmeChoice" "cyclePromiseContext" "linkContext") :includes (get pair 0)))))))))
         (specs (js-array
           (js-array "before_last_reset" nil boundary)
           (js-array "after_last_reset" boundary clock)
