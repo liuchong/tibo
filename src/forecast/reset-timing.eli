@@ -10,7 +10,7 @@
             (js-object :from at :through (iso (+ (ms at) (* amount (if (= window "within-hours") hour-ms day-ms)))) :resolution "relative-window"))
           (target (js-object :from at :through target :resolution "quoted-time"))
           ((and (not (= zone "unknown")) (js-call (js-array "today" "tomorrow") :includes window)
-            (matches (if (= window "tomorrow") "tomorrow" "today|EOD|end of (?:the )?day") (get claim :timeText "")))
+            (matches (if (= window "tomorrow") "tomorrow" "today|EOD|midnight|end of (?:the )?day") (get claim :timeText "")))
             (let* ((next (= window "tomorrow"))
               (start (if (= zone "UTC") (iso (+ (ms (str (js-call at :slice 0 10) "T00:00:00Z")) (if next day-ms 0)))
                 (pacific-target at 0 0 zone next)))

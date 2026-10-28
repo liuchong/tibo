@@ -6,11 +6,13 @@
   (import "../platform/util.eli" iso ms day-ms)
   (import "../evidence/sources.eli" collect-sources)
   (import "./engine.eli" observe run-report)
+  (import "../ai/runtime.eli" config)
+  (import "../ai/semantic-recovery.eli" semantic-policy)
   (import "../subscriptions/alerts.eli" confirmed-global? confirm-alert forecast-alert drain-confirmations)
   (defun post-signature (snapshot)
     (let ((rows (js-call (get snapshot :posts) :filter (lambda (p) (= (get p :provenance) "primary")))))
       (js-call (js-call (createHash "sha256") :update (JSON/stringify
-        (js-object :policy "reset-semantic-2" :posts
+        (js-object :policy semantic-policy :providerIdentity (get (config) :identity) :posts
           (js-call rows :map (lambda (p) (js-array (get p :id) (get p :text) (get p :truncated false)
             (get p :parentId) (get p :parentRelationProvenance) (get p :quotedPostId) (get p :quotedRelationProvenance))))))) :digest "hex")))
   (defasync watch-tick (maintenance-seconds &optional collect generate)

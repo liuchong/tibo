@@ -2,7 +2,7 @@ import {test,expect} from 'bun:test';
 import {build_semantic_input,decode_semantic} from '../../dist/src/ai/semantic-contract.mjs';
 import {available_judgment} from '../../dist/src/app/engine.mjs';
 import {dimension_input} from '../../dist/src/evidence/dimensions.mjs';
-import {makeSnapshot,done,title,claim,response,post} from '../helpers/reset-semantic.mjs';
+import {makeSnapshot,done,title,deadline,claim,response,post} from '../helpers/reset-semantic.mjs';
 const input=()=>build_semantic_input(dimension_input(available_judgment(makeSnapshot())));
 test('T01 valid completion survives invalid dimension and document row; unknown refs are locally rejected',()=>{
  const i=input(),v=response(i);v.dimensions[0]={...v.dimensions[0],support:1,citations:[{postId:done.id,quote:done.text}]};
@@ -26,4 +26,15 @@ test('T05 semantic decisions are not vetoed by keyword matching or future farewe
  }
  expect(decode_semantic({postClaims:[{ref:p.ref,...claim(done) ,quote:'not in the source'}]},i,'main').claims).toHaveLength(0);
  const product=decode_semantic({postClaims:[{ref:p.ref,...claim(done),subject:'product-change'}]},i,'main');expect(product.claims[0].subject).toBe('product-change');
+});
+
+test('later visible replies can clarify a promise; the observation cutoff excludes future evidence',()=>{
+ const i=input(),source=i.posts.find(p=>p.id===title.id),context=i.posts.find(p=>p.id===deadline.id);
+ const value={postClaims:[{ref:source.ref,...claim(title,'promise',{contextPostIds:[deadline.id]})}]};
+ const out=decode_semantic(value,i,'main');
+ expect(out.claims[0]).toMatchObject({at:title.at,kind:'promise',contextPostIds:[deadline.id]});
+ const beforeReply={...i,now:title.at};
+ expect(decode_semantic(value,beforeReply,'main').errors[0].code).toBe('semantic-context-reference');
+ const futureClaim={postClaims:[{ref:context.ref,...claim(deadline,'promise',{contextPostIds:[]})}]};
+ expect(decode_semantic(futureClaim,beforeReply,'main').errors[0].code).toBe('semantic-source-time');
 });

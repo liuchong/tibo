@@ -18,8 +18,8 @@ test('T07 deadline expiry alone never changes confirmed history or invents deliv
  const s=makeSnapshot();s.posts=s.posts.filter(p=>p.id!==done.id);const r=available_judgment(s);expect(r.events.some(e=>e.presumed)).toBe(false);expect(r.signals.lastGlobal.id).not.toBe(title.id);expect(r.forecast.p24).toBeNumber();
 });
 test('T09 durable confirmation inbox is drained once across restart and suppresses stale warnings',async()=>{
- const directory=await mkdtemp(join(root,'outbox-')),old=process.env.TIBO_STATE_DIR;process.env.TIBO_STATE_DIR=directory;
- try{await reconcile_reset_facts(makeSnapshot(),batch(),{persist:true});const{drain_confirmations,pending_alerts}=await import('../../dist/src/subscriptions/alerts.mjs');await drain_confirmations();await drain_confirmations();expect((await pending_alerts()).filter(a=>a.kind==='confirmed')).toHaveLength(1);expect((await read_state('ledger')).pendingConfirmations).toHaveLength(0);}finally{if(old===undefined)delete process.env.TIBO_STATE_DIR;else process.env.TIBO_STATE_DIR=old;await rm(directory,{recursive:true,force:true});}
+ const directory=await mkdtemp(join(root,'outbox-')),old=process.env.TIBO_STATE_DIR,realNow=Date.now;process.env.TIBO_STATE_DIR=directory;Date.now=()=>Date.parse(makeSnapshot().now);
+ try{await reconcile_reset_facts(makeSnapshot(),batch(),{persist:true});const{drain_confirmations,pending_alerts}=await import('../../dist/src/subscriptions/alerts.mjs');await drain_confirmations();await drain_confirmations();expect((await pending_alerts()).filter(a=>a.kind==='confirmed')).toHaveLength(1);expect((await read_state('ledger')).pendingConfirmations).toHaveLength(0);}finally{Date.now=realNow;if(old===undefined)delete process.env.TIBO_STATE_DIR;else process.env.TIBO_STATE_DIR=old;await rm(directory,{recursive:true,force:true});}
 });
 
 test('semantic confirmation of a global event is not vetoed by an unrelated automatic-refresh phrase',async()=>{

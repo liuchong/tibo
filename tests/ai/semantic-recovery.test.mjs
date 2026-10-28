@@ -23,3 +23,15 @@ test('T04 authentication and rate limits stop immediately, while schema errors k
 test('T04 whole operation deadline bounds an unresponsive injected request',()=>isolated(async directory=>{
  const start=performance.now();const r=await analyze_semantic(input(),{directory,budgetMs:40,request:()=>new Promise(()=>{})});expect(performance.now()-start).toBeLessThan(500);expect(r.analysisState).toBe('pending');
 }));
+
+test('provider changes release a pending evidence cache without discarding successful runtime facts',()=>isolated(async directory=>{
+ const previous=process.env.TIBO_AI_PROVIDER;let calls=0;
+ try{
+  process.env.TIBO_AI_PROVIDER='kimi';
+  await analyze_semantic(input(),{directory,request:async()=>{calls++;return {state:'fallback',code:402}}});
+  expect(calls).toBe(1);
+  process.env.TIBO_AI_PROVIDER='deepseek';
+  const recovered=await analyze_semantic(input(),{directory,request:async(profile,i)=>{calls++;return {state:'ok',value:response(i)}}});
+  expect(calls).toBe(3);expect(recovered.analysisState).toBe('ready');
+ }finally{if(previous===undefined)delete process.env.TIBO_AI_PROVIDER;else process.env.TIBO_AI_PROVIDER=previous;}
+}));

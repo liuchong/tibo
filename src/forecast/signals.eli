@@ -12,7 +12,7 @@
   (defun target-time (post)
     (let* ((text (get post :text))
            (m (match "(?:(?:tomorrow|today)\\s+(?:(?:at|by|before|around)\\s+)?|\\b(?:by|before)\\s+(?:(?:today|tomorrow)[’']?s?\\s+)?)([0-9]{1,2})(?::([0-9]{2}))?\\s*(am|pm)\\s*(?:(?:today|tomorrow)\\s+)?(PST|PDT|PT)" text))
-           (eod (match "\\bby\\s+(?:(today|tomorrow)[’']?s?\\s+)?(?:EOD|(?:the\\s+)?end of (?:the\\s+)?day)\\s+(?:(today|tomorrow)\\s+)?(PST|PDT|PT)\\b" text))
+           (eod (match "\\bby\\s+(?:(today|tomorrow)[’']?s?\\s+)?(?:EOD|midnight|(?:the\\s+)?end of (?:the\\s+)?day)\\s+(?:(today|tomorrow)\\s+)?(PST|PDT|PT)\\b" text))
            (relative (or (local-timing "promise" text (time-text text)) (js-object))))
       (if (and (get relative :amount) (js-call (js-array "within-hours" "within-days") :includes (get relative :window)))
         (iso (+ (ms (get post :at)) (* (get relative :amount) (if (= (get relative :window) "within-hours") hour-ms day-ms))))
@@ -25,7 +25,7 @@
           (when (and (>= n 1) (<= n 12) (< minute 60))
             (pacific-target (get post :at) hour minute (js-call (get m 4) :toUpperCase) (matches "tomorrow" (get m 0))))))))))
   (defun target-precision (text)
-    (if (matches "\\b(?:by|before)\\b[^.!?]*(?:\\bEOD\\b|end of (?:the\\s+)?day|[0-9]{1,2}(?::[0-9]{2})?\\s*(?:am|pm))|\\bwithin\\b|\\bnext\\s+[0-9]+\\s+(?:hours?|days?)" text) "deadline" "instant"))
+    (if (matches "\\b(?:by|before)\\b[^.!?]*(?:\\bEOD\\b|midnight|end of (?:the\\s+)?day|[0-9]{1,2}(?::[0-9]{2})?\\s*(?:am|pm))|\\bwithin\\b|\\bnext\\s+[0-9]+\\s+(?:hours?|days?)" text) "deadline" "instant"))
   (defun events-complete? (snapshot from through)
     (try
       (js-call (js-call (get snapshot :coverages (js-array)) :concat

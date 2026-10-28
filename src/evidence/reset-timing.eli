@@ -26,7 +26,7 @@
         (js-object :stance (cond ((= kind "negation") "negated") ((= kind "programme") "conditional")
           ((expectation-stance text) (expectation-stance text)) ((= kind "promise") "commitment") (t "possibility"))
           :window (cond (relative (if (matches "hour" (get relative 2)) "within-hours" "within-days"))
-            ((matches "tomorrow" time) "tomorrow") ((matches "today|EOD|end of (?:the )?day" time) "today")
+            ((matches "tomorrow" time) "tomorrow") ((matches "today|EOD|midnight|end of (?:the )?day" time) "today")
             ((matches "next week" time) "next-week") ((matches "this week" time) "this-week")
             ((matches "soon|shortly|moment|imminent|few hours" time) "soon") (t "unspecified"))
           :amount (when relative (Number (get relative 1))) :zone (if zone (js-call (get zone 1) :toUpperCase) "unknown")))))

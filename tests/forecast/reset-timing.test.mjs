@@ -7,8 +7,20 @@ import {post_context} from '../../dist/src/evidence/post-context.mjs';
 import {judge} from '../../dist/src/app/engine.mjs';
 import {render_report} from '../../dist/src/presentation/report.mjs';
 import {snapshot,post} from '../helpers/fixture.mjs';
+import {target_time,target_precision} from '../../dist/src/forecast/signals.mjs';
 const p=text=>post(25,text,{id:'2109812360596865224',at:'2026-09-25T01:00:00Z'});
 function result(text){const s=snapshot({now:'2026-09-25T02:00:00Z',posts:[...snapshot().posts,p(text)]}),r=judge(s);r.structuredFeatures=feature_state(r,{rows:s.posts.map(local_row),aiRows:0,ruleRows:s.posts.length});return r;}
+test('midnight promises use the end of the posting day in the stated Pacific zone',()=>{
+ for(const [text,expected] of [
+  ['Lands by midnight PST.','2026-10-28T08:00:00.000Z'],
+  ['Lands by midnight PDT.','2026-10-28T07:00:00.000Z'],
+  ['Lands by midnight PT.','2026-10-28T07:00:00.000Z'],
+  ['Lands by tomorrow midnight PST.','2026-10-29T08:00:00.000Z']
+ ]){
+  expect(target_time({at:'2026-10-28T02:43:38.218Z',text})).toBe(expected);
+  expect(target_precision(text)).toBe('deadline');
+ }
+});
 test('expectation, intention, possibility and commitment are separate; a precise time does not erase uncertainty',()=>{
  for(const [text,stance] of [['Global reset should land within 6 hours.','expectation'],['I hope for a global reset tomorrow.','intention'],['Global reset might land soon.','possibility']]){
   const r=result(text),c=r.structuredFeatures.claims.at(-1);expect(c).toMatchObject({kind:'hint',timing:{stance},status:'active'});

@@ -51,6 +51,7 @@
       (scope (get item :scope "unknown")) (quote (get proof :quote))
       (time (get item :timeText)) (refs (get item :contextRefs (get item :basisRefs (get item :contextPostIds (js-array)))))
       (context-ids (js-array)) (timing nil) (timing-error nil))
+      (unless (<= (ms (get source :at)) (ms (get input :now))) (fail "semantic-source-time"))
       (unless (and (js-call (js-array "promise" "hint" "incident" "programme" "progress" "release" "completion" "negation" "other") :includes kind)
         (js-call (js-array "codex-usage" "chatgpt-work-usage" "product-change" "personal-task" "unknown") :includes subject)
         (js-call (js-array "global" "banked" "partial" "unknown") :includes scope)
@@ -58,7 +59,10 @@
         (Array/isArray refs) (<= (get refs :length) 12)) (fail "semantic-claim-enum"))
       (js-call refs :forEach (lambda (ref)
         (let ((other (source-for input ref)))
-          (unless (and other (<= (ms (get other :at)) (ms (get source :at)))) (fail "semantic-context-reference"))
+          ;; Later public replies can explain an earlier announcement. The
+          ;; observation cutoff, rather than that announcement's time, bounds
+          ;; available context; the claim keeps its original publication time.
+          (unless (and other (<= (ms (get other :at)) (ms (get input :now)))) (fail "semantic-context-reference"))
           (js-call context-ids :push (get other :id)))))
       (when (and time (not (and (= (value-type time) "string") (js-call quote :includes time))))
         (setq time nil timing-error "semantic-time-reference"))
