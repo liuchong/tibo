@@ -20,7 +20,7 @@ tibo query 'help'
 | 命令 | 位置参数与命名参数 | 用途 |
 | --- | --- | --- |
 | `forecast`，别名 `预测/概率/重置` | `horizon=24/48/both`，默认 both；`--no-ai` | 未来 24h/48h global 概率 |
-| `status`，别名 `状态` | `since` 可选，UTC ISO 时间，必须以 Z 结尾 | 最近公告、是否刚重置、已过时间、7 天参考倒计时；个人实际自动刷新时间未知 |
+| `status`，别名 `状态` | `since` 可选，UTC ISO 时间，必须以 Z 结尾 | 当前有效预告期限和原帖、最近公告、是否刚重置、已过时间、7 天参考倒计时；个人实际自动刷新时间未知 |
 | `posts`，别名 `发言/推文/x/原文` | 位置：`limit keyword`；limit 1..10 默认 3；hours 1..168 默认 48；keyword ≤80 字符；postId 16..20 位数字 | 最新在前的原文、核实状态、原帖链接 |
 | `history`，别名 `历史/公告历史` | `limit kind`；limit 1..20 默认 5；kind global/banked/all 默认 all | 公告历史，最新在前 |
 | `banked`，别名 `发卡/卡` | 无 | 最近一次额度卡与证据等级 |

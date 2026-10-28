@@ -2,6 +2,26 @@
   (import "../platform/host.eli" RegExp)
   (import "./report.eli" render-report)
   (import "../platform/util.eli" utc)
+  (import "../forecast/expectation.eli" reset-expectation)
+  (import "../platform/time.eli" time-settings zone-label local-time)
+  (defun expectation-data (result)
+    (let* ((data (reset-expectation result)) (zone (get (time-settings) :displayZone)) (target (get data :targetAt)))
+      (put data :timezone zone)
+      (when target (put data :targetLocal (str (zone-label zone) " " (local-time target zone)))) data))
+  (defun expectation-text (data)
+    (let* ((state (get data :state)) (source (or (get data :source) (js-object))) (id (get source :postId ""))
+      (link (if (js-call (new RegExp "^[0-9]{15,20}$") :test id)
+        (str "｜[原始来源](https://x.com/thsottiaux/status/" id ")") "")))
+      (when (js-call (js-array "pending" "overdue" "delayed" "withdrawn") :includes state)
+        (str "• 重置预告：" (cond ((= state "pending")
+            (str (get data :targetLocal) (if (= (get data :timePrecision) "instant") " 左右，约剩 " " 前，约剩 ")
+              (Math/floor (/ (get data :remainingSeconds) 3600)) " 小时 "
+              (Math/floor (/ (% (get data :remainingSeconds) 3600) 60)) " 分钟"
+              (if (= (get data :timePrecision) "instant") "；这是预告时间。" "；这是预告期限，可能提前。")))
+          ((= state "overdue") (str "此前期限为 " (get data :targetLocal) "，已过期，尚未确认兑现。"))
+          ((= state "delayed") "此前安排已延期，等待新的交付时间。")
+          ((= state "withdrawn") "此前安排已撤回。"))
+          "\n• 预告原文：" (get source :text) link))))
   (defun event-text (event)
     (if (not event) "未见可用记录"
       (str (utc (get event :at)) "｜" (if (get event :global) "global" "banked") "｜"
@@ -13,4 +33,4 @@
       "\n" (if (js-call (new RegExp "^[0-9]{15,20}$") :test (get post :id)) (str "https://x.com/thsottiaux/status/" (get post :id)) "")))
   (defun public-forecast (result horizon &optional title-time)
     (render-report result nil title-time horizon))
-  (export event-text post-text public-forecast))
+  (export event-text post-text public-forecast expectation-data expectation-text))

@@ -23,7 +23,7 @@
   (import "../platform/util.eli" ms utc days decimal sorted matches)
   (import "./catalog.eli" definition validate-query visible-catalog)
   (import "./help.eli" help-text)
-  (import "../presentation/business.eli" event-text post-text public-forecast)
+  (import "../presentation/business.eli" event-text post-text public-forecast expectation-data expectation-text)
   (defasync execute-core (query &optional options)
     (setq options (or options (js-object)))
     (let* ((name (get query :command)) (args (get query :args (js-object))))
@@ -88,6 +88,7 @@
                       :data (js-object :numericAvailable (not (= (get (get result :forecast) :available) false))
                         :p24 (get (get result :forecast) :p24) :p48 (get (get result :forecast) :p48)
                         :asOf (get (get result :snapshot) :now)
+                        :resetTiming (expectation-data result)
                         :deadlineState (when (get (get result :forecast) :announcement)
                           (if (> (ms (get (get (get result :forecast) :announcement) :targetAt)) (ms (get (get result :snapshot) :now))) "pending" "overdue"))
                         :announcement (get (get result :forecast) :announcement)
@@ -96,8 +97,10 @@
                          (result (observe snapshot)) (signals (get result :signals)) (text "") (source-languages nil))
                     (cond
                       ((= name "status")
-                        (let ((global (get signals :lastGlobal)))
-                          (setq text (str "**Codex 重置状态**\n• 最近 global：" (event-text global)
+                        (let ((global (get signals :lastGlobal)) (timing (expectation-data result)))
+                          (setq text (str "**Codex 重置状态**"
+                            (when (expectation-text timing) (str "\n" (expectation-text timing)))
+                            "\n• 最近 global：" (event-text global)
                             "\n" (cycle-text (get result :cycle))
                             (if (get args :since) (str "\n• " (utc (get args :since)) "之后："
                               (if (and global (> (ms (get global :at)) (ms (get args :since)))) "公开记录中有更新；证据等级见上" "公开记录中未见更新")) "")
@@ -150,5 +153,8 @@
                                 "；中位数：" (decimal (/ (+ (get durations (Math/floor (/ (- n 1) 2))) (get durations (Math/floor (/ n 2)))) 2)) "天"
                                 "\n• 最短/最长：" (decimal (get durations 0)) "/" (decimal (get durations (- n 1))) "天") "")
                               "\n• 距上次global：" (decimal (get history :elapsedDays)) "天；公开公告历史可能有遗漏。"))))))
-                    (js-object :text (public-text text) :sourceLanguages source-languages :ok t)))))))))))))
+                    (js-object :text (public-text text) :sourceLanguages source-languages :ok t
+                      :data (when (= name "status") (js-object :asOf (get snapshot :now)
+                        :resetTiming (expectation-data result) :lastGlobal (get signals :lastGlobal) :cycle (get result :cycle))))))))))))))
+  ))
   (export execute-core))

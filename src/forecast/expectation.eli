@@ -1,0 +1,20 @@
+(module tibo.forecast.expectation
+  (import "../platform/util.eli" ms)
+  ;; Use the same promise and completion boundary as the forecast. A deadline
+  ;; answers when delivery is expected; it is never evidence of delivery itself.
+  (defun reset-expectation (result)
+    (let* ((now (get (get result :snapshot) :now)) (signals (get result :signals))
+      (promise (get signals :promise)) (global (get signals :lastGlobal))
+      (target (when promise (get promise :targetAt)))
+      (consumed (and promise (or (get promise :fulfilled)
+        (and global (get global :verified) (>= (ms (get global :at)) (ms (get promise :at)))))))
+      (state (cond ((not promise) "unknown") (consumed "fulfilled")
+        ((get promise :withdrawn) "withdrawn") ((get promise :delayed) "delayed")
+        ((not (and (get promise :primary) (= (get promise :kind) "global") target)) "unverified")
+        ((<= (ms target) (ms now)) "overdue") (t "pending"))))
+      (js-object :asOf now :state state :targetAt target :timePrecision (when promise (get promise :timePrecision))
+        :remainingSeconds (when (= state "pending") (Math/ceil (/ (- (ms target) (ms now)) 1000)))
+        :source (when promise (js-object :postId (get promise :postId) :at (get promise :at) :text (get promise :text)
+          :primary (get promise :primary) :scope (get promise :scope)))
+        :completedAt (when global (get global :at)))))
+  (export reset-expectation))

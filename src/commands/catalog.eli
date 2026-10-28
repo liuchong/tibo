@@ -16,9 +16,9 @@
     :chatId (js-object :type "string" :format "Lark-chat-ID" :maxLength 100)))
   (defconst catalog
     (js-array
-      (js-object :name "forecast" :aliases (js-array "预测" "概率" "重置" "/tibo") :purpose "查询未来24h/48h global重置概率"
+      (js-object :name "forecast" :aliases (js-array "预测" "概率" "重置" "/tibo") :purpose "查询未来24h/48h global重置概率及已识别的预告期限；需要按提问解释下一次几点、还要多久、最晚何时，使用ask读取forecast后针对性回答"
         :params (js-object :horizon (js-object :type "string" :enum (js-array "24" "48" "both") :default "both") :noAi (js-object :type "boolean" :default false)) :positionals (js-array "horizon"))
-      (js-object :name "status" :aliases (js-array "状态") :purpose "查询是否刚重置、上次global时间、已过多久、上次global后7天参考倒计时；实际个人每周自动刷新时间未知，7天自动刷新不算强行global。可判断指定UTC时间之后是否有公告"
+      (js-object :name "status" :aliases (js-array "状态") :purpose "固定状态概览：是否刚重置、上次global时间、已过多久、当前重置预告期限、上次global后7天参考倒计时；实际个人每周自动刷新时间未知，7天自动刷新不算强行global。可判断指定UTC时间之后是否有公告"
         :params (js-object :since (js-object :type "string" :format "UTC-ISO-8601")) :positionals (js-array "since"))
       (js-object :name "posts" :aliases (js-array "发言" "推文" "tweets" "x" "原文") :purpose "查询Tibo的X原文，最新在前；可筛选条数、近多少小时、关键词或postId；固定命令返回原文"
         :params (js-object :limit (js-object :type "integer" :minimum 1 :maximum 10 :default 3)
@@ -39,7 +39,7 @@
       (js-object :name "subscribe" :aliases (js-array "订阅") :purpose "默认订阅本人私聊通知；target=personal默认；target=group由本群群主、群管理员或Tibo管理员在本群申请并二次确认（本群省略chatId；系统管理员可在私聊/操作群指定chatId）。items支持精细化按项订阅：all（默认全部）、alerts（仅重置预警与已重置确认，不含每日定点预测）、daily（仅每日09:00/21:00定点预测）、promise（明确承诺预警）、probability（高概率预警）、confirmed（已重置确认），支持逗号组合；不能代他人或自定义时间" :params subscription-params :positionals (js-array "target" "chatId" "items"))
       (js-object :name "unsubscribe" :aliases (js-array "退订" "取消订阅") :purpose "默认取消本人私聊订阅；target=group由本群群主、群管理员或Tibo管理员申请退订并二次确认；items默认all全部退订，也可指定daily、alerts、promise、probability、confirmed等单独退订某项并保留其余订阅" :params subscription-params :positionals (js-array "target" "chatId" "items"))
       (js-object :name "subscription" :aliases (js-array "订阅状态") :purpose "默认查看本人私聊订阅状态与已订阅项目；target=group由本群群主、群管理员或Tibo管理员查看本群订阅状态与项目，省略chatId规则同subscribe" :params subscription-status-params :positionals (js-array "target" "chatId"))
-      (js-object :name "ask" :aliases (js-array "问答") :purpose "了解Tibo背景的基础聊天、概念解释、文字处理或常识问答；可按需查官方服务状态、公开搜索与网页原文、数字计算和时间；引用时延续同一对话Thread，未引用时单轮；不能执行命令或操作账户，不提供未抓取的新事件事实"
+      (js-object :name "ask" :aliases (js-array "问答") :purpose "了解Tibo背景的基础聊天、概念解释、文字处理或常识问答；自然语言询问下一次重置的具体时间或还要等多久，读取forecast的resetTiming并解释预告时间窗口；可按需查官方服务状态、公开搜索与网页原文、数字计算和时间；引用时延续同一对话Thread，未引用时单轮；不能执行命令或操作账户，不提供未抓取的新事件事实"
         :params (js-object :question (js-object :type "string" :required t)) :positionals (js-array "question"))
       (js-object :name "service-status" :aliases (js-array) :purpose "查询OpenAI官方服务整体、组件与进行中事故；不同于Codex重置状态"
         :params (js-object) :positionals (js-array))
