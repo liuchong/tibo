@@ -37,7 +37,8 @@
 | `DEEPSEEK_API_KEY` | 空 | 旧配置兼容，仅 deepseek 服务且未设置通用密钥时使用 |
 | `TIBO_AI_FEATURES` | 未设置时无功能；安装时只在该键不存在时补全十三项 | 逗号分隔的独立功能开关 |
 | `TIBO_CHAT_SEARCH` | 1；0 关闭 | 基础聊天的公开搜索；不关闭固定官方状态、计算和时间方法 |
-| `TIBO_WEB_RENDER` | 1；0 关闭 | 网页原文不足时是否启用 Bun WebView 后备；静态正文与搜索仍可用 |
+| `TIBO_WEB_RENDER` | 1；0 关闭 | 网页原文不足时是否启用专用无头浏览器后备；静态正文与搜索仍可用 |
+| `TIBO_WEB_BROWSER_PATH` | 自动查找专用后端 | 本机管理员可指定独立 chrome-headless-shell/headless_shell 的路径，支持 `~/`；不接受桌面 App 包或其符号链接，不进入模型和业务命令参数 |
 | `TIBO_CHAT_CONTEXT_TOKENS` | 980000；有效整数 8192..980000 | 总上下文摘要触发目标；默认按 1M 窗口预留余量，超窗材料归档，无引用不积累会话 |
 | `TIBO_AI_WEIGHT` | 已停用，实际权重为 0 | 旧配置兼容；不发起概率建议、不影响数值 |
 
@@ -117,3 +118,5 @@ TIBO_AI_FEATURES=
 引用聊天的脱敏会话保存在状态目录的 `conversation-*.json`，Lark 历史导入进度为 `lark-import-*.json`。配置和用户档案不混入对话。重装保留这些状态；相关规则见 [基础聊天与引用对话](chat.md)。
 
 `read` 是聊天的一次只读能力语义解析，独立于 answer 开关及冷却。新安装默认列表包含 read；旧安装不自动修改已有功能列表，需在原 `TIBO_AI_FEATURES` 末尾加入 read 并重启两个服务。固定通用方法无需模型；`TIBO_CHAT_SEARCH=0` 只关闭公开搜索，不关闭官方服务状态或事故历史。服务事故原始页共享缓存为 `service-incidents.json`。
+
+`lark-working-*.json` 保存原消息处理状态表情及本机器人创建的 reaction ID；撤销成功记为 cleared，暂时失败由收件箱继续清理，不属于祈祷、订阅或预测数据。

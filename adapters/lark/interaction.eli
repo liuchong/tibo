@@ -14,6 +14,7 @@
   (import "../../src/im/tasks.eli" run-tasks)
   (import "../../src/im/plan.eli" interaction-plan)
   (import "./service.eli" delivery-key deliver account-key)
+  (import "./working.eli" working-indicator working-run)
   (defun reply-kind (job)
     (cond ((>= (get job :triggerLevel 0) 2) "ambient")
       ((= (get job :triggerKind) "prayer") "prayer")
@@ -63,7 +64,7 @@
             (try (await (write-state circuit-key (js-object :until (+ (Date/now) 600000) :at (iso (Date/now))))) (catch error nil))
             (await (write-state key (js-object :state "reaction-unavailable-or-uncertain" :at (iso (Date/now)) :emoji emoji :replyPolicy permit)))
             (await (settle-reply context (str "reaction:" id) "uncertain")))) t)))
-  (defasync process-single (client job)
+  (defasync process-single (client job &optional working)
     ;; Count first, before any send receipt or AI. A failed count leaves the
     ;; durable inbox event retryable; later replay/generation never counts twice.
     (when (= (reply-kind job) "prayer")
@@ -96,12 +97,12 @@
                 (unless (= (get permit :reason) "repeat-request") (await (maybe-react client job decision (get history :activity)))))
                 (progn
                   (put job :replyPolicy permit)
-                  (try (await (deliver client (get job :group) id command (get job :titleTime) context nil job))
+                  (try (await (working-run working (async () (await (deliver client (get job :group) id command (get job :titleTime) context nil job)))))
                     (finally
                       (let ((receipt (await (read-state (delivery-key (get job :group) id)))))
                         (await (settle-reply context id (get receipt :state))))))))))))))
   (defasync process-interaction (client job)
-    (let* ((group (get job :group)) (root (delivery-key group (get job :key)))
+    (let* ((group (get job :group)) (root (delivery-key group (get job :key))) (working (working-indicator client job))
       (plan (interaction-plan job (async (leaf)
         (let* ((key (delivery-key group (get leaf :key))) (receipt (await (read-state key))))
           (unless receipt
@@ -111,12 +112,12 @@
               (let ((prior (await (read-state (delivery-key group (get leaf :followupOf))))))
                 (when (and (= (get prior :state) "sent") (not (= (get prior :businessOk) false)))
                   (put leaf :replyPolicy (get (get prior :latency (js-object)) :replyPolicy))
-                  (await (deliver client group (get leaf :key) (get leaf :command) (get leaf :titleTime)
-                    (get leaf :context) nil leaf))))
-              (await (process-single client leaf))))
+                  (await (working-run working (async () (await (deliver client group (get leaf :key) (get leaf :command) (get leaf :titleTime)
+                    (get leaf :context) nil leaf)))))))
+              (await (process-single client leaf working))))
           (let ((saved (await (read-state key))))
             (and (= (get saved :state) "sent") (not (= (get saved :businessOk) false)))))))))
-      (await (run-tasks (get plan :tree)))
+      (try (await (run-tasks (get plan :tree))) (finally (await (js-call working :finish))))
       (when (get plan :composed)
         (await (write-state root (js-object :state "handled" :at (iso (Date/now))
           :receiptKey (delivery-key group (or (get plan :prayerId) (get plan :contentId)))

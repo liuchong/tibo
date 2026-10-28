@@ -1,0 +1,39 @@
+;; Browser selection is local configuration, never model-supplied input.
+(module tibo.evidence.headless-browser
+  (import "node:process" :default process)
+  (import "node:os" homedir)
+  (import "node:path" join basename)
+  (import "node:fs/promises" access readdir realpath)
+  (import "node:fs" constants)
+  (import "../platform/util.eli" fail)
+  (defasync shell-path (path)
+    (try
+      (let* ((resolved (await (realpath path))) (name (js-call (basename resolved) :toLowerCase))
+        (parts (js-call (js-call resolved :replaceAll "\\" "/") :split "/")))
+        (unless (and (js-call (js-array "chrome-headless-shell" "headless_shell" "chrome-headless-shell.exe" "headless_shell.exe") :includes name)
+          (not (js-call parts :some (lambda (part) (js-call (js-call part :toLowerCase) :endsWith ".app"))))) (fail "page-browser-path"))
+        (await (access resolved (get constants :X_OK))) resolved)
+      (catch error nil)))
+  (defasync headless-browser ()
+    (let* ((configured (get (get process :env) :TIBO_WEB_BROWSER_PATH))
+      (home (homedir)) (paths (js-array (join home ".local" "lib" "tibo" "browser" "chrome-headless-shell")
+        (join home ".local" "lib" "tibo" "browser" "headless_shell"))) (found nil))
+      ;; An explicit invalid setting must not silently launch some other browser.
+      (when configured
+        (setq found (await (shell-path (if (js-call configured :startsWith "~/") (join home (js-call configured :slice 2)) configured))))
+        (unless found (fail "page-browser-unavailable")))
+      (let* ((cache (if (= (get process :platform) "darwin") (join home "Library" "Caches" "ms-playwright")
+          (if (= (get process :platform) "win32") (join (get (get process :env) :LOCALAPPDATA home) "ms-playwright")
+            (join home ".cache" "ms-playwright"))))
+        (dirs (try (await (readdir cache)) (catch error (js-array)))))
+        (setq dirs (js-call (js-call (js-call dirs :filter (lambda (d) (js-call d :startsWith "chromium_headless_shell-")))
+          :sort (lambda (a b) (js-call b :localeCompare a "en" (js-object :numeric t)))) :slice 0 16))
+        (js-call dirs :forEach (lambda (dir)
+          (js-call (js-array "chrome-headless-shell-mac-arm64/chrome-headless-shell" "chrome-headless-shell-mac-x64/chrome-headless-shell"
+            "chrome-linux/headless_shell" "chrome-headless-shell-linux64/chrome-headless-shell" "chrome-win/headless_shell.exe") :forEach
+            (lambda (relative) (js-call paths :push (join cache dir relative)))))))
+      (let ((i 0))
+        (while (and (not found) (< i (get paths :length)))
+          (setq found (await (shell-path (get paths i))) i (+ i 1))))
+      (unless found (fail "page-browser-unavailable")) found))
+  (export shell-path headless-browser))

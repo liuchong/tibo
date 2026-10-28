@@ -1,0 +1,48 @@
+;; Transport feedback surrounds an admitted task tree, not individual leaves.
+(module tibo.lark.working
+  (import "node:crypto" createHash)
+  (import "node:timers" setTimeout clearTimeout)
+  (import "../../src/platform/host.eli" Promise Date RegExp)
+  (import "../../src/platform/state.eli" read-state write-state)
+  (defun marker-key (job)
+    (str "lark-working-" (js-call (js-call (createHash "sha256") :update
+      (str (get job :account (get (get job :context (js-object)) :account "")) ":" (get job :messageId (get job :key)))) :digest "hex")))
+  (defasync clear-working (client job &optional strict)
+    (try
+      (let* ((key (marker-key job)) (saved (or (await (read-state key)) (js-object))))
+        (when (and (get saved :reactionId) (= (value-type (get client :unreact)) "function"))
+          (await (js-call client :unreact (get saved :messageId) (get saved :reactionId)))
+          (await (write-state key (js-object :state "cleared" :at (Date/now))))))
+      (catch error (console/error "tibo-lark: 工作状态表情暂未清除，保留记录") (when strict (throw error)))))
+  (defasync begin-working (client job id)
+    (let* ((key (marker-key job)) (saved (or (await (read-state key)) (js-object))))
+      (unless (get saved :reactionId)
+        (await (write-state key (js-object :state "adding" :messageId id :at (Date/now))))
+        (let ((reaction-id (await (js-call client :react id "Typing"))))
+          (try (await (write-state key (js-object :state "active" :messageId id :reactionId reaction-id :at (Date/now))))
+            (catch error (await (js-call client :unreact id reaction-id)) (throw error)))))))
+  (defun working-indicator (client job)
+    (let* ((id (get job :messageId (get job :key))) (pending nil) (finished false)
+      (enabled (and (not (= (get job :kind) "reaction")) (get job :context) (= (get (get job :context) :authenticated) t)
+        (= (value-type id) "string") (js-call (new RegExp "^om_[A-Za-z0-9_-]{1,180}$") :test id)
+        (= (value-type (get client :react)) "function") (= (value-type (get client :unreact)) "function"))))
+      (js-object
+        :start (lambda ()
+          (when (and enabled (not pending))
+            (setq pending (js-call (js-call (async ()
+              (await (begin-working client job id))
+              (when finished (await (clear-working client job)))) :call nil) :catch
+                (lambda (error) (console/error "tibo-lark: 工作状态表情暂不可用"))))) nil)
+        :finish (async ()
+          (setq finished t)
+          (when pending
+            ;; Late creation also removes itself; an already sent reply must
+            ;; not retain an inbox worker behind a slow feedback request.
+            (let ((timer nil))
+              (try (await (Promise/race (js-array pending (new Promise (lambda (resolve) (setq timer (setTimeout resolve 2500)))))))
+                (finally (when timer (clearTimeout timer)))))
+            (await (clear-working client job)))))))
+  (defasync working-run (indicator operation)
+    (when indicator (js-call indicator :start))
+    (await (funcall operation)))
+  (export working-indicator working-run clear-working))

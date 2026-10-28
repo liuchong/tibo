@@ -86,6 +86,8 @@ presentation/forecast-evidence 选择公开参考与必要理由，presentation/
 
 目录或接口变动后运行架构检查和相关测试，再运行完整测试、编译独立程序并实际试用。影响已安装代码时按 [安装与运维](operations.md) 重装两个服务，保留配置与运行数据。
 
-网页读取模块位于 `src/evidence/`：`web-policy` 校验 URL/IP/DNS，`web-egress` 提供原生公网代理，`page-extract` 用 HTMLRewriter 和 Eliscript 评分提取正文，`page-render` 封装固定 WebView 操作，`web-page` 负责抓取、来源状态、共享缓存和搜索结果读取。`commands/chat-plan` 只做一次资料计划；`capabilities/read` 执行固定方法；IM 适配器不直接访问网页。业务逻辑和请求/缓存/渲染生命周期均为 Eliscript，无新增 npm 运行依赖。
+网页读取模块位于 `src/evidence/`：`web-policy` 校验 URL/IP/DNS，`web-egress` 提供原生公网代理，`page-extract` 用 HTMLRewriter 和 Eliscript 评分提取正文，`headless-browser` 选择独立无头后端，`page-render` 封装固定 WebView 操作，`web-page` 负责抓取、来源状态、共享缓存和搜索结果读取。`commands/chat-plan` 只做一次资料计划；`capabilities/read` 执行固定方法；IM 适配器不直接访问网页。业务逻辑和请求/缓存/渲染生命周期均为 Eliscript，无新增 npm 运行依赖。
 
 `evidence/public-place` 封装固定公开城市与天气接口及共享缓存，`capabilities/geo` 负责地点解析、天气组合与球面距离；不读取设备定位，国家通过独立代码过滤。跨领域实际试问及复用入口见 [问答样例](qa-examples.md)。
+
+`adapters/lark/working` 管理原消息上的临时工作状态表情，围绕完整任务树添加和撤销；平台 API 与反应 ID 留在接入层，不放入共享业务模块或 AI 提示。

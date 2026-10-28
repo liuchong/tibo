@@ -5,6 +5,7 @@
   (import "../platform/util.eli" fail)
   (import "./web-policy.eli" public-url)
   (import "./web-egress.eli" egress-proxy)
+  (import "./headless-browser.eli" headless-browser)
   (defconst queue (js-object :tail (Promise/resolve nil)))
   ;; Page input cannot define code or browser options. These expressions only read DOM.
   (defconst read-size "document.body ? document.body.innerText.length : 0")
@@ -15,9 +16,9 @@
     (let ((view nil) (timer nil) (cancel nil) (deadline (+ (Date/now) timeout)))
       (try
         (when signal (js-call signal :throwIfAborted))
-        (let ((proxy (await (egress-proxy))))
+        (let ((browser (await (headless-browser))) (proxy (await (egress-proxy))))
           (setq view (new Bun/WebView (js-object :dataStore "ephemeral"
-            :backend (js-object :type "chrome" :url false :argv (js-array
+            :backend (js-object :type "chrome" :path browser :url false :argv (js-array
               (str "--proxy-server=" proxy) "--proxy-bypass-list=<-loopback>" "--disable-quic"
               "--force-webrtc-ip-handling-policy=disable_non_proxied_udp" "--disable-features=ServiceWorker,SharedWorker"
               "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1")))))

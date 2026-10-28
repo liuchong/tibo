@@ -116,7 +116,13 @@ Lark 未安装时不要执行第二条。重启后重新检查实际运行状态
 
 ## 网页读取运行条件
 
-静态获取与正文提取只使用 Bun 内置能力。动态后备使用 Bun.WebView 的独立 Chrome 后端，机器需要有 Chrome/Chromium 等受支持浏览器；不下载抓取 SDK，不连接个人浏览器资料，不需要新的 API key。浏览器由 Bun 默认位置查找，不开放给用户指定路径或参数。缺少浏览器时保留静态结果，可设置 `TIBO_WEB_RENDER=0` 明确关闭后备。
+静态获取与正文提取只使用 Bun 内置能力。动态后备使用 Bun.WebView 驱动独立的 `chrome-headless-shell`，不再让 Bun 自动寻找或启动桌面 Chrome。普通 Chrome 的辅助进程可能触发 macOS“App 管理”权限提示，机器人不需要这项权限。
+
+程序优先检查 `~/.local/lib/tibo/browser/` 中的专用后端，然后查找标准 Playwright 缓存里的 `chromium_headless_shell-*`，只复用其浏览器文件，不导入 Playwright 包或 SDK。管理员也可通过私有配置 `TIBO_WEB_BROWSER_PATH` 指定专用可执行文件，支持 `~/`；显式路径无效时直接保留静态结果，不改用桌面浏览器。真实路径位于 `.app` 内的文件及其符号链接均不作为后端。
+
+需要自行安装专用后端时，从 [Chrome 官方无头浏览器发行说明](https://developer.chrome.com/docs/automation-and-testing/headless-chrome-shell) 获取与操作系统及架构匹配的发行包，完整解压并保留旁边的资源库，再把配置指向其中的可执行文件。不要只复制单个二进制；机器人不会在处理消息时下载或更新浏览器。更新后按本页步骤重启两个服务。
+
+找不到专用后端或渲染失败时，静态正文与搜索仍可用；也可设置 `TIBO_WEB_RENDER=0` 关闭动态后备。不需要新的 API key，不连接个人浏览器资料，不开放给提问者自定义路径或启动参数。
 
 读取命令：`~/.local/lib/tibo/tibo query 'read-page https://example.com/guide'`。检查返回的正文、来源和读取状态；只有进程运行或 HTTP 200 不算读取成功。网页缓存与原文快照位于配置的状态目录，重装保留；不用清空引用历史或 AI 状态。更新仍按本页步骤重新编译、安装两个程序和读取状态。
 
