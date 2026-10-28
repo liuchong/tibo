@@ -1,7 +1,7 @@
 (module tibo.evidence.web-page
   (import "node:crypto" createHash)
   (import "node:process" :default process)
-  (import "../platform/host.eli" Date Promise URL Number Reflect fetch AbortSignal Buffer)
+  (import "../platform/host.eli" Date Promise URL Number Reflect Set fetch AbortSignal Buffer)
   (import "../platform/state.eli" read-state write-state)
   (import "../platform/transaction.eli" state-transaction)
   (import "../platform/util.eli" iso fail matches)
@@ -96,7 +96,7 @@
         :fetchedAt at :mode "http" :provenance "page-content" :truncated false) result)))
   (defasync read-page (address &optional options)
     (setq options (or options (js-object)))
-    (let* ((url (get (public-url address) :href)) (key (str "web-page-" (page-hash (str "page-1:" url)))))
+    (let* ((url (get (public-url address) :href)) (key (str "web-page-" (page-hash (str "page-2:" url)))))
       (await (state-transaction key (async ()
         (let ((saved (or (await (read-state key)) (js-object))))
           (if (and saved (> (get saved :until) (Date/now)))
@@ -112,13 +112,19 @@
   (defasync read-search (query &optional read)
     (let* ((search (await (search-web query))) (pages (js-array)))
       (when (and (not (= read false)) (= (get search :state) "ok"))
-        (let* ((controller (AbortSignal/timeout 18000)) (rows (js-call (js-call (js-call (get search :results) :filter (lambda (row)
+        (let* ((controller (AbortSignal/timeout 14000)) (hosts (js-array)) (candidates (js-call (js-call (js-call (get search :results) :filter (lambda (row)
             (not (matches "\\.(?:pdf|zip|exe|dmg|mp[34]|png|jpe?g)(?:[?#]|$)" (get row :url))))) :sort
             (lambda (a b)
               (- (if (matches "https?://(?:docs|help|support)\\.|/(?:docs|documentation|support)/" (get b :url)) 1 0)
-                 (if (matches "https?://(?:docs|help|support)\\.|/(?:docs|documentation|support)/" (get a :url)) 1 0)))) :slice 0 2)))
+                 (if (matches "https?://(?:docs|help|support)\\.|/(?:docs|documentation|support)/" (get a :url)) 1 0)))) :filter
+            (lambda (row) (let ((host (get (new URL (get row :url)) :hostname)))
+              (unless (js-call hosts :includes host) (js-call hosts :push host) t)))))
+          (rows (js-call candidates :slice 0 3)))
           (setq pages (await (Promise/all (js-call rows :map (async (row)
             (try (await (read-page (get row :url) (js-object :signal controller)))
               (catch error (js-object :url (get row :url) :state "unavailable" :text "" :reason "fetch-unavailable"))))))))))
-      (Object/assign (js-object) search (js-object :pages pages))))
+      (Object/assign (js-object) search (js-object :pages pages :verification
+        (js-object :candidateDomains (Array/from (new Set (js-call (get search :results) :map (lambda (r) (get (new URL (get r :url)) :hostname)))))
+          :readDomains (Array/from (new Set (js-call (js-call pages :filter (lambda (p) (js-call (js-array "ok" "partial") :includes (get p :state)))) :map
+            (lambda (p) (get (new URL (get p :finalUrl)) :hostname))))))))))
   (export load-page collect-page read-page read-search))

@@ -23,8 +23,8 @@ test('paragraph density handles pages without article and marks truncation and a
 });
 test('public URL and address validation reject local, metadata, reserved and encoded IP forms',async()=>{
  for(const url of [pathToFileURL(resolve('web-fixture')).href,'http://localhost/x','https://127.1/x','https://2130706433/x','https://[::1]/','https://[::ffff:127.0.0.1]/','https://user:pass@example.com/','https://example.com:8443/','https://foo.local/'])expect(()=>public_url(url)).toThrow();
- for(const ip of ['0.0.0.0','10.0.0.1','127.0.0.1','169.254.169.254','172.16.1.2','192.168.1.1','100.64.1.1','198.18.0.1','224.0.0.1','::1','2001::','2001:2::1','2001:db8::1','fe80::1','fd00::1','::ffff:8.8.8.8'])expect(publicIP(ip)).toBe(false);
- expect(publicIP('8.8.8.8')).toBe(true);expect(publicIP('2606:4700:4700::1111')).toBe(true);
+ for(const ip of ['0.0.0.0','10.0.0.1','127.0.0.1','169.254.169.254','172.16.1.2','192.168.1.1','192.0.0.1','192.0.2.1','100.64.1.1','198.18.0.1','224.0.0.1','::1','2001::','2001:2::1','2001:db8::1','fe80::1','fd00::1','::ffff:8.8.8.8'])expect(publicIP(ip)).toBe(false);
+ expect(publicIP('8.8.8.8')).toBe(true);expect(publicIP('192.0.66.108')).toBe(true);expect(publicIP('2606:4700:4700::1111')).toBe(true);
  await expect(resolve_public('example.com',async()=>[{address:'8.8.8.8',family:4},{address:'127.0.0.1',family:4}])).rejects.toThrow();
  expect((await resolve_public('example.com',async()=>[{address:'8.8.8.8',family:4}])).address).toBe('8.8.8.8');
 });

@@ -1,6 +1,6 @@
 (module tibo.evidence.page-extract
   (import "../platform/host.eli" HTMLRewriter RegExp)
-  (import "./html.eli" parse-html by-tag select html-text attr)
+  (import "./html.eli" parse-html by-tag select html-text attr decode-entities)
   (import "../platform/privacy.eli" public-text)
   (import "../platform/util.eli" clean matches)
   (defun tidy-page-text (text)
@@ -24,7 +24,7 @@
       (* n (Math/pow (Math/max 0 (- 1 density)) 2) factor
         (+ 1 (Math/min 0.4 (/ punct (Math/max 1 n)))))))
   (defasync extract-page (html url)
-    (let ((title "") (metadata (js-object)) (ld (js-array)) (current ""))
+    (let ((title "") (metadata (js-object)) (ld (js-array)) (current "") (structured (js-array)))
       (let ((reader (new HTMLRewriter)))
         (js-call reader :on "title" (js-object :text (lambda (part) (setq title (str title (get part :text))))))
         (js-call reader :on "script[type='application/ld+json']" (js-object
@@ -37,6 +37,13 @@
         (try
           (let* ((parsed (JSON/parse text)) (rows (if (Array/isArray parsed) parsed (get parsed :@graph (js-array parsed)))))
             (js-call rows :forEach (lambda (row)
+              (when (and row (< (get structured :length) 4)
+                (matches "Business|Restaurant|Organization|Store|Place|Hotel" (JSON/stringify (get row :@type ""))))
+                (let ((fields (js-object)))
+                  (js-call (js-array "name" "telephone" "email" "address" "openingHours" "openingHoursSpecification" "url") :forEach
+                    (lambda (key) (when (Object/hasOwn row key)
+                      (put fields key (public-text (if (= (value-type (get row key)) "string") (get row key) (JSON/stringify (get row key))) 600)))))
+                  (js-call structured :push fields)))
               (when (and row (matches "Article|BlogPosting|TechArticle" (JSON/stringify (get row :@type ""))))
                 (let ((author (get row :author)))
                   (when (Array/isArray author) (setq author (get author 0)))
@@ -55,7 +62,8 @@
             (let ((value (candidate-score node))) (when (> value score) (setq score value winner node)))))
           (setq text (js-call (tidy-page-text (node-text (or winner root))) :trim))
           (when (and (< (get text :length) 120) (get metadata :articleBody)) (setq text (get metadata :articleBody)))
-          (setq title (clean (if (= (clean title) "") (get metadata :headline "") title)))
+          (setq title (decode-entities (clean (if (= (clean title) "") (get metadata :headline "") title))))
+          (when (> (get structured :length) 0) (setq text (str text "\n\n网站结构化资料：\n" (JSON/stringify structured))))
           (when (or (matches "^(?:just a moment|access denied|attention required|security verification|百度安全验证|安全验证|访问受限|登录知乎)" title)
             (and (< (get text :length) 400) (matches "verify (?:that )?you are human|enable javascript and cookies|请完成安全验证|请开启 JavaScript|扫码登录后|请先登录后" text)))
             (setq state "blocked" text ""))
@@ -64,5 +72,5 @@
             :author (public-text (get metadata :author "") 160)
             :publishedAt (let ((value (get metadata :publishedAt)))
               (when (and (= (value-type value) "string") (matches "^20[0-9]{2}-[0-9]{2}-[0-9]{2}" value)) (js-call value :slice 0 40)))
-            :text (public-text (js-call text :slice 0 24000) 24000) :truncated (> (get text :length) 24000))))))
+            :structuredData structured :text (public-text (js-call text :slice 0 24000) 24000) :truncated (> (get text :length) 24000))))))
   (export tidy-page-text node-text candidate-score extract-page))

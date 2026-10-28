@@ -28,13 +28,17 @@ tibo query 'help'
 | `stats`，别名 `统计` | 无 | global 间隔均值、中位数、范围与可用样本量 |
 | `review`，别名 `复盘/预测复盘` | 无 | 最近 6 份真实报告的原始概率及严格 24h/48h 公告结果；重叠窗口不能当独立成绩 |
 | `help`，别名 `帮助/commands/命令` | 无 | 当前身份可用命令、参数和管道用法 |
-| `ask`，别名 `问答` | `question` 必填；带空格时加引号，超窗材料归档摘要 | 了解 Tibo 背景的基础聊天；Lark 引用延续同一 Thread，未引用单轮；询问近期重置时补入业务状态，其他问题按需查官方状态、公开搜索摘要、计算或时间；不能操作账户 |
+| `ask`，别名 `问答` | `question` 必填；带空格时加引号，超窗材料归档摘要 | 了解 Tibo 背景的基础聊天；Lark 引用延续同一 Thread，未引用单轮；询问近期重置时补入业务状态，其他问题按需查官方状态、公开搜索及原文、地点、天气、计算或时间；不能操作账户 |
 | `service-status` | 无 | OpenAI 官方整体服务、组件与进行中事故，区别于重置 status |
 | `service-history` | `limit=1..20` 默认 8；`days=1..90` 默认 14；`component` 可选子串 | 官方事故历史，含已解决；只覆盖官方返回的最近一页 |
-| `search` | `query` 必填 ≤200 字符，带空格加引号 | 公开搜索摘要与原始链接，不自动抓取结果页 |
+| `search` | `query` 必填 ≤200 字符，带空格加引号 | 合并公开搜索结果与原始链接，默认读取最多三个不同域名的正文；read=false 仅摘要 |
 | `calculate`，别名 `calc` | `expression` 必填 ≤256 字符 | 有限浮点算术，括号、四则、取余、幂；不执行代码 |
 | `time` | `timezone` 默认 UTC，IANA 名称；`at` 可选 | 当前或指定时刻的 UTC 与时区时间 |
 | `date-diff` | `from to` 必填 | 有符号秒/小时/天差；纯日期为 UTC 零点，时间须带 Z |
+| `date-add` | `from amount` 必填；`unit=seconds/minutes/hours/days/weeks` 默认 days；`timezone` 默认 UTC | 整数固定时长推算，amount 绝对值 ≤36600；一天为 24 小时，不是当地日历跨夏令时加天 |
+| `place` | `query` 必填 2..120 字符；`limit=1..3` 默认 3；`country` 可选 ISO 两字母国家代码 | 用户给定城市、地区或邮编的候选坐标、行政区和时区 |
+| `weather` | `place` 必填，城市或 `纬度,经度`；`days=1..7` 默认 3；`country` 可选 ISO 两字母国家代码 | 当前温度、风速及未来各地当地日期的高低温和降水概率 |
+| `distance` | `from to` 必填，城市或 `纬度,经度`；`fromCountry/toCountry` 可选国家代码 | 城市参考点间球面距离，明确坐标可离线计算 |
 | `convert` | `value from to` 必填 | 长度、质量、时长、数据容量和温度换算；拒绝跨维度 |
 | `pray`，别名 `祈祷/上香/🙏` | `action limit`；action offer/me/board/stats 默认 offer；limit 1..20 默认 10 | 上香、本人档案、当前会话榜单与愿力池 |
 | `subscribe`，别名 `订阅` | `target=personal/group`，默认 personal；`items=all/alerts/warnings/daily/promise/probability/confirmed`（支持逗号组合），默认 all；可选 `chatId` | 默认订阅本人私聊；group 由本群群主、群管理员或 Tibo 管理员申请并二次确认；支持按项目单独或组合订阅（如 `alerts` 仅订阅重置预警与确认，不收每日定点预测） |
@@ -120,6 +124,15 @@ CLI 管理员由 `TIBO_LOCAL_ADMIN_UID` 与进程真实 UID 比较，不能传�
 | 命令 | 参数 | 用途 |
 | --- | --- | --- |
 | `read-page` / `读网页` | `url` 必填，公开 HTTP(S) 网页 | 获取正文、来源和读取状态；必要时原生 WebView 渲染 |
-| `search` | `query` 必填；`read` 默认 true | 搜索并读取最多两篇原页；false 仅保留标题与摘要 |
+| `search` | `query` 必填；`read` 默认 true | 搜索并读取最多三个不同域名的原页；false 仅保留标题与摘要 |
 
 CLI 示例：`tibo query 'read-page https://example.com/guide'`；`tibo query 'search --query 产品额度规则 --read false'`。自然语言“读取这篇原文”可沿显式引用链使用已有来源链接；没有链接时由固定搜索方法搜索并读页，不增加模型工具循环。正文获取失败会保留原始搜索结果及失败等级。
+
+地点与天气只使用显式提供的公开地点，不获取设备或 IP 位置。地点同名时核对返回的国家与行政区；命令参数及缓存边界见 [内置信息能力](chat-builtins.md)。
+
+```bash
+tibo query 'date-add 2026-10-29 10 --timezone Asia/Shanghai'
+tibo query 'place Sydney --country AU'
+tibo query 'weather London 2 --country GB'
+tibo query 'distance "39.9,116.4" "31.2,121.5"'
+```

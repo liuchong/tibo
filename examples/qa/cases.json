@@ -1,0 +1,196 @@
+{
+  "schemaVersion": 1,
+  "preparedAt": "2026-10-29",
+  "reviewPolicy": "Evaluate factual correctness, intent, evidence and brevity separately. Dynamic answers must be checked against the captured current data; completing a request is not a passing factual review.",
+  "cases": [
+    {
+      "id": "life-food",
+      "category": "生活",
+      "question": "按美国 USDA 的建议，鸡肉中心温度至少达到多少摄氏度才安全？一句话回答并给来源。",
+      "references": [
+        "https://www.foodsafety.gov/food-safety-charts/safe-minimum-internal-temperatures"
+      ],
+      "checks": [
+        "74°C / 165°F，测量内部温度而非烤箱温度",
+        "引用直接资料，避免把不同国家或不同肉类的标准混用"
+      ]
+    },
+    {
+      "id": "study-decimal",
+      "category": "学习",
+      "question": "为什么 1/3 不能写成有限小数？给初中生解释，简短一点。",
+      "references": [
+        "https://openstax.org/books/contemporary-mathematics/pages/3-4-rational-numbers"
+      ],
+      "checks": [
+        "约分后分母含3，不能化成只有2和5的因子",
+        "0.333…循环，不把截断近似当精确相等"
+      ]
+    },
+    {
+      "id": "language-english",
+      "category": "外语",
+      "question": "I have been working here for three years. 请译成中文，并用一句话解释这里的时态。",
+      "references": [
+        "https://learnenglish.britishcouncil.org/grammar/b1-b2-grammar/present-perfect-simple-continuous"
+      ],
+      "checks": [
+        "已经在这里工作三年",
+        "现在完成进行时，强调从过去持续至今，不误译成已经离职"
+      ]
+    },
+    {
+      "id": "history-ww2",
+      "category": "历史",
+      "question": "1945年5月8日和9月2日分别是什么二战纪念日期？不要把欧洲战事结束和日本正式投降混起来。",
+      "references": [
+        "https://americanhistory.si.edu/explore/exhibitions/price-of-freedom/online/world-war-ii/victory-and-peace"
+      ],
+      "checks": [
+        "5月8日欧洲胜利日",
+        "9月2日日本正式签署投降书，区别8月宣布接受投降"
+      ]
+    },
+    {
+      "id": "international-driving",
+      "category": "外国常识",
+      "question": "英国的汽车通常靠左还是靠右行驶？给一个官方依据，简短回答。",
+      "references": [
+        "https://www.gov.uk/guidance/the-highway-code/using-the-road-159-to-203"
+      ],
+      "checks": [
+        "通常靠左",
+        "英国 Highway Code Rule 160，不把方向盘位置当行车方向依据"
+      ]
+    },
+    {
+      "id": "news-space",
+      "category": "新闻",
+      "question": "请看 NASA 的 Artemis II 新闻页，概括最新一条任务进展并给出发布日期：https://www.nasa.gov/artemis-ii-news-and-updates/ 。请根据网页当前内容回答，不沿用旧发射计划。",
+      "references": [
+        "https://www.nasa.gov/artemis-ii-news-and-updates/"
+      ],
+      "dynamic": true,
+      "checks": [
+        "实际读取页面，区分发布日期和读取日期",
+        "以当前页面为准；准备样例时最近一项为2026-10-15的热盾表现分析，后续可有更新",
+        "简短概括，不直接转发整页"
+      ]
+    },
+    {
+      "id": "military-nato",
+      "category": "军事常识",
+      "question": "北约第五条被触发，是不是每个成员都必须自动派兵参战？请根据北约自己的说明简短解释。",
+      "references": [
+        "https://www.nato.int/en/what-we-do/introduction-to-nato/collective-defence-and-article-5"
+      ],
+      "checks": [
+        "有援助义务，但不是自动或一律派兵",
+        "各成员采取认为必要的行动，可能包括也可能不包括武力"
+      ]
+    },
+    {
+      "id": "science-fall",
+      "category": "科学",
+      "question": "在真空里从同样高度同时放开羽毛和铁球，它们会同时落地吗？简短解释，并提一个真实实验。",
+      "references": [
+        "https://science.nasa.gov/resource/the-apollo-15-hammer-feather-drop/"
+      ],
+      "checks": [
+        "忽略初速度等差别时同时落地，重力加速度不由质量决定",
+        "Apollo 15 月球锤子与羽毛实验，不说地球有空气时也必定同时"
+      ]
+    },
+    {
+      "id": "professional-http",
+      "category": "专业技术",
+      "question": "HTTP 429 是什么意思？Retry-After 有什么用？请用两三句话说明，依据 RFC 6585。",
+      "references": [
+        "https://www.rfc-editor.org/rfc/rfc6585"
+      ],
+      "checks": [
+        "Too Many Requests，限流",
+        "Retry-After 可指示重试等待；可选字段，不保证每个429都有",
+        "避免建议无限立即重试"
+      ]
+    },
+    {
+      "id": "work-timezones",
+      "category": "工作",
+      "question": "2026-01-15T18:00:00Z 和 2026-07-15T18:00:00Z 分别是纽约当地几点？请用 America/New_York 计算。",
+      "references": [],
+      "checks": [
+        "冬季13:00，夏季14:00",
+        "分别对应UTC-5与UTC-4，使用给定日期计算"
+      ]
+    },
+    {
+      "id": "units-storage",
+      "category": "计算常识",
+      "question": "1 GiB 等于多少 MiB？1 GB 又等于多少 MB？请明确区分。",
+      "references": [],
+      "checks": [
+        "1 GiB = 1024 MiB",
+        "1 GB = 1000 MB"
+      ]
+    },
+    {
+      "id": "math-expression",
+      "category": "数学",
+      "question": "帮我算一下 (123+456)*7，直接给结果就行。",
+      "references": [],
+      "checks": [
+        "4053",
+        "简短，不复制不必要的说明"
+      ]
+    },
+    {
+      "id": "geo-city",
+      "category": "地理",
+      "question": "查一下澳大利亚悉尼的经纬度和时区，说明查询到的是哪一个地方。",
+      "references": [
+        "https://open-meteo.com/en/docs/geocoding-api"
+      ],
+      "checks": [
+        "悉尼、澳大利亚、新南威尔士州",
+        "约南纬33.9、东经151.2，Australia/Sydney",
+        "不把公共城市坐标说成用户当前位置"
+      ]
+    },
+    {
+      "id": "weather-london",
+      "category": "天气",
+      "question": "查一下英国伦敦未来两天的最高最低温度，按伦敦当地日期列出并注明数据来源。",
+      "references": [
+        "https://open-meteo.com/en/docs"
+      ],
+      "dynamic": true,
+      "checks": [
+        "地点为英国伦敦，Europe/London",
+        "温度与本轮weather返回一致，日期为当地日期",
+        "不是凭训练记忆猜天气"
+      ]
+    },
+    {
+      "id": "date-planning",
+      "category": "日常规划",
+      "question": "从2026年10月29日的UTC零点往后加10个24小时，日期是几号、星期几？",
+      "references": [],
+      "checks": [
+        "2026-11-08，星期日",
+        "date-add 固定时长计算，不擅改起点时区"
+      ]
+    },
+    {
+      "id": "evidence-conflict",
+      "category": "信息核验",
+      "question": "假设某餐厅官网今天更新的联系方式是号码A，两个转载旧目录写号码B。能不能因为两个网站都写B就认定B更准？请简短说明该怎么核实。",
+      "references": [],
+      "checks": [
+        "不能按网址数量投票",
+        "核对是否同店、更新时间、原始来源与转载关系；优先直接且较新的官方资料",
+        "不能声称已经打电话确认或编造真实号码"
+      ]
+    }
+  ]
+}

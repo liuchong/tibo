@@ -1,7 +1,7 @@
 ;; Fixed search transports. This search transport returns citations; web-page owns optional body reads.
 (module tibo.evidence.web-search
   (import "node:crypto" createHash)
-  (import "../platform/host.eli" Date URL RegExp Promise encodeURIComponent)
+  (import "../platform/host.eli" Date URL RegExp Promise Set encodeURIComponent)
   (import "../platform/state.eli" read-state write-state)
   (import "../platform/transaction.eli" state-transaction)
   (import "../platform/privacy.eli" public-text source-free-text)
@@ -68,19 +68,29 @@
                 (catch error (setq row (js-object :engine engine :state "unavailable" :results (js-array)
                   :at (iso (Date/now)) :until (+ (Date/now) 60000)))))
               (await (write-state key row)) row))))))))
+  (defun merge-search-results (rows)
+    (let ((results (js-array)))
+      (js-call rows :forEach (lambda (row)
+        (js-call (get row :results) :forEach (lambda (item)
+          (let ((old (js-call results :find (lambda (r) (= (get r :url) (get item :url))))))
+            (if old
+              (unless (js-call (get old :engines) :includes (get row :engine))
+                (js-call (get old :engines) :push (get row :engine)))
+              (js-call results :push (Object/assign (js-object) item
+                (js-object :engines (js-array (get row :engine)) :collectedAt (get row :at))))))))))
+      (js-call results :slice 0 8)))
   (defasync search-web (query &optional timeout)
     (safe-query query)
     (let* ((end (+ (Date/now) (or timeout 8000)))
       (rows (await (Promise/all (js-call (js-array "google" "baidu") :map
         (lambda (engine) (search-engine engine query (Math/max 1 (Math/min 4000 (- end (Date/now))))))))))
-      (results (js-call (get (or (js-call rows :find (lambda (r) (= (get r :state) "ok"))) (js-object :results (js-array))) :results) :slice)))
-      (let ((fallbacks (js-array "duckduckgo" "bing")) (i 0))
-        (while (and (= (get results :length) 0) (< i (get fallbacks :length)) (> (- end (Date/now)) 100))
-          (let ((fallback (await (search-engine (get fallbacks i) query (Math/max 1 (Math/min 3000 (- end (Date/now))))))))
-            (js-call rows :push fallback) (setq results (get fallback :results)))
-          (setq i (+ i 1))))
+      (results (merge-search-results rows)))
+      (when (and (< (get (new Set (js-call results :map (lambda (r) (get (new URL (get r :url)) :hostname)))) :size) 2)
+        (> (- end (Date/now)) 100))
+        (let ((more (await (Promise/all (js-call (js-array "duckduckgo" "bing") :map
+          (lambda (engine) (search-engine engine query (Math/max 1 (Math/min 3000 (- end (Date/now)))))))))))
+          (setq rows (js-call rows :concat more) results (merge-search-results rows))))
       (js-object :state (if (> (get results :length) 0) "ok" "unavailable") :query query :results results
         :at (get (or (js-call rows :find (lambda (r) (= (get r :state) "ok"))) (js-object)) :at)
-        :engines
-        (js-call rows :map (lambda (r) (js-object :engine (get r :engine) :state (get r :state) :cached (get r :cached false)))))))
-  (export safe-query public-link? search-results search-engine search-web))
+        :engines (js-call rows :map (lambda (r) (js-object :engine (get r :engine) :state (get r :state) :cached (get r :cached false)))))))
+  (export safe-query public-link? search-results search-engine merge-search-results search-web))

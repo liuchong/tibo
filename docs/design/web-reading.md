@@ -34,13 +34,13 @@ flowchart LR
 
 `read-page {url:string}`：只接受无凭据、标准端口的公开 HTTP(S) URL；不接受方法、请求体、headers、脚本、路径或浏览器参数。固定命令无需 AI。计划中的 URL 必须出现在当前问题或已提供的引用资料中，不让模型编造网址。
 
-`search {query:string, read:boolean=true}`：搜索保留原四条入口；默认选择至多两篇不同 URL 并发读原文，明确跳过 PDF、下载地址；read=false 只查摘要。搜索与读取是一批程序工作，不额外请求模型选页面。保持搜索顺序，优先文档和支持页面；官方身份按真实域名与页面资料确认。最多一次渲染并发，搜索共享 18 秒正文预算。
+`search {query:string, read:boolean=true}`：搜索合并多路入口，保留至多八条结果；默认选择至多三个不同域名 并发读原文，明确跳过 PDF、下载地址；read=false 只查摘要。搜索与读取是一批程序工作，不额外请求模型选页面。保持搜索顺序，优先文档和支持页面；官方身份按真实域名与页面资料确认。最多一次渲染并发，每次搜索共享 14 秒正文预算。
 
 网页结果 `Page`：`state=ok/partial/blocked/unavailable/unsupported`、`url`、`finalUrl`、`title`、`author`、`publishedAt`（无则 null）、`text`、`fetchedAt`、`mode=http/webview`、`provenance=page-content`、`truncated`、`reason`（固定业务枚举）。HTTP 成功不等于正文成功，也不等于内容真实。没有正文不以 meta description 或标题冒充正文。
 
-静态提取 `extract-page(html,url)`：HTMLRewriter 提取 JSON-LD 元数据并清除脚本、样式、导航、广告等非正文；既有数据树计算候选段落字符数、链接密度、段落数、文章语义标签与标点，选择最有内容的候选。保留段落、标题、列表和代码；输出最多 24000 字符并明确截断。先检查验证页/登录墙，正文太短才请求浏览器，不对明确 403/429/验证页反复渲染。
+静态提取 `extract-page(html,url)`：HTMLRewriter 提取 JSON-LD 元数据及有限商户联系字段并清除脚本、样式、导航、广告等非正文；既有数据树计算候选段落字符数、链接密度、段落数、文章语义标签与标点，选择最有内容的候选。保留段落、标题、列表和代码；输出最多 24000 字符并明确截断。先检查验证页/登录墙，正文太短才请求浏览器，不对明确 403/429/验证页反复渲染。
 
-渲染 `render-page(url, timeout)`：Bun.WebView 固定独立 Chrome 后端，`url:false` 禁止连接个人浏览器。选择这个后端是因为 WebKit 的现有接口缺少逐请求网络控制。所有网络通过本程序的公网出口代理，包含重定向与子资源，防止只校验初始 URL。代理 DNS 全部解析地址必须公网（系统仅返回 VPN 虚拟 benchmark 地址时，通过固定 HTTPS 公共 DNS 重新取得真实地址，不放行该保留网段），连接固定解析 IP，拒绝私网、保留网段、非 HTTP(S) 端口和本地协议；浏览器禁 QUIC、非代理 UDP 和本地绕过。只执行程序写定的 DOM 读取表达式；输入不控制 evaluate。使用临时资料存储、12 秒截止、短暂正文稳定等待、串行视图、finally close 与 closeAll。没有 Chrome 或渲染失败回到已有材料，不安装或执行用户指定程序。
+渲染 `render-page(url, timeout)`：Bun.WebView 固定独立 Chrome 后端，`url:false` 禁止连接个人浏览器。选择这个后端是因为 WebKit 的现有接口缺少逐请求网络控制。所有网络通过本程序的公网出口代理，包含重定向与子资源，防止只校验初始 URL。代理 DNS 全部解析地址必须公网；IPv4 特殊用途范围按网段检查，192.0.0.0/24 与 192.0.2.0/24 保持拒绝，正常的 192.0.66.0/24 不误归入其中。系统仅返回 VPN 虚拟 benchmark 地址时，通过固定 HTTPS 公共 DNS 重新取得真实地址，不放行该保留网段；连接固定解析 IP，拒绝私网、保留网段、非 HTTP(S) 端口和本地协议；浏览器禁 QUIC、非代理 UDP 和本地绕过。只执行程序写定的 DOM 读取表达式；输入不控制 evaluate。使用临时资料存储、12 秒截止、短暂正文稳定等待、串行视图、finally close 与 closeAll。没有 Chrome 或渲染失败回到已有材料，不安装或执行用户指定程序。
 
 原生 HTTP 同样通过公网出口代理，由 Bun fetch 接收原始 URL 以保持 TLS 主机验证；手动处理最多五次重定向，每跳再次校验，2 MB 流式体积上限、单次 8 秒。代理仅监听 loopback 的随机端口，无写接口；连接数/时长/传输量有界，DNS 后固定 IP 连接。此内部地址不进入模型和消息。
 
@@ -71,7 +71,7 @@ flowchart LR
 ```mermaid
 flowchart LR
   Q[当前问题/显式引用] --> P[一次计划：search/read-page]
-  P --> S[搜索与选择两篇原页]
+  P --> S[搜索与选择至多三个域名原页]
   P --> U[直接引用链接]
   S --> F[Bun fetch + 公网代理]
   U --> F
