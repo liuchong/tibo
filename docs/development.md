@@ -32,7 +32,7 @@ bun run test
 bun run compile
 ```
 
-工具链使用锁定的 Eliscript npm 发布包，安装不依赖本机其他仓库；路径覆盖只用于可选的编译器联调，见 [快速开始](getting-started.md)。`eliscript.json` 配置 CLI、MCP 和 Lark 三个入口，输出 dist；缓存由编译器管理。dist 是编译输出，不手工修改或提交。`.tibo` 是被 Git 忽略的本地目录，可能同时包含编译程序、试用状态、日志与验收证据；不能把整个目录当作可删除缓存。
+工具链使用锁定的 Eliscript npm 发布包，安装不依赖本机其他仓库；路径覆盖只用于可选的编译器联调，见 [快速开始](getting-started.md)。`eliscript.json` 配置 CLI、MCP 和 Lark 三个运行入口，以及回归和离线研究仍需使用的 `ai/post-features`、`forecast/feature-model` 两个入口，输出 dist；缓存由编译器管理。后两者不进入正式预测调用链，显式构建它们可确保全量测试不依赖遗留 dist 文件。dist 是编译输出，不手工修改或提交。`.tibo` 是被 Git 忽略的本地目录，可能同时包含编译程序、试用状态、日志与验收证据；不能把整个目录当作可删除缓存。
 
 `bun run test` 先检查模块依赖，再构建并运行测试。`check:architecture` 检查本地导入、模块名唯一、依赖无环、基础层方向与公开业务路径没有进程/安装能力；它是结构约束，不替代实际运行测试。
 

@@ -173,6 +173,7 @@
                  :replyEmojis reply-emojis
                  :conversationMode (not (not (get job :reference)))
                  :prayerMaterial (get job :prayerMaterial)
+                 :brandRebuttal (get job :brandRebuttal)
                  :oracleForecast (get job :oracleForecast) :messageLanguage (get job :messageLanguage)
                  :recentMessages (get job :recentMessages)
                  :completePrayer t :festivalDelivery t
@@ -183,7 +184,7 @@
                     (put options :context (await (command-context client query context)))
                     (when (and (= (get query :command) "ask") (get job :reference) (not (get options :noAi))
                       (> (get (get (config) :key) :length) 0)
-                      (js-call (get (config) :features) :includes (if (oracle-trigger? (get (get query :args) :question)) "oracle" "answer")))
+                      (js-call (get (config) :features) :includes (if (and (not (get job :brandRebuttal)) (oracle-trigger? (get (get query :args) :question))) "oracle" "answer")))
                       (let ((history-start (Date/now)) (history (await (load-thread client job (get (get process :env) :TIBO_LARK_APP_ID "")))))
                         (put options :threadConversation history)
                         ;; Routing prepared only this message. The answer must

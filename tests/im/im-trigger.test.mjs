@@ -4,7 +4,7 @@ import {prayer_material} from '../../dist/src/prayer/material.mjs';
 import {message_candidate,message_text} from '../../dist/adapters/lark/service.mjs';
 import {message_intents} from '../../dist/src/im/intents.mjs';
 const root=resolve('dist');
-async function trial(code,features=''){const dir=await mkdtemp(join(tmpdir(),'tibo-trigger-'));try{const r=spawnSync(process.execPath,['--eval',code],{env:{...process.env,TIBO_CONFIG_FILE:'/dev/null',TIBO_STATE_DIR:dir,DEEPSEEK_API_KEY:'fixture-key',TIBO_AI_FEATURES:features,TIBO_LARK_APP_ID:'fixture',TIBO_LARK_DOMAIN:'lark'},encoding:'utf8',timeout:7000});expect(r.status,r.stderr).toBe(0);return JSON.parse(r.stdout);}finally{await rm(dir,{recursive:true,force:true});}}
+async function trial(code,features=''){const dir=await mkdtemp(join(tmpdir(),'tibo-trigger-'));try{const r=spawnSync(process.execPath,['--eval',code],{env:{...process.env,TIBO_CONFIG_FILE:join(dir,'absent.env'),TIBO_STATE_DIR:dir,DEEPSEEK_API_KEY:'fixture-key',TIBO_AI_FEATURES:features,TIBO_LARK_APP_ID:'fixture',TIBO_LARK_DOMAIN:'lark'},encoding:'utf8',timeout:7000});expect(r.status,r.stderr).toBe(0);return JSON.parse(r.stdout);}finally{await rm(dir,{recursive:true,force:true});}}
 const setup=`const {decide_secondary}=await import(${JSON.stringify(root+'/src/im/triggers.mjs')});const ctx={transport:'future-im',account:'private-app',scope:'private-room',actor:'private-user',authenticated:true};`;
 test('one text can carry prayer and a distinct fixed command, direct question or secondary discussion',()=>{
  for(const text of ['help 🙏','🙏 posts 2 |translate ja','[双手合十] history 2','🙏🏽 subscribe','tibo help 🙏']){
@@ -52,9 +52,9 @@ test('shared room dampening survives restarts, bypasses other rooms and recovers
  const r=await trial(`${setup}let now=Date.now();Date.now=()=>now;const first=await decide_secondary('Claude',ctx,'one',true);const replay=await decide_secondary('Claude',ctx,'one',true);now+=10000;const spam=await decide_secondary('Claude又来了',ctx,'two',true);const other=await decide_secondary('Claude又来了',{...ctx,scope:'another-room'},'two',true);now+=60000;const damped=await decide_secondary('Claude呢',ctx,'three',true);now+=301000;const recovered=await decide_secondary('Claude呢',ctx,'four',true);console.log(JSON.stringify({first,replay,spam,other,damped,recovered}));`);
  expect(r.first.accepted).toBe(true);expect(r.replay).toEqual(r.first);expect(r.spam.accepted).toBe(false);expect(r.other.accepted).toBe(true);expect(r.damped.accepted).toBe(false);expect(r.recovered.accepted).toBe(true);
 });
-test('ambiguous relevance asks only a compact classifier and cooling avoids more model calls',async()=>{
+test('model references use compact semantic classification independently of local score dampening',async()=>{
  const r=await trial(`let calls=0,bodies=[];globalThis.fetch=async(url,o)=>{calls++;const b=JSON.parse(o.body);bodies.push(b);const e=JSON.parse(b.messages[1].content);return new Response(JSON.stringify({choices:[{finish_reason:'stop',message:{content:JSON.stringify({scores:Object.fromEntries(e.keywords.map(k=>[k,e.text.includes('OpenAI')?0.9:0.1]))})}}]}))};${setup}const good=await decide_secondary('OpenAI新模型',ctx,'one');const spam=await decide_secondary('OpenAI又有新模型',ctx,'two');const bad=await decide_secondary('gpt模型',{...ctx,scope:'another-room'},'three');console.log(JSON.stringify({good,spam,bad,calls,bodies}));`,'trigger');
- expect(r.good).toEqual({accepted:true,reason:'relevant',method:'ai'});expect(r.bad.accepted).toBe(false);expect(r.calls).toBe(2);expect(r.spam.accepted).toBe(false);
+ expect(r.good).toEqual({accepted:true,reason:'relevant',method:'ai'});expect(r.bad.accepted).toBe(false);expect(r.calls).toBe(3);expect(r.spam.accepted).toBe(true);
  for(const b of r.bodies){expect(b.max_tokens).toBe(120);expect(b.tools).toBeUndefined();expect(Object.keys(JSON.parse(b.messages[1].content)).sort()).toEqual(['keywords','text']);expect(JSON.stringify(b)).not.toMatch(/private-user|private-app|private-room|fixture-key/);}
  expect(()=>validate_relevance({scores:{claude:2}},['claude'])).toThrow();expect(()=>validate_relevance({scores:{claude:0.9,extra:1}},['claude'])).toThrow();
 });
