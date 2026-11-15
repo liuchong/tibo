@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "now": "2026-11-01T01:53:32.185Z",
+  "now": "2026-11-15T01:57:40.575Z",
   "documents": [],
   "events": [
     {
@@ -2764,6 +2764,341 @@
       "referenceMetadataVerified": true,
       "url": "https://x.com/thsottiaux/status/2116692529970311254",
       "text": "Banked 1/2"
+    },
+    {
+      "id": "2116935650511585696",
+      "at": "2026-11-01T16:49:24.501Z",
+      "author": "thsottiaux",
+      "provenance": "primary",
+      "cachedAt": "2026-11-01T16:54:06.528Z",
+      "truncated": false,
+      "referenceMetadataVerified": true,
+      "url": "https://x.com/thsottiaux/status/2116935650511585696",
+      "text": "Dot still autocorrects to dog and that makes many texts I receive hilarious"
+    },
+    {
+      "id": "2117035794678546764",
+      "at": "2026-11-01T23:27:20.731Z",
+      "author": "thsottiaux",
+      "provenance": "primary",
+      "cachedAt": "2026-11-01T23:31:55.837Z",
+      "truncated": false,
+      "referenceMetadataVerified": true,
+      "url": "https://x.com/thsottiaux/status/2117035794678546764",
+      "text": "Day 28/ Banked 2/2"
+    },
+    {
+      "id": "2117283124833055196",
+      "at": "2026-11-02T15:50:08.835Z",
+      "author": "thsottiaux",
+      "provenance": "primary",
+      "cachedAt": "2026-11-02T15:55:14.767Z",
+      "truncated": false,
+      "referenceMetadataVerified": true,
+      "url": "https://x.com/thsottiaux/status/2117283124833055196",
+      "text": "Fellow resetters, heads up that we're working on expanding the family of frontier models that power dots, including GPT-6 Astra and GPT-6.1 Terra and some others in the future. Terra brings speed and a nice personality upgrade, and will help us bring dots to more people."
+    },
+    {
+      "id": "2117283355427495983",
+      "at": "2026-11-02T15:51:03.813Z",
+      "author": "thsottiaux",
+      "provenance": "primary",
+      "cachedAt": "2026-11-02T15:55:14.767Z",
+      "truncated": false,
+      "parentId": "2117283124833055196",
+      "parentRelationProvenance": "official-page-data",
+      "referenceMetadataVerified": true,
+      "url": "https://x.com/thsottiaux/status/2117283355427495983",
+      "text": "Your dot will choose the best model for the task, drawing on different models for different parts of the work."
+    },
+    {
+      "id": "2117412956950638872",
+      "at": "2026-11-03T00:26:03.224Z",
+      "author": "thsottiaux",
+      "provenance": "primary",
+      "cachedAt": "2026-11-03T15:51:23.285Z",
+      "truncated": false,
+      "referenceMetadataVerified": true,
+      "url": "https://x.com/thsottiaux/status/2117412956950638872",
+      "text": "We know some Git-fu. Excited the team is finally able to talk about it a bit. Massive props to @tnm and team"
+    },
+    {
+      "id": "2117489367417803042",
+      "at": "2026-11-03T05:29:40.899Z",
+      "author": "thsottiaux",
+      "provenance": "primary",
+      "cachedAt": "2026-11-03T05:34:47.203Z",
+      "truncated": false,
+      "referenceMetadataVerified": true,
+      "url": "https://x.com/thsottiaux/status/2117489367417803042",
+      "text": "Le GPT Fat"
+    },
+    {
+      "id": "2117746467058405665",
+      "at": "2026-11-03T22:31:18.230Z",
+      "author": "thsottiaux",
+      "provenance": "primary",
+      "cachedAt": "2026-11-03T22:35:26.492Z",
+      "truncated": false,
+      "referenceMetadataVerified": true,
+      "url": "https://x.com/thsottiaux/status/2117746467058405665",
+      "text": "Things will change again and again and again. We’re still very early and agents today are incredible, and yet so frustrating still. Can’t wait to crack things to get that flow state back. Long journey ahead."
+    },
+    {
+      "id": "2117888243119304945",
+      "at": "2026-11-04T07:54:40.277Z",
+      "author": "thsottiaux",
+      "provenance": "primary",
+      "cachedAt": "2026-11-04T07:58:53.358Z",
+      "truncated": false,
+      "quotedPostId": "2117489367417803042",
+      "quotedRelationProvenance": "official-page-data",
+      "referenceMetadataVerified": true,
+      "url": "https://x.com/thsottiaux/status/2117888243119304945",
+      "text": "ChatBLT https://t.co/5eJYA0U4ZJ"
+    },
+    {
+      "id": "2118024169762029594",
+      "at": "2026-11-04T16:54:47.714Z",
+      "author": "thsottiaux",
+      "provenance": "primary",
+      "cachedAt": "2026-11-05T15:00:56.128Z",
+      "truncated": false,
+      "referenceMetadataVerified": true,
+      "url": "https://x.com/thsottiaux/status/2118024169762029594",
+      "text": "Computers have RAM, right? Welcome Pierre. Let’s reinvent everything"
+    },
+    {
+      "id": "2118138648214585591",
+      "at": "2026-11-05T00:29:41.504Z",
+      "author": "thsottiaux",
+      "provenance": "primary",
+      "cachedAt": "2026-11-05T15:00:56.128Z",
+      "truncated": false,
+      "referenceMetadataVerified": true,
+      "url": "https://x.com/thsottiaux/status/2118138648214585591",
+      "text": "Welcome Cat. Stoked to be building together soon."
+    },
+    {
+      "id": "2118146794362405231",
+      "at": "2026-11-05T01:02:03.697Z",
+      "author": "thsottiaux",
+      "provenance": "primary",
+      "cachedAt": "2026-11-05T15:00:56.128Z",
+      "truncated": false,
+      "referenceMetadataVerified": true,
+      "url": "https://x.com/thsottiaux/status/2118146794362405231",
+      "text": "We’ve assembled a world class cyber team and I’m excited for us to share more about our work over the weeks and months."
+    },
+    {
+      "id": "2118248900381536740",
+      "at": "2026-11-05T07:47:47.669Z",
+      "author": "thsottiaux",
+      "provenance": "primary",
+      "cachedAt": "2026-11-05T15:00:56.128Z",
+      "truncated": false,
+      "referenceMetadataVerified": true,
+      "url": "https://x.com/thsottiaux/status/2118248900381536740",
+      "text": "Privilege to work alongside so many amazing people who won’t rest until we materialize a better future."
+    },
+    {
+      "id": "2118250631165300747",
+      "at": "2026-11-05T07:54:40.320Z",
+      "author": "thsottiaux",
+      "provenance": "primary",
+      "cachedAt": "2026-11-05T15:00:56.128Z",
+      "truncated": false,
+      "referenceMetadataVerified": true,
+      "url": "https://x.com/thsottiaux/status/2118250631165300747",
+      "text": "Follow Samir for dot updates"
+    },
+    {
+      "id": "2118402103907655903",
+      "at": "2026-11-05T17:56:34.236Z",
+      "author": "thsottiaux",
+      "provenance": "primary",
+      "cachedAt": "2026-11-05T17:58:49.449Z",
+      "truncated": false,
+      "referenceMetadataVerified": true,
+      "url": "https://x.com/thsottiaux/status/2118402103907655903",
+      "text": "Our latest cyber-specialized model is out. It's in its own league on many cyber-specific use cases. Available through Daybreak Red access. https://t.co/0QsViK8mMI"
+    },
+    {
+      "id": "2118444105969926407",
+      "at": "2026-11-05T20:43:28.308Z",
+      "author": "thsottiaux",
+      "provenance": "primary",
+      "cachedAt": "2026-11-05T20:46:54.570Z",
+      "truncated": false,
+      "referenceMetadataVerified": true,
+      "url": "https://x.com/thsottiaux/status/2118444105969926407",
+      "text": "Come push the frontier of fluffiness https://t.co/Iq1colT66z"
+    },
+    {
+      "id": "2118469621011677521",
+      "at": "2026-11-05T22:24:51.568Z",
+      "author": "thsottiaux",
+      "provenance": "primary",
+      "cachedAt": "2026-11-07T17:33:17.259Z",
+      "truncated": false,
+      "referenceMetadataVerified": true,
+      "url": "https://x.com/thsottiaux/status/2118469621011677521",
+      "text": "Wild stat. We are now generate more than 4B images per week across ChatGPT and the API, up from the more than 3B per week only 8 weeks ago."
+    },
+    {
+      "id": "2118569235953893573",
+      "at": "2026-11-06T05:00:41.621Z",
+      "author": "thsottiaux",
+      "provenance": "primary",
+      "cachedAt": "2026-11-06T05:02:51.805Z",
+      "truncated": false,
+      "referenceMetadataVerified": true,
+      "url": "https://x.com/thsottiaux/status/2118569235953893573",
+      "text": "I can confidently say that humans were not very good at writing secure infrastructure. The endstate will be hypersecure infrastructure and software for all, but we're going to go through some turbulence before we reach that."
+    },
+    {
+      "id": "2118871902366441879",
+      "at": "2026-11-07T01:03:22.917Z",
+      "author": "thsottiaux",
+      "provenance": "primary",
+      "cachedAt": "2026-11-07T01:04:30.937Z",
+      "truncated": false,
+      "referenceMetadataVerified": true,
+      "url": "https://x.com/thsottiaux/status/2118871902366441879",
+      "text": "It's Friday"
+    },
+    {
+      "id": "2118938956301779171",
+      "at": "2026-11-07T05:29:49.821Z",
+      "author": "thsottiaux",
+      "provenance": "primary",
+      "cachedAt": "2026-11-07T17:33:17.259Z",
+      "truncated": false,
+      "url": "https://x.com/thsottiaux/status/2118938956301779171",
+      "text": "Get me out of the basement poteto.com"
+    },
+    {
+      "id": "2118953362725159104",
+      "at": "2026-11-07T06:27:04.580Z",
+      "author": "thsottiaux",
+      "provenance": "primary",
+      "cachedAt": "2026-11-07T17:33:17.259Z",
+      "truncated": false,
+      "referenceMetadataVerified": true,
+      "url": "https://x.com/thsottiaux/status/2118953362725159104",
+      "text": "Cyber"
+    },
+    {
+      "id": "2119296267545419987",
+      "at": "2026-11-08T05:09:39.460Z",
+      "author": "thsottiaux",
+      "provenance": "primary",
+      "cachedAt": "2026-11-08T05:11:21.250Z",
+      "truncated": false,
+      "referenceMetadataVerified": true,
+      "url": "https://x.com/thsottiaux/status/2119296267545419987",
+      "text": "Saw some confusions, but all Pro plans have no 5-hour limits, and give the following usage compared to Plus. ✅ Pro 100 = 10X ✅ Pro 200 = 20X ✅ Pro 500 = 50X, access to ultrafast"
+    },
+    {
+      "id": "2119305294291612140",
+      "at": "2026-11-08T05:45:31.604Z",
+      "author": "thsottiaux",
+      "provenance": "primary",
+      "cachedAt": "2026-11-08T12:58:33.390Z",
+      "truncated": false,
+      "quotedPostId": "2119296267545419987",
+      "quotedRelationProvenance": "official-page-data",
+      "referenceMetadataVerified": true,
+      "url": "https://x.com/thsottiaux/status/2119305294291612140",
+      "text": "Would a Pro 50 make sense? Wdyt?"
+    },
+    {
+      "id": "2120021043876106429",
+      "at": "2026-11-10T05:09:39.603Z",
+      "author": "thsottiaux",
+      "provenance": "primary",
+      "cachedAt": "2026-11-11T18:04:19.964Z",
+      "truncated": false,
+      "referenceMetadataVerified": true,
+      "url": "https://x.com/thsottiaux/status/2120021043876106429",
+      "text": "Dots can now control many machines in addition to its own little cloud computer that we provide by default."
+    },
+    {
+      "id": "2120266880963473789",
+      "at": "2026-11-10T21:26:31.732Z",
+      "author": "thsottiaux",
+      "provenance": "primary",
+      "cachedAt": "2026-11-11T18:04:19.964Z",
+      "truncated": false,
+      "url": "https://x.com/thsottiaux/status/2120266880963473789",
+      "text": "Labs innovating together ftw"
+    },
+    {
+      "id": "2120267268517249036",
+      "at": "2026-11-10T21:28:04.132Z",
+      "author": "thsottiaux",
+      "provenance": "primary",
+      "cachedAt": "2026-11-11T18:04:19.964Z",
+      "truncated": false,
+      "referenceMetadataVerified": true,
+      "url": "https://x.com/thsottiaux/status/2120267268517249036",
+      "text": "How many of you have a small business?"
+    },
+    {
+      "id": "2120410006273380750",
+      "at": "2026-11-11T06:55:15.465Z",
+      "author": "thsottiaux",
+      "provenance": "primary",
+      "cachedAt": "2026-11-11T06:58:46.209Z",
+      "truncated": false,
+      "referenceMetadataVerified": true,
+      "url": "https://x.com/thsottiaux/status/2120410006273380750",
+      "text": "It’s been a while without resets. Maybe I should come back out of the basement"
+    },
+    {
+      "id": "2120410480204525936",
+      "at": "2026-11-11T06:57:08.459Z",
+      "author": "thsottiaux",
+      "provenance": "primary",
+      "cachedAt": "2026-11-11T06:58:46.209Z",
+      "truncated": false,
+      "parentId": "2120410006273380750",
+      "parentRelationProvenance": "official-page-data",
+      "referenceMetadataVerified": true,
+      "url": "https://x.com/thsottiaux/status/2120410480204525936",
+      "text": "Thursday is feeling codexy to me. Perhaps also a good time for a banked reset."
+    },
+    {
+      "id": "2120999993079451919",
+      "at": "2026-11-12T21:59:39.281Z",
+      "author": "thsottiaux",
+      "provenance": "primary",
+      "cachedAt": "2026-11-14T22:03:25.652Z",
+      "truncated": false,
+      "referenceMetadataVerified": true,
+      "url": "https://x.com/thsottiaux/status/2120999993079451919",
+      "text": "We shipped some good updates to dots today and the banked reset has been activated and should land in everyones accounts sometime soon!"
+    },
+    {
+      "id": "2121036562058400200",
+      "at": "2026-11-13T00:24:58.005Z",
+      "author": "thsottiaux",
+      "provenance": "primary",
+      "cachedAt": "2026-11-15T00:26:18.059Z",
+      "truncated": false,
+      "url": "https://x.com/thsottiaux/status/2121036562058400200",
+      "text": "We announced new tools we're developing for cybersecurity today across automated patching and automated red teaming. Watch the recording here"
+    },
+    {
+      "id": "2121062974161092792",
+      "at": "2026-11-13T02:09:55.141Z",
+      "author": "thsottiaux",
+      "provenance": "primary",
+      "cachedAt": "2026-11-13T02:10:07.744Z",
+      "truncated": false,
+      "referenceMetadataVerified": true,
+      "url": "https://x.com/thsottiaux/status/2121062974161092792",
+      "text": "How can codex be improved? Try not to say model."
     }
   ],
   "timeline": [
@@ -3935,6 +4270,50 @@
       "state": "hint",
       "eventId": "2116692529970311254",
       "url": "https://x.com/thsottiaux/status/2116692529970311254"
+    },
+    {
+      "id": "2117035794678546764",
+      "at": "2026-11-01T23:27:20.731Z",
+      "global": false,
+      "banked": true,
+      "provenance": "primary",
+      "kind": "banked",
+      "state": "announced",
+      "eventId": "2117035794678546764",
+      "url": "https://x.com/thsottiaux/status/2117035794678546764"
+    },
+    {
+      "id": "2120410006273380750",
+      "at": "2026-11-11T06:55:15.465Z",
+      "global": false,
+      "banked": false,
+      "provenance": "primary",
+      "kind": "global",
+      "state": "hint",
+      "eventId": "2120410006273380750",
+      "url": "https://x.com/thsottiaux/status/2120410006273380750"
+    },
+    {
+      "id": "2120410480204525936",
+      "at": "2026-11-11T06:57:08.459Z",
+      "global": false,
+      "banked": true,
+      "provenance": "primary",
+      "kind": "banked",
+      "state": "hint",
+      "eventId": "2120410480204525936",
+      "url": "https://x.com/thsottiaux/status/2120410480204525936"
+    },
+    {
+      "id": "2120999993079451919",
+      "at": "2026-11-12T21:59:39.281Z",
+      "global": false,
+      "banked": true,
+      "provenance": "primary",
+      "kind": "banked",
+      "state": "announced",
+      "eventId": "2120999993079451919",
+      "url": "https://x.com/thsottiaux/status/2120999993079451919"
     }
   ]
 }
