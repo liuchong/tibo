@@ -2,7 +2,7 @@
 
 ## 从源码运行
 
-需要 Bun 1.4+。构建工具链使用已发布的 `eliscript@0.0.1` npm 包，版本与校验信息由 `package.json` 和 `bun.lock` 固定。无需克隆 Eliscript 仓库、安排相邻目录或安装 Emacs。
+需要 Bun 1.4+。构建工具链使用已发布的 `eliscript@0.1.3` npm 包，版本与校验信息由 `package.json` 和 `bun.lock` 固定。无需克隆 Eliscript 仓库、安排相邻目录或安装 Emacs。
 
 在 `tibo` 仓库中执行：
 
@@ -14,7 +14,7 @@ bun run start -- posts --limit 5
 bun run start -- forecast --no-ai
 ```
 
-`bun install` 从 registry 安装构建依赖；Eliscript 发布包自带编译器和运行支持。业务编译输出到 `dist/`。运行入口是 `bin/tibo.mjs`，Lark 入口是 `adapters/lark/start.mjs`。修改 `.eli` 文件后先重新构建，再运行入口。
+`bun install` 从 registry 安装构建依赖；Eliscript 发布包自带编译器和运行支持。业务编译输出到 `dist/`，所需语言运行支持由构建器一并打包在 `dist/node_modules/eliscript/`；复制部署时保留整个 `dist/`，运行无需自动下载 npm 包。运行入口是 `bin/tibo.mjs`，Lark 入口是 `adapters/lark/start.mjs`。修改 `.eli` 文件后先重新构建，再运行入口。
 
 构建器默认使用 `node_modules/eliscript` 中的发布工具链。只有联调编译器源码时才需要可选覆盖，例如先设置 `ELISCRIPT_HOME` 为编译器源码目录，再执行 `bun run build`；这不会改变应用的 npm 依赖或要求特定目录布局。
 

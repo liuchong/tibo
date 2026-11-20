@@ -5,11 +5,11 @@
     "": {
       "name": "tibo",
       "devDependencies": {
-        "eliscript": "0.1.0",
+        "eliscript": "0.1.3",
       },
     },
   },
   "packages": {
-    "eliscript": ["eliscript@0.1.0", "", { "bin": { "eliscript": "bootstrap/host/eliscript-cli.mjs", "eliscript-eval": "bootstrap/host/eliscript-cli.mjs", "eliscript-build": "bootstrap/host/eliscript-cli.mjs", "eliscript-check": "bootstrap/host/eliscript-cli.mjs", "eliscript-watch": "bootstrap/host/eliscript-cli.mjs", "eliscript-format": "bootstrap/host/eliscript-cli.mjs", "eliscript-compiler": "bootstrap/host/eliscript-cli.mjs" } }, "sha512-qxOrfE9yxhJlTG/tFYuPTKeTe7XsaBKhc2kd+mmvve2oGSPCGxksfn+EIVxMU4qlJ5pTX6aZPEPWWffXticrGQ=="],
+    "eliscript": ["eliscript@0.1.3", "", { "bin": { "eliscript": "bootstrap/host/eliscript-cli.mjs", "eliscript-eval": "bootstrap/host/eliscript-cli.mjs", "eliscript-build": "bootstrap/host/eliscript-cli.mjs", "eliscript-check": "bootstrap/host/eliscript-cli.mjs", "eliscript-watch": "bootstrap/host/eliscript-cli.mjs", "eliscript-format": "bootstrap/host/eliscript-cli.mjs", "eliscript-compiler": "bootstrap/host/eliscript-cli.mjs" } }, "sha512-MA0wNG6DDHdoJuaOSbY/p2QcH6kMf4z8q0AzxX6nmLmXg5SPYp2Mlq8wz7Htu+U48aXs0wpOWzgCbjSrydIt1A=="],
   }
 }
